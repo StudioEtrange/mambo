@@ -1,0 +1,32 @@
+api:
+  dashboard: true
+  debug: false
+  insecure: true
+
+
+#   --api:
+# Enable api/dashboard. (Default: false)
+
+# --api.dashboard:
+# Activate dashboard. (Default: true)
+
+# --api.debug:
+# Enable additional endpoints for debugging and profiling. (Default: false)
+
+log:
+  level: "DEBUG"
+
+
+entryPoints:
+  web:
+    address: ":80"
+  webssl:
+    address: ":443"
+
+
+providers:
+  docker:
+    endpoint: unix:///var/run/docker.sock
+    exposedByDefault: false
+  file:
+    filename: /etc/traefik/services.yml
