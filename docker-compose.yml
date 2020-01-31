@@ -21,11 +21,13 @@ version: '3.4'
 
 networks:
   default:
+
   private:
     driver: overlay
     ipam:
       config:
         - subnet: 172.16.11.0/24
+  
   public:
     external: true
 
@@ -78,7 +80,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${MAMBO_MEDIA_PATH}/CALIBREDB/CALIBREDB_BOOKS
+      device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_books
   calibreweb_comics_data:
     driver: local
     driver_opts:
@@ -90,7 +92,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${MAMBO_MEDIA_PATH}/CALIBREDB/CALIBREDB_COMICS
+      device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
 
     
 x-service-disable: &disable
@@ -145,7 +147,7 @@ services:
   # init service
   # check if mandatory path are specified and create subfolder if needed
   service_init:
-    image: alpine:latest
+    image: bash:4.4.23
     container_name: mambo_service_init
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     volumes:
@@ -157,21 +159,27 @@ services:
       - PGID=${MAMBO_GROUP_ID:-0}
     env_file: ./.env
     command: >
-       /bin/sh -c "echo DATA PATH : $${MAMBO_DOWNLOAD_PATH} \
-        && echo MEDIA PATH : $${MAMBO_MEDIA_PATH} \
-        && echo DOWNLOAD PATH : $${MAMBO_MEDIA_PATH} \
-        && echo Create if not exists media folders [$${MAMBO_MEDIA_FOLDERS}] \
-        && for f in $${MAMBO_MEDIA_FOLDERS}; do mkdir -p /media/$${f}; done \
-        && echo Create if not exists common scripts folder [$${MAMBO_DATA_PATH}/scripts] \
-        && mkdir -p /data/scripts \
-        && echo Create if not exists vault folder for downloads [$${MAMBO_DOWNLOAD_PATH}/vault] \
-        && mkdir -p /download/vault \
-        && echo Create if not exist media root folder for all calibre db [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}] \
-        && mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER} \
-        && echo Calibre web services active : \
-        && for calibre in $$(compgen -A variable | grep SERVICE_CALIBRE_WEB); do [ ! "$${calibre}" = "none" ] && service_calibre="$${service_calibre} $${calibre//SERVICE_CALIBRE_WEB_}"; done \
-        && echo
-       "
+        bash -c "echo DATA PATH : $${MAMBO_DATA_PATH} is mapped to /data
+        && echo MEDIA PATH : $${MAMBO_MEDIA_PATH} is mapped to /media
+        && echo DOWNLOAD PATH : $${MAMBO_DOWNLOAD_PATH} is mapped to /download
+        && echo Create if not exists media folders [$${MAMBO_MEDIA_FOLDERS}]
+        && for f in $${MAMBO_MEDIA_FOLDERS}; do mkdir -p /media/$${f}; done
+        && echo Create if not exists common scripts folder [$${MAMBO_DATA_PATH}/scripts]
+        && mkdir -p /data/scripts
+        && echo Create if not exists vault folder for downloads [$${MAMBO_DOWNLOAD_PATH}/vault]
+        && mkdir -p /download/vault
+        && echo Create if not exist media root folder for all calibre db [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}]
+        && mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}
+        && echo Calibre web services active :
+        && for calibre in $$(compgen -A variable | grep SERVICE_CALIBRE_WEB); do
+          if [ ! "$${!calibre}" = "none" ]; then
+          service_calibre=\"$${service_calibre} $${calibre//SERVICE_CALIBRE_WEB_}\"
+          echo $${service_calibre} is active.
+          echo Create [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!calibre}]
+          mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!calibre}
+          fi
+          done
+        "
 
 
 
@@ -392,7 +400,6 @@ services:
       - calibreweb_books_data:/config
       # different paths used by calibreweb
       - calibreweb_books_media:/books
-
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.calibreweb_books.entrypoints=web"
