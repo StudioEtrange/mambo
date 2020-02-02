@@ -3,18 +3,34 @@
 # https://medium.com/@containeroo/traefik-2-0-docker-an-advanced-guide-d098b9e9be96
 # https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
 
-# Launch/Stop
+# Launch all 
 #   docker-compose up mambo
-#   docker-compose down -v
+# Launch one specific service
 #   docker-compose up -d ombi
+# Clean mambo
+#   docker-compose down -v
+# Build a service
+#   docker-compose build ombi
+
+
+
+# NOTE
 # if you use bind mount as volumes define MAMBO_USER_ID and MAMBO_GROUP_ID which will defines the unix permissions off volumes files and folders
 #   MAMBO_USER_ID=$(id -u) MAMBO_GROUP_ID=$(id -g) docker-compose up
 # if you want to specify a specific domain name use MAMBO_DOMAIN
 #   MAMBO_DOMAIN='.*' docker-compose up
+# NOTE : traefik launch order do not matter. It can be launched before or after all other services
 
 
-# Build
-#   docker-compose build ombi
+
+
+
+# network
+#   there is two endpoints 'web' and 'web_internal'
+#   'web' entrypoint is the main port to access to mambo - It is an entrypoint of traefik that allow access to organizr. You should allow its attached port to anybody in your router configuration.
+#   'web_internal' entrypoint is an internal port for mambo - It is an entrypoint of traefik that allow access to each services (so its bypass organizr) AND to traefik dashboard. You should protect its attached port in your router configuration according to your needs.
+# NOTE : to manage iptables rule we can use this https://github.com/colinmollenhour/docker-confd-firewall
+
 
 # translate this nginx to traefik: https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
 version: '3.4'
@@ -22,12 +38,6 @@ version: '3.4'
 networks:
   default:
 
-  private:
-    driver: overlay
-    ipam:
-      config:
-        - subnet: 172.16.11.0/24
-  
   public:
     external: true
 
@@ -95,13 +105,12 @@ volumes:
       device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
 
     
-x-service-disable: &disable
+x-service-disable: &service-disable
+  image: alpine:3.9.5
   restart: "no"
   entrypoint: "true"
   command: "exit 0"
 
-x-service-enable: &enable
-  restart: alway
 
 # NOTE : yaml do not support array merge, so we cannot factorize volume declaration here
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
@@ -130,19 +139,17 @@ services:
 
   # main service
   mambo:
-    image: alpine:latest
+    image: alpine:3.9.5
     container_name: mambo
     depends_on:
       - traefik
       - ${SERVICE_OMBI}
       - ${SERVICE_SABNZBD}
+      - ${SERVICE_MEDUSA}
     command: >
        /bin/sh -c "echo Services bootstraped"
 
-  # fake empty service
-  none:
-    image: alpine:latest
-    container_name: none
+
   
   # init service
   # check if mandatory path are specified and create subfolder if needed
@@ -168,25 +175,31 @@ services:
         && mkdir -p /data/scripts
         && echo Create if not exists vault folder for downloads [$${MAMBO_DOWNLOAD_PATH}/vault]
         && mkdir -p /download/vault
-        && echo Create if not exist media root folder for all calibre db [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}]
-        && mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}
-        && echo Calibre web services active :
-        && for calibre in $$(compgen -A variable | grep SERVICE_CALIBRE_WEB); do
-          if [ ! "$${!calibre}" = "none" ]; then
-          service_calibre=\"$${service_calibre} $${calibre//SERVICE_CALIBRE_WEB_}\"
-          echo $${service_calibre} is active.
-          echo Create [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!calibre}]
-          mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!calibre}
-          fi
-          done
+        && for service in $$(compgen -A variable | grep SERVICE_); do
+          case $${!service} in
+            *_disable) echo $${service} is DISABLED;;
+            * ) 
+            echo $${service} is ENABLED
+            case $${service} in
+            SERVICE_CALIBRE* )
+            echo Create [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
+            mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
+            ;;
+            esac
+            ;;
+          esac
+          done \
+        && echo END
         "
 
 
 
-  # http://traefik.domain:9080
-  # http://traefik.domain:9080/api
-  # http://traefik.domain/dashboard
-  # NOTE : traefik launch order do not matter. It can be launched before or after all other services
+  # http://traefik.domain:${MAMBO_PORT_INTERNAL}
+  # http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
+  # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard
+
+  # http://neon.domain
+  # http://neon.domain:${MAMBO_PORT_INTERNAL}
   traefik:
     image: traefik:v2.1.2
     container_name: mambo_traefik
@@ -200,8 +213,8 @@ services:
     labels:
       - "traefik.enable=true"
 
-      # http://traefik.domain/dashboard/
-      - "traefik.http.routers.traefik-api.entrypoints=web"
+      # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
+      - "traefik.http.routers.traefik-api.entrypoints=web_internal"
       - "traefik.http.routers.traefik-api.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) )"
       # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
       - "traefik.http.routers.traefik-api.service=api@internal"
@@ -211,20 +224,23 @@ services:
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.replacement=$${1}/dashboard/"
       
       # http://neon.domain
-      - "traefik.http.routers.neon.entrypoints=web"
+      # http://neon.domain:${MAMBO_PORT_INTERNAL}
+      - "traefik.http.routers.neon.entrypoints=web,web_internal"
       - "traefik.http.routers.neon.rule=HostRegexp(`{subdomain:neon}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.neon.service=neon@file"
     networks:
       - default
     ports:
-      - 80:80
+      - ${MAMBO_PORT_MAIN}:80
       - 443:443
-      - 9080:8080
+      - ${MAMBO_PORT_INTERNAL}:8000
     expose:
+      # web entrypoint
       - 80
+      # do we need this entrypoint ?
       - 443
-      # traefik admin default entry point
-      - 8080
+      # web internal entrypoint
+      - 8000
 
 
 
@@ -252,8 +268,8 @@ services:
 
 
 
-  # http://ombi.domain
-  # do not work within a subpath
+  # http://ombi.domain:${MAMBO_PORT_INTERNAL}
+  # do not work within a subpath http://domain:${MAMBO_PORT_INTERNAL}/ombi
   ombi:
     image: studioetrange/docker-ombi:${OMBI_VERSION:-latest}
     container_name: mambo_ombi
@@ -270,7 +286,7 @@ services:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ombi.entrypoints=web"
+      - "traefik.http.routers.ombi.entrypoints=web_internal"
       - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:ombi}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.ombi.service=ombi"
       - "traefik.http.services.ombi.loadbalancer.server.port=5000"
@@ -282,73 +298,13 @@ services:
       - 5000
     build:
       context: https://github.com/StudioEtrange/docker-ombi.git#:ver/${OMBI_VERSION:-latest}
+  # fake empty service
+  ombi_disable:
+    << : *service-disable
 
-
-  # http://medusa.domain
-  medusa:
-    image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
-    container_name: mambo_medusa
-    depends_on: 
-      - service_init
-    restart: always
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-      # data/medusa will contain medusa configuration
-      - data:/data
-      # different paths used by medusa
-      - download:/download
-      - media:/media
-    environment:
-      - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.medusa.entrypoints=web"
-      - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.medusa.service=medusa"
-      - "traefik.http.services.medusa.loadbalancer.server.port=8081"
-      - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
-      - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
-    networks:
-      - default
-    expose:
-      - 8081
-    build:
-      context: https://github.com/StudioEtrange/docker-medusa.git#:ver/${MEDUSA_VERSION:-latest}
-
-
-  # http://tautulli.domain
-  tautulli:
-    image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
-    container_name: mambo_tautulli
-    depends_on: 
-      - service_init
-    restart: always
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
-      # data/tautulli will contain tautulli configuration
-      - data:/data
-    environment:
-      - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.tautulli.entrypoints=web"
-      - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:tautulli}.{domain:${MAMBO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.tautulli.service=tautulli"
-      - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
-      - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
-      - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
-    networks:
-      - default
-    expose:
-      - 8181
-    build:
-      context: https://github.com/StudioEtrange/docker-tautulli.git#:ver/${TAUTULLI_VERSION:-latest}
-
-
-  # http://sabnzbd.domain
-  # http://domain/sabnzbd
+  
+  # http://sabnzbd.domain:${MAMBO_PORT_INTERNAL}
+  # http://domain:${MAMBO_PORT_INTERNAL}/sabnzbd
   sabnzbd:
     image: studioetrange/docker-sabnzbd:${SABNZBD_VERSION:-latest}
     container_name: mambo_sabnzbd
@@ -370,7 +326,7 @@ services:
       - HOST_WHITELIST_ENTRIES=sabnzbd, sabnzbd.${MAMBO_DOMAIN}, ${MAMBO_DOMAIN}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.sabnzbd.entrypoints=web"
+      - "traefik.http.routers.sabnzbd.entrypoints=web_internal"
       - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
       - "traefik.http.routers.sabnzbd.service=sabnzbd"
       - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
@@ -386,6 +342,75 @@ services:
       - 8081
     build:
       context: https://github.com/StudioEtrange/docker-sabnzbd.git#:ver/${SABNZBD_VERSION:-latest}
+  # fake empty service
+  sabnzbd_disable:
+    << : *service-disable
+
+
+  # http://medusa.domain:${MAMBO_PORT_INTERNAL}
+  # http://domain:${MAMBO_PORT_INTERNAL}/medusa
+  medusa:
+    image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
+    container_name: mambo_medusa
+    depends_on: 
+      - service_init
+    restart: always
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      # data/medusa will contain medusa configuration
+      - data:/data
+      # different paths used by medusa
+      - download:/download
+      - media:/media
+    environment:
+      - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.medusa.entrypoints=web_internal"
+      - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.medusa.service=medusa"
+      - "traefik.http.services.medusa.loadbalancer.server.port=8081"
+      - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
+      - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 8081
+    build:
+      context: https://github.com/StudioEtrange/docker-medusa.git#:ver/${MEDUSA_VERSION:-latest}
+  # fake empty service
+  medusa_disable:
+    << : *service-disable
+
+  # http://tautulli.domain:${MAMBO_PORT_INTERNAL}
+  tautulli:
+    image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
+    container_name: mambo_tautulli
+    depends_on: 
+      - service_init
+    restart: always
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      # data/tautulli will contain tautulli configuration
+      - data:/data
+    environment:
+      - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tautulli.entrypoints=web_internal"
+      - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:tautulli}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli.service=tautulli"
+      - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
+      - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
+      - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 8181
+    build:
+      context: https://github.com/StudioEtrange/docker-tautulli.git#:ver/${TAUTULLI_VERSION:-latest}
 
 
 
@@ -402,7 +427,7 @@ services:
       - calibreweb_books_media:/books
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.calibreweb_books.entrypoints=web"
+      - "traefik.http.routers.calibreweb_books.entrypoints=web_internal"
       - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
       - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
       - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
@@ -423,7 +448,7 @@ services:
       - calibreweb_comics_media:/books
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.calibreweb_comics.entrypoints=web"
+      - "traefik.http.routers.calibreweb_comics.entrypoints=web_internal"
       - "traefik.http.routers.calibreweb_comics.rule=HostRegexp(`{subdomain:calibreweb_comics}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_comics`)"
       - "traefik.http.routers.calibreweb_comics.service=calibreweb_comics"
       - "traefik.http.services.calibreweb_comics.loadbalancer.server.port=8083"

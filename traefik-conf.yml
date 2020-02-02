@@ -1,10 +1,9 @@
 api:
   dashboard: true
   debug: false
-  insecure: true
+  insecure: false
 
-
-#   --api:
+# --api:
 # Enable api/dashboard. (Default: false)
 
 # --api.dashboard:
@@ -13,6 +12,10 @@ api:
 # --api.debug:
 # Enable additional endpoints for debugging and profiling. (Default: false)
 
+# --api.insecure:
+# Activate API directly on the entryPoint named traefik. (Default: false)
+
+
 log:
   level: "DEBUG"
 
@@ -20,8 +23,11 @@ log:
 entryPoints:
   web:
     address: ":80"
-  webssl:
+  # do we need this entrypoint ?
+  web_ssl:
     address: ":443"
+  web_internal:
+    address: ":8000"
 
 
 providers:
