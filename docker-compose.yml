@@ -1,7 +1,6 @@
-# https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
-# FULL GUIDE : 
-# https://medium.com/@containeroo/traefik-2-0-docker-an-advanced-guide-d098b9e9be96
-# https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
+
+# TODO CONTINUE HERE : logspout:fluentd dont want to build
+# docker-compose up logspout
 
 # Launch all 
 #   docker-compose up mambo
@@ -14,25 +13,34 @@
 
 
 
-# NOTE
+# NOTES
 # if you use bind mount as volumes define MAMBO_USER_ID and MAMBO_GROUP_ID which will defines the unix permissions off volumes files and folders
 #   MAMBO_USER_ID=$(id -u) MAMBO_GROUP_ID=$(id -g) docker-compose up
 # if you want to specify a specific domain name use MAMBO_DOMAIN
 #   MAMBO_DOMAIN='.*' docker-compose up
-# NOTE : traefik launch order do not matter. It can be launched before or after all other services
 
+# traefik launch order do not matter. It can be launched before or after all other services
 
-
-
-
-# network
+# mambo network
 #   there is two endpoints 'web' and 'web_internal'
 #   'web' entrypoint is the main port to access to mambo - It is an entrypoint of traefik that allow access to organizr. You should allow its attached port to anybody in your router configuration.
 #   'web_internal' entrypoint is an internal port for mambo - It is an entrypoint of traefik that allow access to each services (so its bypass organizr) AND to traefik dashboard. You should protect its attached port in your router configuration according to your needs.
 # NOTE : to manage iptables rule we can use this https://github.com/colinmollenhour/docker-confd-firewall
 
 
+# LINKS
+# MEDIA STACK on DOCKER with TRAEFIK
+# https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
+# TRAEFIK GUIDES
+# https://medium.com/@containeroo/traefik-2-0-docker-an-advanced-guide-d098b9e9be96
+# https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
+# ORGANIZR2 and NGINX
 # translate this nginx to traefik: https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
+
+
+
+
+
 version: '3.4'
 
 networks:
@@ -137,17 +145,21 @@ x-calibreweb: &default-calibreweb
 
 services:
 
-  # main service
+  # Launch all services
+  # RLog aggregator and print them to stdout with fluent-bit
   mambo:
-    image: alpine:3.9.5
+    image: fluent/fluent-bit:1.3.6
     container_name: mambo
     depends_on:
+      - logspout
       - traefik
       - ${SERVICE_OMBI}
       - ${SERVICE_SABNZBD}
       - ${SERVICE_MEDUSA}
+    expose:
+      - 24224
     command: >
-       /bin/sh -c "echo Services bootstraped"
+        /fluent-bit/bin/fluent-bit -i forward://0.0.0.0:24224 -o stdout
 
 
   
@@ -164,6 +176,8 @@ services:
     environment:
       - PUID=${MAMBO_USER_ID:-0}
       - PGID=${MAMBO_GROUP_ID:-0}
+    labels:
+      - "mambo.log=true"
     env_file: ./.env
     command: >
         bash -c "echo DATA PATH : $${MAMBO_DATA_PATH} is mapped to /data
@@ -194,6 +208,7 @@ services:
 
 
 
+  # Router
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard
@@ -230,10 +245,6 @@ services:
       - "traefik.http.routers.neon.service=neon@file"
     networks:
       - default
-    ports:
-      - ${MAMBO_PORT_MAIN}:80
-      - 443:443
-      - ${MAMBO_PORT_INTERNAL}:8000
     expose:
       # web entrypoint
       - 80
@@ -241,9 +252,41 @@ services:
       - 443
       # web internal entrypoint
       - 8000
+    ports:
+      - ${MAMBO_PORT_MAIN}:80
+      - 443:443
+      - ${MAMBO_PORT_INTERNAL}:8000
 
+  # Docker log collector
+  # logspout : https://github.com/gliderlabs/logspout
+  # logspout to fluentd/fluent-bit : https://github.com/StudioEtrange/logspout-fluentd
+  # logs are forwarded to mambo container which is based on fluent-bit
+  # logs can also be requested with 
+  #       mambo_logspout mambo_logspout:24223/logs # TODO : change this to route with traefik on web_internal
+  logspout:
+    image: studioetrange/logspout-fluentd:${LOGSPOUT_VERSION}
+    container_name: mambo_logspout
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock 
+    environment:
+      - TAG_PREFIX=docker
+      - TAG_SUFFIX_LABEL="mambo"
+      - LOGSPOUT="ignore"
+      - FLUENTD_ASYNC_CONNECT="true"
+      - PORT=24223
+    ports:
+      - 24223:24223
+    networks: 
+      - default
+    command: >
+      ./logspout fluentd://mambo:24224?filter.labels=mambo.log:true
+    build:
+      context: https://github.com/StudioEtrange/logspout-fluentd.git
+      args:
+        - LOGSPOUT_VERSION=${LOGSPOUT_VERSION:-master}
 
-
+  # Main mambo portal
   organizr2:
     image: organizrtools/organizr-v2:dev-latest
     container_name: mambo_organizr2
@@ -262,12 +305,12 @@ services:
       - default
     expose:
       - 80
-    ports :
+    ports:
       - 8070:80
 
 
 
-
+  # Manage movie/tv show request
   # http://ombi.domain:${MAMBO_PORT_INTERNAL}
   # do not work within a subpath http://domain:${MAMBO_PORT_INTERNAL}/ombi
   ombi:
@@ -302,7 +345,7 @@ services:
   ombi_disable:
     << : *service-disable
 
-  
+  # Newzgroup downloader
   # http://sabnzbd.domain:${MAMBO_PORT_INTERNAL}
   # http://domain:${MAMBO_PORT_INTERNAL}/sabnzbd
   sabnzbd:
@@ -346,7 +389,7 @@ services:
   sabnzbd_disable:
     << : *service-disable
 
-
+  # Tv show download manager
   # http://medusa.domain:${MAMBO_PORT_INTERNAL}
   # http://domain:${MAMBO_PORT_INTERNAL}/medusa
   medusa:
@@ -366,6 +409,7 @@ services:
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
+      - "mambo.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.medusa.entrypoints=web_internal"
       - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
@@ -383,6 +427,7 @@ services:
   medusa_disable:
     << : *service-disable
 
+  # Plex statistics and management tools
   # http://tautulli.domain:${MAMBO_PORT_INTERNAL}
   tautulli:
     image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
