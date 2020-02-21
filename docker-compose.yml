@@ -112,12 +112,23 @@ volumes:
       o: bind
       device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
 
-    
+
 x-service-disable: &service-disable
   image: alpine:3.9.5
   restart: "no"
   entrypoint: "true"
   command: "exit 0"
+
+# http://www.inanzzz.com/index.php/post/rel5/using-fluent-bit-to-forward-docker-php-fpm-and-nginx-logs-to-elasticsearch
+x-logger: &logger
+  logging:
+    driver: fluentd
+    options:
+      fluentd-address: mambo
+      mode: non-blocking
+      max-buffer-size: 2m
+      fluentd-async-connect: "true"
+      tag: test
 
 
 # NOTE : yaml do not support array merge, so we cannot factorize volume declaration here
@@ -148,14 +159,13 @@ services:
   # Launch all services
   # RLog aggregator and print them to stdout with fluent-bit
   mambo:
-    image: fluent/fluent-bit:1.3.6
+    image: fluent/fluent-bit:1.3.7
     container_name: mambo
     depends_on:
-      - logspout
       - traefik
       - ${SERVICE_OMBI}
-      - ${SERVICE_SABNZBD}
-      - ${SERVICE_MEDUSA}
+#      - ${SERVICE_SABNZBD}
+#      - ${SERVICE_MEDUSA}
     expose:
       - 24224
     command: >
