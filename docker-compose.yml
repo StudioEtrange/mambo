@@ -119,17 +119,6 @@ x-service-disable: &service-disable
   entrypoint: "true"
   command: "exit 0"
 
-# http://www.inanzzz.com/index.php/post/rel5/using-fluent-bit-to-forward-docker-php-fpm-and-nginx-logs-to-elasticsearch
-x-logger: &logger
-  logging:
-    driver: fluentd
-    options:
-      fluentd-address: mambo
-      mode: non-blocking
-      max-buffer-size: 2m
-      fluentd-async-connect: "true"
-      tag: test
-
 
 # NOTE : yaml do not support array merge, so we cannot factorize volume declaration here
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
@@ -157,22 +146,24 @@ x-calibreweb: &default-calibreweb
 services:
 
   # Launch all services
-  # RLog aggregator and print them to stdout with fluent-bit
   mambo:
-    image: fluent/fluent-bit:1.3.7
+    image: bash:4.4.23
     container_name: mambo
+    restart: always
     depends_on:
       - traefik
       - ${SERVICE_OMBI}
-#      - ${SERVICE_SABNZBD}
+      - ${SERVICE_SABNZBD}
 #      - ${SERVICE_MEDUSA}
+    volumes:
+      - ./conf:/conf
     expose:
       - 24224
     command: >
-        /fluent-bit/bin/fluent-bit -i forward://0.0.0.0:24224 -o stdout
+      bash -c "echo Hello."
 
 
-  
+
   # init service
   # check if mandatory path are specified and create subfolder if needed
   service_init:
@@ -180,25 +171,26 @@ services:
     container_name: mambo_service_init
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     volumes:
-      - data:/data
-      - media:/media
-      - download:/download
+      - data:/mambo_data
+      - media:/mambo_media
+      - download:/mambo_download
     environment:
       - PUID=${MAMBO_USER_ID:-0}
       - PGID=${MAMBO_GROUP_ID:-0}
-    labels:
-      - "mambo.log=true"
     env_file: ./.env
+    networks:
+      - default
     command: >
-        bash -c "echo DATA PATH : $${MAMBO_DATA_PATH} is mapped to /data
-        && echo MEDIA PATH : $${MAMBO_MEDIA_PATH} is mapped to /media
-        && echo DOWNLOAD PATH : $${MAMBO_DOWNLOAD_PATH} is mapped to /download
-        && echo Create if not exists media folders [$${MAMBO_MEDIA_FOLDERS}]
-        && for f in $${MAMBO_MEDIA_FOLDERS}; do mkdir -p /media/$${f}; done
-        && echo Create if not exists common scripts folder [$${MAMBO_DATA_PATH}/scripts]
-        && mkdir -p /data/scripts
-        && echo Create if not exists vault folder for downloads [$${MAMBO_DOWNLOAD_PATH}/vault]
-        && mkdir -p /download/vault
+        bash -c "echo Format : {inside path} [outside path]
+        && echo DATA PATH : {/mambo_data} is mapped to [${MAMBO_DATA_PATH}]
+        && echo MEDIA PATH : {/mambo_media} is mapped to [${MAMBO_MEDIA_PATH}]
+        && echo DOWNLOAD PATH : {/mambo_download} is mapped to [${MAMBO_DOWNLOAD_PATH}] 
+        && echo Create media subfolders : ${MAMBO_MEDIA_FOLDERS}
+        && for f in ${MAMBO_MEDIA_FOLDERS}; do mkdir -p /mambo_media/$${f}; done
+        && echo Create common scripts folder :  {/mambo_data/scripts} [${MAMBO_DATA_PATH}/scripts]
+        && mkdir -p /mambo_data/scripts
+        && echo Create vault folder for downloads {/mambo_download/scripts} [${MAMBO_DOWNLOAD_PATH}/vault]
+        && mkdir -p /mambo_download/vault
         && for service in $$(compgen -A variable | grep SERVICE_); do
           case $${!service} in
             *_disable) echo $${service} is DISABLED;;
@@ -206,22 +198,22 @@ services:
             echo $${service} is ENABLED
             case $${service} in
             SERVICE_CALIBRE* )
-            echo Create [$${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
-            mkdir -p /media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
+            echo Create {/mambo_media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}} [${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
+            mkdir -p /mambo_media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
             ;;
             esac
             ;;
           esac
           done \
-        && echo END
-        "
-
+        && echo END"
 
 
   # Router
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard
+  # http://domain:${MAMBO_PORT_INTERNAL}/api
+  # http://domain:${MAMBO_PORT_INTERNAL}/dashboard
 
   # http://neon.domain
   # http://neon.domain:${MAMBO_PORT_INTERNAL}
@@ -237,17 +229,15 @@ services:
       - ./traefik-services.yml:/etc/traefik/services.yml
     labels:
       - "traefik.enable=true"
-
-      # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
+      # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard http://traefik.domain:${MAMBO_PORT_INTERNAL}/api http://domain:${MAMBO_PORT_INTERNAL}/dashboard http://domain:${MAMBO_PORT_INTERNAL}/api
       - "traefik.http.routers.traefik-api.entrypoints=web_internal"
-      - "traefik.http.routers.traefik-api.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) )"
+      - "traefik.http.routers.traefik-api.rule=( HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) ) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) )"
       # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
       - "traefik.http.routers.traefik-api.service=api@internal"
       - "traefik.http.routers.traefik-api.middlewares=traefik-api-redirect"
       # redirect /dashboard to /dashboard/
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.regex=^(http://[^:/]+(:[0-9]+)?)/dashboard$$"
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.replacement=$${1}/dashboard/"
-      
       # http://neon.domain
       # http://neon.domain:${MAMBO_PORT_INTERNAL}
       - "traefik.http.routers.neon.entrypoints=web,web_internal"
@@ -267,34 +257,6 @@ services:
       - 443:443
       - ${MAMBO_PORT_INTERNAL}:8000
 
-  # Docker log collector
-  # logspout : https://github.com/gliderlabs/logspout
-  # logspout to fluentd/fluent-bit : https://github.com/StudioEtrange/logspout-fluentd
-  # logs are forwarded to mambo container which is based on fluent-bit
-  # logs can also be requested with 
-  #       mambo_logspout mambo_logspout:24223/logs # TODO : change this to route with traefik on web_internal
-  logspout:
-    image: studioetrange/logspout-fluentd:${LOGSPOUT_VERSION}
-    container_name: mambo_logspout
-    restart: always
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock 
-    environment:
-      - TAG_PREFIX=docker
-      - TAG_SUFFIX_LABEL="mambo"
-      - LOGSPOUT="ignore"
-      - FLUENTD_ASYNC_CONNECT="true"
-      - PORT=24223
-    ports:
-      - 24223:24223
-    networks: 
-      - default
-    command: >
-      ./logspout fluentd://mambo:24224?filter.labels=mambo.log:true
-    build:
-      context: https://github.com/StudioEtrange/logspout-fluentd.git
-      args:
-        - LOGSPOUT_VERSION=${LOGSPOUT_VERSION:-master}
 
   # Main mambo portal
   organizr2:
@@ -304,8 +266,6 @@ services:
       - service_init
     restart: always
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # will contain organizr2 configuration
       - organizr2_data:/config
     environment:
@@ -330,10 +290,8 @@ services:
       - service_init
     restart: always
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # data/ombi will contain ombi configuration
-      - data:/data
+      - data:/mambo_data
       - scripts:/scripts
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
@@ -349,6 +307,8 @@ services:
       - default
     expose:
       - 5000
+    ports:
+      - 9999:9999
     build:
       context: https://github.com/StudioEtrange/docker-ombi.git#:ver/${OMBI_VERSION:-latest}
   # fake empty service
@@ -365,15 +325,13 @@ services:
       - service_init
     restart: always
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # data/sabnzbd will contain sabnzbd configuration
-      - data:/data
+      - data:/mambo_data
       # different paths used by sabnzbd
-      - download:/download
+      - download:/mambo_download
       - vault:/vault
       - scripts:/scripts
-      - media:/media
+      - media:/mambo_media
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
       - HOST_WHITELIST_ENTRIES=sabnzbd, sabnzbd.${MAMBO_DOMAIN}, ${MAMBO_DOMAIN}
@@ -409,17 +367,14 @@ services:
       - service_init
     restart: always
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # data/medusa will contain medusa configuration
-      - data:/data
+      - data:/mambo_data
       # different paths used by medusa
-      - download:/download
-      - media:/media
+      - download:/mambo_download
+      - media:/mambo_media
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
-      - "mambo.log=true"
       - "traefik.enable=true"
       - "traefik.http.routers.medusa.entrypoints=web_internal"
       - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
@@ -446,10 +401,8 @@ services:
       - service_init
     restart: always
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # data/tautulli will contain tautulli configuration
-      - data:/data
+      - data:/mambo_data
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
@@ -474,8 +427,6 @@ services:
     << : *default-calibreweb
     container_name: mambo_calibreweb_books
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # will contain calibre-web configuration
       - calibreweb_books_data:/config
       # different paths used by calibreweb
@@ -495,8 +446,6 @@ services:
     << : *default-calibreweb
     container_name: mambo_calibreweb_comics
     volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
       # will contain calibre-web configuration
       - calibreweb_comics_data:/config
       # different paths used by calibreweb

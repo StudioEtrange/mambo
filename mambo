@@ -1,0 +1,132 @@
+#!/bin/bash
+_CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+_CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
+. "${_CURRENT_FILE_DIR}"/stella-link.sh include
+
+DOCKER_COMPOSE_FILE="${STELLA_APP_ROOT}"/docker-compose.yml
+DOCKER_COMPOSE_FILE_GENERATED="${STELLA_APP_ROOT}"/docker-compose-gen.yml
+
+# Make '.env' docker-compose-file compatible for bash
+sed -e 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/' .env > "${STELLA_APP_ROOT}"/.env-bash
+. "${STELLA_APP_ROOT}"/.env-bash
+
+
+
+
+usage() {
+	echo "USAGE :"
+	echo "----------------"
+	echo "o-- general management :"
+	echo "L     env install|uninstall : deploy/undeploy this app"
+}
+
+
+__add_volume_for_time() {
+	local __service_name="$1"
+	
+	# create these volume only if they exists
+	[ -f "/etc/timezone" ] && yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.volumes[+]" "/etc/timezone:/etc/timezone:ro"
+	[ -f "/etc/localtime" ] && yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.volumes[+]" "/etc/localtime:/etc/localtime:ro"
+
+}
+
+
+__set_docker_compose_file() {
+	rm -f "${DOCKER_COMPOSE_FILE_GENERATED}"
+
+	# copy original docker compose file
+	cp -f "${DOCKER_COMPOSE_FILE}" "${DOCKER_COMPOSE_FILE_GENERATED}"
+
+	__add_volume_for_time "organizr2"
+	__add_volume_for_time "ombi"
+	__add_volume_for_time "sabnzbd"
+	__add_volume_for_time "medusa"
+	__add_volume_for_time "tautulli"
+	__add_volume_for_time "calibreweb_books"
+	__add_volume_for_time "calibreweb_comics"
+}
+
+# Mambo path
+# Path must exists
+# Absolute path needed (cause of https://github.com/docker/compose/issues/6343)
+__set_default_path() {
+ 	[ "${MAMBO_DATA_PATH}" = "" ] && export MAMBO_DATA_PATH="${STELLA_APP_WORK_ROOT}/data"
+ 	[ "${MAMBO_DOWNLOAD_PATH}" = "" ] && export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
+ 	[ "${MAMBO_MEDIA_PATH}" = "" ] && export MAMBO_MEDIA_PATH="${STELLA_APP_WORK_ROOT}/media"
+
+	mkdir -p "${MAMBO_DATA_PATH}"
+	mkdir -p "${MAMBO_DOWNLOAD_PATH}"
+	mkdir -p "${MAMBO_MEDIA_PATH}"
+}
+
+
+
+
+__set_default_path
+__set_docker_compose_file
+MAMBO_SERVICES_LIST="$(echo $(docker-compose config --services | grep -v _disable))"
+
+# COMMAND LINE -----------------------------------------------------------------------------------
+PARAMETERS="
+DOMAIN=											'domain' 			a				'set up down status install uninstall logs' '1' 'Domain.'
+TARGET=												'action' 					a				'${MAMBO_SERVICES_LIST}'	'0' 'Target.'
+"
+OPTIONS="
+FORCE=''				   'f'		  ''					b			0		'1'					  Force.
+PUID='$(id -u)' 			'g' 			'string'				s 			0			''		  user id - will own bind mount created folder/files.
+PGID='$(id -g)' 			'u' 			'string'				s 			0			''		  group id - will own bind mount created folder/files.
+"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG ARG" "$@"
+
+#-------------------------------------------------------------------------------------------
+
+export MAMBO_USER_ID="${PUID}"
+export MAMBO_GROUP_ID="${PGID}"
+
+# domain name - '.*' stands for any domain name
+export MAMBO_DOMAIN='.*'
+
+# ------------- ENV ----------------------------
+
+
+case $DOMAIN in
+	install )
+		echo "** Install requirements"
+		$STELLA_API get_features
+	;;
+
+	uninstall )
+		$STELLA_API del_folder "$STELLA_APP_WORK_ROOT"
+	;;
+
+	set )
+		__set_docker_compose_file
+	;;
+	up )
+		#__set_docker_compose_file
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up ${TARGET:-mambo}
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+	;;
+
+	down )
+		#__set_docker_compose_file
+		case "${TARGET}" in
+		"") 
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" down -v 
+		;;
+		*) 
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop ${TARGET}
+		;;
+		esac
+	;;
+
+	status )
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" ps ${TARGET}
+	;;
+
+	logs )
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs -t  ${TARGET}
+	;;
+esac
+
+

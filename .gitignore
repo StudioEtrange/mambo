@@ -1,6 +1,5 @@
 .DS_Store
 cache/
 workspace/
-test-data/
-test-download/
-test-media/
+.env-bash
+docker-compose-gen.yml
