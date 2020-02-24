@@ -59,12 +59,12 @@ __set_default_path() {
 	mkdir -p "${MAMBO_MEDIA_PATH}"
 }
 
-
-
-
-__set_default_path
-__set_docker_compose_file
-MAMBO_SERVICES_LIST="$(echo $(docker-compose config --services | grep -v _disable))"
+# check if mambo have been installed
+type docker-compose 2>/dev/null && {
+	__set_default_path
+	__set_docker_compose_file
+ 	MAMBO_SERVICES_LIST="$(echo $(docker-compose config --services | grep -v _disable))"
+} || MAMBO_SERVICES_LIST=" "
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
@@ -79,12 +79,17 @@ PGID='$(id -g)' 			'u' 			'string'				s 			0			''		  group id - will own bind mo
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG ARG" "$@"
 
 #-------------------------------------------------------------------------------------------
+# get environment variables
+[ "${MAMBO_USER_ID}" = "" ] && export MAMBO_USER_ID="${PUID}" \
+								|| export MAMBO_USER_ID="${MAMBO_USER_ID}"
 
-export MAMBO_USER_ID="${PUID}"
-export MAMBO_GROUP_ID="${PGID}"
+[ "${MAMBO_GROUP_ID}" = "" ] && export MAMBO_GROUP_ID="${PGID}" \
+								|| export MAMBO_GROUP_ID="${MAMBO_GROUP_ID}"
 
 # domain name - '.*' stands for any domain name
-export MAMBO_DOMAIN='.*'
+[ "${MAMBO_DOMAIN}" = "" ] && export MAMBO_DOMAIN='.*' \
+								|| export MAMBO_DOMAIN="${MAMBO_DOMAIN}"
+
 
 # ------------- ENV ----------------------------
 

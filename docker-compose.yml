@@ -1,46 +1,3 @@
-
-# TODO CONTINUE HERE : logspout:fluentd dont want to build
-# docker-compose up logspout
-
-# Launch all 
-#   docker-compose up mambo
-# Launch one specific service
-#   docker-compose up -d ombi
-# Clean mambo
-#   docker-compose down -v
-# Build a service
-#   docker-compose build ombi
-
-
-
-# NOTES
-# if you use bind mount as volumes define MAMBO_USER_ID and MAMBO_GROUP_ID which will defines the unix permissions off volumes files and folders
-#   MAMBO_USER_ID=$(id -u) MAMBO_GROUP_ID=$(id -g) docker-compose up
-# if you want to specify a specific domain name use MAMBO_DOMAIN
-#   MAMBO_DOMAIN='.*' docker-compose up
-
-# traefik launch order do not matter. It can be launched before or after all other services
-
-# mambo network
-#   there is two endpoints 'web' and 'web_internal'
-#   'web' entrypoint is the main port to access to mambo - It is an entrypoint of traefik that allow access to organizr. You should allow its attached port to anybody in your router configuration.
-#   'web_internal' entrypoint is an internal port for mambo - It is an entrypoint of traefik that allow access to each services (so its bypass organizr) AND to traefik dashboard. You should protect its attached port in your router configuration according to your needs.
-# NOTE : to manage iptables rule we can use this https://github.com/colinmollenhour/docker-confd-firewall
-
-
-# LINKS
-# MEDIA STACK on DOCKER with TRAEFIK
-# https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
-# TRAEFIK GUIDES
-# https://medium.com/@containeroo/traefik-2-0-docker-an-advanced-guide-d098b9e9be96
-# https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
-# ORGANIZR2 and NGINX
-# translate this nginx to traefik: https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
-
-
-
-
-
 version: '3.4'
 
 networks:
@@ -154,13 +111,15 @@ services:
       - traefik
       - ${SERVICE_OMBI}
       - ${SERVICE_SABNZBD}
-#      - ${SERVICE_MEDUSA}
+      - ${SERVICE_MEDUSA}
+      - ${SERVICE_TAUTULLI}
+      - ${SERVICE_ORGANIZR2}
     volumes:
       - ./conf:/conf
     expose:
       - 24224
     command: >
-      bash -c "echo Hello."
+      bash -c "echo Hello Mambo."
 
 
 
@@ -171,9 +130,9 @@ services:
     container_name: mambo_service_init
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     volumes:
-      - data:/mambo_data
+      - data:/data
       - media:/mambo_media
-      - download:/mambo_download
+      - download:/download
     environment:
       - PUID=${MAMBO_USER_ID:-0}
       - PGID=${MAMBO_GROUP_ID:-0}
@@ -182,15 +141,15 @@ services:
       - default
     command: >
         bash -c "echo Format : {inside path} [outside path]
-        && echo DATA PATH : {/mambo_data} is mapped to [${MAMBO_DATA_PATH}]
+        && echo DATA PATH : {/data} is mapped to [${MAMBO_DATA_PATH}]
         && echo MEDIA PATH : {/mambo_media} is mapped to [${MAMBO_MEDIA_PATH}]
-        && echo DOWNLOAD PATH : {/mambo_download} is mapped to [${MAMBO_DOWNLOAD_PATH}] 
+        && echo DOWNLOAD PATH : {/download} is mapped to [${MAMBO_DOWNLOAD_PATH}] 
         && echo Create media subfolders : ${MAMBO_MEDIA_FOLDERS}
         && for f in ${MAMBO_MEDIA_FOLDERS}; do mkdir -p /mambo_media/$${f}; done
-        && echo Create common scripts folder :  {/mambo_data/scripts} [${MAMBO_DATA_PATH}/scripts]
-        && mkdir -p /mambo_data/scripts
-        && echo Create vault folder for downloads {/mambo_download/scripts} [${MAMBO_DOWNLOAD_PATH}/vault]
-        && mkdir -p /mambo_download/vault
+        && echo Create common scripts folder :  {/data/scripts} [${MAMBO_DATA_PATH}/scripts]
+        && mkdir -p /data/scripts
+        && echo Create vault folder for downloads {/download/scripts} [${MAMBO_DOWNLOAD_PATH}/vault]
+        && mkdir -p /download/vault
         && for service in $$(compgen -A variable | grep SERVICE_); do
           case $${!service} in
             *_disable) echo $${service} is DISABLED;;
@@ -209,6 +168,7 @@ services:
 
 
   # Router
+  # traefik launch order do not matter. It can be launched before or after all other services
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
   # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard
@@ -275,9 +235,8 @@ services:
       - default
     expose:
       - 80
-    ports:
-      - 8070:80
-
+  organizr2_disable:
+    << : *service-disable
 
 
   # Manage movie/tv show request
@@ -291,7 +250,7 @@ services:
     restart: always
     volumes:
       # data/ombi will contain ombi configuration
-      - data:/mambo_data
+      - data:/data
       - scripts:/scripts
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
@@ -307,8 +266,6 @@ services:
       - default
     expose:
       - 5000
-    ports:
-      - 9999:9999
     build:
       context: https://github.com/StudioEtrange/docker-ombi.git#:ver/${OMBI_VERSION:-latest}
   # fake empty service
@@ -318,6 +275,7 @@ services:
   # Newzgroup downloader
   # http://sabnzbd.domain:${MAMBO_PORT_INTERNAL}
   # http://domain:${MAMBO_PORT_INTERNAL}/sabnzbd
+  # http://domain:9000
   sabnzbd:
     image: studioetrange/docker-sabnzbd:${SABNZBD_VERSION:-latest}
     container_name: mambo_sabnzbd
@@ -326,9 +284,9 @@ services:
     restart: always
     volumes:
       # data/sabnzbd will contain sabnzbd configuration
-      - data:/mambo_data
+      - data:/data
       # different paths used by sabnzbd
-      - download:/mambo_download
+      - download:/download
       - vault:/vault
       - scripts:/scripts
       - media:/mambo_media
@@ -351,6 +309,8 @@ services:
       - 8080
       # HTTPS port
       - 8081
+    ports:
+      - 8010:8080
     build:
       context: https://github.com/StudioEtrange/docker-sabnzbd.git#:ver/${SABNZBD_VERSION:-latest}
   # fake empty service
@@ -359,7 +319,6 @@ services:
 
   # Tv show download manager
   # http://medusa.domain:${MAMBO_PORT_INTERNAL}
-  # http://domain:${MAMBO_PORT_INTERNAL}/medusa
   medusa:
     image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
     container_name: mambo_medusa
@@ -368,9 +327,9 @@ services:
     restart: always
     volumes:
       # data/medusa will contain medusa configuration
-      - data:/mambo_data
+      - data:/data
       # different paths used by medusa
-      - download:/mambo_download
+      - download:/download
       - media:/mambo_media
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
@@ -402,7 +361,7 @@ services:
     restart: always
     volumes:
       # data/tautulli will contain tautulli configuration
-      - data:/mambo_data
+      - data:/data
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
@@ -419,7 +378,8 @@ services:
       - 8181
     build:
       context: https://github.com/StudioEtrange/docker-tautulli.git#:ver/${TAUTULLI_VERSION:-latest}
-
+  tautulli_disable:
+    << : *service-disable
 
 
 
