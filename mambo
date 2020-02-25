@@ -152,8 +152,14 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)"
 
 [ "${DAEMON}" = "1" ] && DAEMON="-d"
 
-__set_mandatory_root_path_to_default
-__check_mandatory_root_path
+case $DOMAIN in
+	install|uninstall )
+		;;
+	* )
+		__set_mandatory_root_path_to_default
+		__check_mandatory_root_path
+		;;
+esac
 
 
 # ------------- ENV ----------------------------
