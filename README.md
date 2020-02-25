@@ -1,6 +1,9 @@
 # mambo
 
-## requirements
+* A docker based distribution of media tools.
+
+
+## Requirements
 
 * bash
 * git
@@ -31,20 +34,34 @@ cd mambo
 
 ## Configuration
 
+* You could set every mambo configuration value through a configuration file or environment variables. 
+* Some configuration values can also be setted with mambo command line. 
+* Environment variables override command line value wich override configuration files values which override default configuration files values
+* All default values are setted in `env.default` except default values for 
+    * `MAMBO_USER_ID` and `MAMBO_GROUP_ID` which are defined at mambo runtime with current unix user
+    * `MAMBO_DATA_PATH`, `MAMBO_DOWNLOAD_PATH` and `MAMBO_MEDIA_PATH` which are defined at mambo runtime
 
-### Environment variables
 
-```
-if you use bind mount as volumes define MAMBO_USER_ID and MAMBO_GROUP_ID which will defines the unix permissions off volumes files and folders
-  MAMBO_USER_ID=1000 MAMBO_GROUP_ID=1000 ./mambo
-if you want to specify a specific domain name use MAMBO_DOMAIN
-   MAMBO_DOMAIN='.*' ./mambo
-```
+### With a configuration file
+
+* You should create and edit an `env.site` file to set any available variables
+
+### Available Variables
+
+|NAME|DESC|DEFAULT VALUE|SAMPLE USAGE with environment variable
+|-|-|-|-|
+|MAMBO_USER_ID|unix user which will run services and acces to files|current user `id -u`|`MAMBO_USER_ID=1000 ./mambo`|
+|MAMBO_GROUP_ID|unix group which will run services and acces to files|current group `id -g`|`MAMBO_GROUP_ID=1000 ./mambo`|
+|MAMBO_DOMAIN|domain used to access mambo. `.*` stands for any domain or host ip|`.*`|`MAMBO_DOMAIN="mydomain.com" ./mambo`|
+|MAMBO_MEDIA_PATH|path on host that contains media files. Must exists. If relative path is relative to mambo path|`./mambo/workspace/media`|`MAMBO_MEDIA_PATH="/mnt/media" ./mambo`|
+|MAMBO_DATA_PATH|path on host that contains all services conf and data files. Must exists. If relative path is relative to mambo path|`./mambo/workspace/data`|`MAMBO_DOMAIN="/home/$USER/mambo-data" ./mambo`|
+|MAMBO_DOWNLOAD_PATH|path on host that contains temporary downloaded. Must exists. If relative path is relative to mambo pathh|`./mambo/workspace/download`|`MAMBO_DOWNLOAD_PATH="./temp/download" ./mambo`|
+
 
 
 ## Commands
 
-* launch bundled docker-compose
+* launch docker-compose bundled into mambo
 
 ```
 ./docker-compose <arg>
@@ -65,12 +82,12 @@ if you want to specify a specific domain name use MAMBO_DOMAIN
 * We have 3 ways to access a service
 * The first is the main door
 * The second is an access to services
-* The last is a direct access to services for debug purposes
+* The last is a direct access to services mainly for debug purposes
 
 ```
 1. (host:web) traefik ==> Organizr2 ==> (host:web_internal) traefik ==> (host:docker_port_expose) Services (Ombi, Sabnzbd, ...)
 2.                                  ==> (host:web_internal) traefik ==> (host:docker_port_expose) Services (Ombi, Sabnzbd, ...)
-3.                                                                  ==> (host:docker_port_mapped) Services (Ombi, Sabnzbd, ...)
+3.                                                                  ==> (host:DIRECT_ACCESS_PORT) Services (Ombi, Sabnzbd, ...)
 ```
 
 * Example with ombi
@@ -80,6 +97,12 @@ if you want to specify a specific domain name use MAMBO_DOMAIN
 2.  http://ombi.domain:MAMBO_PORT_INTERNAL ==> http://ombi:5000
 3.  http://domin:8000 ==> http://ombi:5000
 ```
+
+* Direct access port can be configured through variables `DIRECT_ACCESS_PORT_*`. The first port declared as exposed is mapped to its value.
+
+## Notes
+
+* I tried my best to stick to docker-compose file features and write less bash code. But in the end, docker-compose files are not great when dealing with conf and env var... and I fallback to bash.
 
 ## Links
 
