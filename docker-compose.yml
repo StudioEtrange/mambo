@@ -1,4 +1,4 @@
-version: '3.4'
+version: '2.4'
 
 networks:
   default:
@@ -44,6 +44,12 @@ volumes:
       type: none
       o: bind
       device: ${MAMBO_DATA_PATH}/organizr2
+  plex_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAMBO_DATA_PATH}/plex
   calibreweb_books_data:
     driver: local
     driver_opts:
@@ -114,6 +120,7 @@ services:
       - ${SERVICE_SABNZBD}
       - ${SERVICE_MEDUSA}
       - ${SERVICE_TAUTULLI}
+      - ${SERVICE_PLEX}
       - ${SERVICE_ORGANIZR2}
     networks:
       - default
@@ -135,6 +142,8 @@ services:
     environment:
       - PUID=${MAMBO_USER_ID:-0}
       - PGID=${MAMBO_GROUP_ID:-0}
+    env_file:
+      - .env
     networks:
       - default
     command: >
@@ -154,9 +163,18 @@ services:
             * ) 
             echo $${service} is ENABLED
             case $${service} in
+            SERVICE_ORGANIZR2 )
+            echo Create {/data/organizr2} [${MAMBO_DATA_PATH}/organizr2]
+            mkdir -p /data/organizr2
+            ;;
+            SERVICE_PLEX )
+            echo Create {/data/plex} [${MAMBO_DATA_PATH}/plex]
+            # plex image have a bug and create Library/Application Support as root instead of PLEX_UID
+            mkdir -p '/data/plex/Library/Application Support'
+            ;;
             SERVICE_CALIBRE* )
-            echo Create {/mambo_media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}} [${MAMBO_MEDIA_PATH}/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
-            mkdir -p /mambo_media/$${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
+            echo Create {/media/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}} [${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
+            mkdir -p /media/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
             ;;
             esac
             ;;
@@ -167,16 +185,18 @@ services:
 
   # Router
   # traefik launch order do not matter. It can be launched before or after all other services
-  # http://traefik.domain:${MAMBO_PORT_INTERNAL}
-  # http://traefik.domain:${MAMBO_PORT_INTERNAL}/api
-  # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard
-  # http://domain:${MAMBO_PORT_INTERNAL}/api
-  # http://domain:${MAMBO_PORT_INTERNAL}/dashboard
-
-  # http://neon.domain
-  # http://neon.domain:${MAMBO_PORT_INTERNAL}
+  # ENTRYPOINT web_main
+  #     http://domain:${MAMBO_PORT_MAIN}       
+  #     http://neon.domain                      
+  # ENTRYPOINT web_secondary
+  #     http://domain:${MAMBO_PORT_SECONDARY}
+  #     http://neon.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  # ENTRYPOINT web_traefik_admin
+  #     http://traefik.domain:${MAMBO_PORT_TRAEFIK_ADMIN}          => go to dashboard
+  #     http://traefik.domain:${MAMBO_PORT_TRAEFIK_ADMIN}/api
+  #     http://traefik.domain:${MAMBO_PORT_TRAEFIK_ADMIN}/dashboard
   traefik:
-    image: traefik:v2.1.2
+    image: traefik:v2.1.4
     container_name: mambo_traefik
     depends_on: 
       - service_init
@@ -187,38 +207,48 @@ services:
       - ./traefik-services.yml:/etc/traefik/services.yml
     labels:
       - "traefik.enable=true"
-      # http://traefik.domain:${MAMBO_PORT_INTERNAL}/dashboard http://traefik.domain:${MAMBO_PORT_INTERNAL}/api http://domain:${MAMBO_PORT_INTERNAL}/dashboard http://domain:${MAMBO_PORT_INTERNAL}/api
-      - "traefik.http.routers.traefik-api.entrypoints=web_internal"
-      - "traefik.http.routers.traefik-api.rule=( HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) ) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) )"
+      # http://domain:${MAMBO_PORT_TRAEFIK_ADMIN} http://domain:${MAMBO_PORT_TRAEFIK_ADMIN}/api http://domain:${MAMBO_PORT_TRAEFIK_ADMIN}/dashboard
+      - "traefik.http.routers.traefik-api2.entrypoints=web_traefik_admin"
       # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
-      - "traefik.http.routers.traefik-api.service=api@internal"
-      - "traefik.http.routers.traefik-api.middlewares=traefik-api-redirect"
+      - "traefik.http.routers.traefik-api2.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
+      - "traefik.http.routers.traefik-api2.service=api@internal"
+      - "traefik.http.routers.traefik-api2.middlewares=traefik-api-redirect,traefik-api-redirect2"
       # redirect /dashboard to /dashboard/
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.regex=^(http://[^:/]+(:[0-9]+)?)/dashboard$$"
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.replacement=$${1}/dashboard/"
+      # redirect / to /dashboard/
+      - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.regex=^(http://[^:/]+(:[0-9]+)?)(/)+$$"
+      - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.replacement=$${1}/dashboard/"
       # http://neon.domain
-      # http://neon.domain:${MAMBO_PORT_INTERNAL}
-      - "traefik.http.routers.neon.entrypoints=web,web_internal"
+      # http://neon.domain:${MAMBO_PORT_SECONDARY}
+      - "traefik.http.routers.neon.entrypoints=web_main,web_secondary"
       - "traefik.http.routers.neon.rule=HostRegexp(`{subdomain:neon}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.neon.service=neon@file"
     networks:
       - default
     expose:
-      # web entrypoint
-      - 80
-      # do we need this entrypoint ?
-      - 443
-      # web internal entrypoint
+      # web_traefik_admin entrypoint
+      - 9000
+      # web_secondary entrypoint
       - 8000
+      # web_main entrypoint
+      - 80
+      # web_ssl entrypoint
+      #- 443
     ports:
       - ${MAMBO_PORT_MAIN}:80
       - 443:443
-      - ${MAMBO_PORT_INTERNAL}:8000
+      - ${MAMBO_PORT_SECONDARY}:8000
+      - ${MAMBO_PORT_TRAEFIK_ADMIN}:9000
 
 
   # Main mambo portal
+  # ENTRYPOINT web_secondary
+  #   http://medusa.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  # DIRECT ACCESS
+  #   http://host:{DIRECT_ACCESS_PORT}
   organizr2:
-    image: organizrtools/organizr-v2:dev-latest
+    image: organizrtools/organizr-v2:${ORGANIZR2_VERSION:-latest}
     container_name: mambo_organizr2
     depends_on: 
       - service_init
@@ -238,9 +268,11 @@ services:
 
 
   # Manage movie/tv show request
-  # http://ombi.domain:${MAMBO_PORT_INTERNAL}
-  # do not work within a subpath http://domain:${MAMBO_PORT_INTERNAL}/ombi
-  # TODO continue here do not work : ? http://domain:{DIRECT_ACCESS_PORT}
+  # ENTRYPOINT web_secondary
+  #   http://ombi.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  #   http://domain:${MAMBO_PORT_SECONDARY}/ombi [SUBPATH] [KO] Try --baseurl option at ombi launch to support subpath 
+  # DIRECT ACCESS
+  #   http://host:{DIRECT_ACCESS_PORT}
   ombi:
     image: studioetrange/docker-ombi:${OMBI_VERSION:-latest}
     container_name: mambo_ombi
@@ -254,7 +286,7 @@ services:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ombi.entrypoints=web_internal"
+      - "traefik.http.routers.ombi.entrypoints=web_secondary"
       - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:ombi}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.ombi.service=ombi"
       - "traefik.http.services.ombi.loadbalancer.server.port=5000"
@@ -271,9 +303,11 @@ services:
     << : *service-disable
 
   # Newzgroup downloader
-  # http://sabnzbd.domain:${MAMBO_PORT_INTERNAL}
-  # http://domain:${MAMBO_PORT_INTERNAL}/sabnzbd
-  # http://domain:9000
+  # ENTRYPOINT web_secondary
+  #   http://sabnzbd.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  #   http://domain:${MAMBO_PORT_SECONDARY}/sabnzbd [SUBPATH]
+  # DIRECT ACCESS
+  #   http://host:{DIRECT_ACCESS_PORT}
   sabnzbd:
     image: studioetrange/docker-sabnzbd:${SABNZBD_VERSION:-latest}
     container_name: mambo_sabnzbd
@@ -287,13 +321,13 @@ services:
       - download:/download
       - vault:/vault
       - scripts:/scripts
-      - media:/mambo_media
+      - media:/media
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
-      - HOST_WHITELIST_ENTRIES=sabnzbd, sabnzbd.${MAMBO_DOMAIN}, ${MAMBO_DOMAIN}
+      - 'HOST_WHITELIST_ENTRIES=sabnzbd,sabnzbd.${MAMBO_DOMAIN},${ADDITIONAL_DOMAIN_SABNZBD}'
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.sabnzbd.entrypoints=web_internal"
+      - "traefik.http.routers.sabnzbd.entrypoints=web_secondary"
       - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
       - "traefik.http.routers.sabnzbd.service=sabnzbd"
       - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
@@ -307,16 +341,65 @@ services:
       - 8080
       # HTTPS port
       - 8081
-    ports:
-      - 8010:8080
     build:
       context: https://github.com/StudioEtrange/docker-sabnzbd.git#:ver/${SABNZBD_VERSION:-latest}
   # fake empty service
   sabnzbd_disable:
     << : *service-disable
 
+  # Media server
+  # https://github.com/plexinc/pms-docker
+  # https://hub.docker.com/r/plexinc/pms-docker
+  # ENTRYPOINT web_main
+  #   http://plex.domain:${MAMBO_PORT_MAIN} [SUBDOMAIN]
+  # ENTRYPOINT web_secondary
+  #   http://plex.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  # DIRECT ACCESS
+  #   http://host:{DIRECT_ACCESS_PORT}
+  plex:
+    image: plexinc/pms-docker:${PLEX_VERSION:-latest}
+    container_name: mambo_plex
+    depends_on:
+      - service_init
+    restart: always
+    volumes:
+      # will contain plex configuration
+      - plex_data:/config
+    environment:
+      - PLEX_UID=${MAMBO_USER_ID:-0}
+      - PLEX_GID=${MAMBO_GROUP_ID:-0}
+      - CHANGE_CONFIG_DIR_OWNERSHIP=true
+      - 'ADVERTISE_IP=http://plex:${DIRECT_ACCESS_PORT_PLEX}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,${ADDITIONAL_DOMAIN_PLEX}'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.plex.entrypoints=web_main,web_secondary"
+      - "traefik.http.routers.plex.rule=HostRegexp(`{subdomain:plex}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.plex.service=plex"
+      - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      - "traefik.http.services.plex.loadbalancer.server.scheme=http"
+      - "traefik.http.services.plex.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 32400/tcp
+      - 3005/tcp
+      - 8324/tcp
+      - 32469/tcp
+      - 1900/udp
+      - 32410/udp
+      - 32412/udp
+      - 32413/udp
+      - 32414/udp
+  # fake empty service
+  plex_disable:
+    << : *service-disable
+
+
   # Tv show download manager
-  # http://medusa.domain:${MAMBO_PORT_INTERNAL}
+  # ENTRYPOINT web_secondary
+  #   http://medusa.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  # DIRECT ACCESS
+  #   http://host:{DIRECT_ACCESS_PORT}
   medusa:
     image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
     container_name: mambo_medusa
@@ -328,12 +411,12 @@ services:
       - data:/data
       # different paths used by medusa
       - download:/download
-      - media:/mambo_media
+      - media:/media
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.medusa.entrypoints=web_internal"
+      - "traefik.http.routers.medusa.entrypoints=web_secondary"
       - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.medusa.service=medusa"
       - "traefik.http.services.medusa.loadbalancer.server.port=8081"
@@ -350,7 +433,10 @@ services:
     << : *service-disable
 
   # Plex statistics and management tools
-  # http://tautulli.domain:${MAMBO_PORT_INTERNAL}
+  # ENTRYPOINT web_secondary
+  #   http://tautulli.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  # DIRECT ACCESS
+  #   http://host:{DIRECT_ACCESS_PORT}
   tautulli:
     image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
     container_name: mambo_tautulli
@@ -364,7 +450,7 @@ services:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.tautulli.entrypoints=web_internal"
+      - "traefik.http.routers.tautulli.entrypoints=web_secondary"
       - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:tautulli}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.tautulli.service=tautulli"
       - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
@@ -391,7 +477,7 @@ services:
       - calibreweb_books_media:/books
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.calibreweb_books.entrypoints=web_internal"
+      - "traefik.http.routers.calibreweb_books.entrypoints=web_secondary"
       - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
       - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
       - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
@@ -410,7 +496,7 @@ services:
       - calibreweb_comics_media:/books
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.calibreweb_comics.entrypoints=web_internal"
+      - "traefik.http.routers.calibreweb_comics.entrypoints=web_secondary"
       - "traefik.http.routers.calibreweb_comics.rule=HostRegexp(`{subdomain:calibreweb_comics}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_comics`)"
       - "traefik.http.routers.calibreweb_comics.service=calibreweb_comics"
       - "traefik.http.services.calibreweb_comics.loadbalancer.server.port=8083"

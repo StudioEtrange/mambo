@@ -21,13 +21,15 @@ log:
 
 
 entryPoints:
-  web:
+  web_main:
     address: ":80"
   # do we need this entrypoint ?
   web_ssl:
     address: ":443"
-  web_internal:
+  web_secondary:
     address: ":8000"
+  web_traefik_admin:
+    address: ":9000"
 
 
 providers:

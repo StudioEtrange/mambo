@@ -12,32 +12,62 @@ ENV_FILE_FOR_BASH_GENERATED="${STELLA_APP_ROOT}/env.bash"
 ENV_FILE_USER="${STELLA_APP_ROOT}/env.site"
 
 
-__generate_files() {
+# MANAGE ENV AND FILES GENERATION -----------------
+__manage_env_and_files() {
 	__create_env_for_docker_compose
-	__create_env_for_bash
+	__set_env_for_bash
 	__set_docker_compose_file
-	
 }
 
-
+# generate an env file to be uses as env-file in environment section of docker compose file (ENV_FILE_GENERATED)
 __create_env_for_docker_compose() {
 	[ -f "${ENV_FILE_USER}" ] && cat "${ENV_FILE_DEFAULT}" "${ENV_FILE_USER}" > "${ENV_FILE_GENERATED}" \
 					|| cat "${ENV_FILE_DEFAULT}" > "${ENV_FILE_GENERATED}"
 
 }
 
-__create_env_for_bash() {
+# generate an env file to be sourced (ENV_FILE_FOR_BASH_GENERATED)
+__set_env_for_bash() {
 	# Make '.env' docker-compose-file compatible for bash
 	sed -e 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/' "${ENV_FILE_GENERATED}" > "${ENV_FILE_FOR_BASH_GENERATED}"
+	
 	. "${ENV_FILE_FOR_BASH_GENERATED}"
+
+	[ ! "${MAMBO_DATA_PATH}" = "" ] && export MAMBO_DATA_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_DATA_PATH}" "${STELLA_APP_ROOT}")"
+	[ ! "${MAMBO_DOWNLOAD_PATH}" = "" ] && export MAMBO_DOWNLOAD_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_DOWNLOAD_PATH}" "${STELLA_APP_ROOT}")"
+	[ ! "${MAMBO_MEDIA_PATH}" = "" ] && export MAMBO_MEDIA_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_MEDIA_PATH}" "${STELLA_APP_ROOT}")"
+
 }
 
+# generate docker compose file
 __set_docker_compose_file() {
 	rm -f "${DOCKER_COMPOSE_FILE_GENERATED}"
 
 	# copy original docker compose file
 	cp -f "${DOCKER_COMPOSE_FILE_DEFAULT}" "${DOCKER_COMPOSE_FILE_GENERATED}"
 
+	__set_time
+	__add_service_direct_port_access
+	__set_gpu
+}
+
+
+
+
+# ADD FEATURES TO CONTAINER -----------------
+
+# add gpu to all container that need its
+__set_gpu() {
+	__add_gpu "plex"
+}
+
+# set timezone to containers which need it
+__set_time() {
+	if [ -f "/etc/timezone" ]; then
+		TZ="$(cat /etc/timezone)"
+		yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.plex.environment[+]" "TZ=${TZ}"
+	fi
+	
 	__add_volume_for_time "organizr2"
 	__add_volume_for_time "ombi"
 	__add_volume_for_time "sabnzbd"
@@ -45,11 +75,19 @@ __set_docker_compose_file() {
 	__add_volume_for_time "tautulli"
 	__add_volume_for_time "calibreweb_books"
 	__add_volume_for_time "calibreweb_comics"
-
-
-	__add_service_direct_port_access
 }
 
+__add_gpu() {
+	if [ "${GPU_INTEL}" = "1" ]; then
+		[ -d "/dev/dri" ] && yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.devices[+]" "/dev/dri:/dev/dri"
+	fi
+
+	if [ "${GPU_NVIDIA}" = "1" ]; then
+		yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.environment[+]" "NVIDIA_VISIBLE_DEVICES=all"
+		yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.environment[+]" "NVIDIA_DRIVER_CAPABILITIES=compute,video,utility"
+		yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.runtime" "nvidia"
+	fi
+}
 
 __add_volume_for_time() {
 	local __service_name="$1"
@@ -60,7 +98,6 @@ __add_volume_for_time() {
 }
 
 __add_service_direct_port_access() {
-
 	for service in $(compgen -A variable | grep DIRECT_ACCESS_PORT_); do
 		port="${!service}"
 		if [ ! "${port}" = "" ]; then
@@ -71,11 +108,41 @@ __add_service_direct_port_access() {
 				echo "* Activate direct access to $service : mapping $port to $port_inside"
 				yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$service.ports[+]" "$port:$port_inside"
 			else
-				echo "* WARN : cannot activate direct access to $service throug $port. Unknow inside port to map to. Inside port must be declared as first port in expose section."
+				echo "* WARN : cannot activate direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
 			fi
 		fi
 	done
 }
+
+# VARIOUS -----------------
+
+# optimize plex db
+# could ameliorate some result
+# https://github.com/Cloudbox/Cloudbox/blob/master/roles/plex/tasks/subtasks/settings/db_cache_size.yml
+# https://forums.plex.tv/t/plex-library-performance-tip/176195/10
+__set_plex_db_cache_size() {
+	if [ ! "$1" = "" ]; then
+		PLEX_DATABASE_SUBPATH="Library/Application Support/Plex Media Server/Plug-in Support/Databases# sqlite3 com.plexapp.plugins.library.db"
+		# set default_cache_size
+		if [ -f "${MAMBO_DATA_PATH}/plex/${PLEX_DATABASE_SUBPATH}" ]; then
+
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop plex
+
+			echo "** Actual plex db default_cache_size :"
+			docker run --rm -v "${MAMBO_DATA_PATH}/plex:/data" nouchka/sqlite3 "/data/${PLEX_DATABASE_SUBPATH}" "PRAGMA default_cache_size;"
+			echo "** Set plex db default_cache_size to $1"
+			docker run --rm -v "${MAMBO_DATA_PATH}/plex:/data" nouchka/sqlite3 "/data/${PLEX_DATABASE_SUBPATH}" "PRAGMA default_cache_size=$1;"
+			echo "** Actual plex db default_cache_size :"
+			docker run --rm -v "${MAMBO_DATA_PATH}/plex:/data" nouchka/sqlite3 "/data/${PLEX_DATABASE_SUBPATH}" "PRAGMA default_cache_size;"
+		else
+			echo "[${MAMBO_DATA_PATH}/plex/${PLEX_DATABASE_SUBPATH}] do not exist"
+			echo "Plex database do not exist yet, launch at least once plex."
+		fi
+	fi
+}
+
+
+
 
 
 # Mambo mandatory root path
@@ -85,11 +152,9 @@ __add_service_direct_port_access() {
 __set_mandatory_root_path_to_default() {
 	if [ "${MAMBO_DATA_PATH}" = "" ]; then
 	 	export MAMBO_DATA_PATH="${STELLA_APP_WORK_ROOT}/data"
+		 # TODO 1 chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DATA_PATH}" ? if exists ? or do it in service_init ?
+		 # TODO 2 create dir in all cases ? not only in case we are using default values
 		docker run -it --rm -v "${STELLA_APP_WORK_ROOT}":"${STELLA_APP_WORK_ROOT}" bash:4.4.23 bash -c "mkdir -p "${MAMBO_DATA_PATH}" && chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DATA_PATH}""
-	else
-		# TODO 1 chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DATA_PATH}" ? if exists ? or do it in service_init ?
-		export MAMBO_DATA_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_DATA_PATH}" "${STELLA_APP_ROOT}")"
-		# TODO 2 create dir in all cases ? not only in case we are using default values
 	fi
 	if [ "${MAMBO_DOWNLOAD_PATH}" = "" ]; then
 	 	export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
@@ -101,16 +166,16 @@ __set_mandatory_root_path_to_default() {
 	fi
 }
 
+# test if mandatory root path exists
 __check_mandatory_root_path() {
-	# test if mandatory root path exists
 	[ ! -d "${MAMBO_DATA_PATH}" ] && echo "* ERROR : Mandatory data root path [${MAMBO_DATA_PATH}] do not exist" && exit 1
 	[ ! -d "${MAMBO_DOWNLOAD_PATH}" ] && echo "* ERROR : Mandatory download root path [${MAMBO_DOWNLOAD_PATH}] do not exist" && exit 1
 	[ ! -d "${MAMBO_MEDIA_PATH}" ] && echo "* ERROR : Mandatory media root path [${MAMBO_MEDIA_PATH}] do not exist" && exit 1
 }
 
-# check if mambo have been installed and generate all files
+# check if mambo have been installed and generate all files to grab MAMBO_SERVICES_LIST
 type docker-compose 1>/dev/null 2>&1 && {
-	__generate_files
+	__manage_env_and_files
  	MAMBO_SERVICES_LIST="$(echo $(docker-compose config --services | grep -v _disable))"
 } || MAMBO_SERVICES_LIST=" "
 
@@ -120,24 +185,25 @@ usage() {
 	echo "----------------"
 	echo "o-- general management :"
 	echo "L     install|uninstall : deploy/undeploy this app"
-	echo "L     up/down : "
-	echo "L     status : "
-	echo "L     logs : "
-	echo "L     set : "
+	echo "L     up [service] [-d]: launch all mambo services or one service"
+	echo "L     status [service] : see status"
+	echo "L     logs [service] : see logs"
+	echo "L     set : generate env files"
+	echo "L		plex db_default_cache_size <value> : set plex db default_cache_size"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-DOMAIN=											'domain' 			a				'set up down status install uninstall logs' '1' 'Domain.'
-TARGET=												'action' 					a				'${MAMBO_SERVICES_LIST}'	'0' 'Target.'
+DOMAIN=											'domain' 			a				'set up down status install logs plex' '1' 'Domain.'
+TARGET=												'action' 					a				'${MAMBO_SERVICES_LIST} db_default_cache_size'	'0' 'Target.'
 "
 OPTIONS="
 FORCE=''				   'f'		  ''					b			0		'1'					  Force.
-DAEMON=''				   'd'		  ''					b			0		'1'					  Daemon mode.
+DAEMON=''				   'd'		  ''					b			0		'1'					  Daemon mode. When launching whole mambo, it is in daemon mode by default, but when launching a specific service, launch it in daemon mode.
 PUID='$(id -u)' 			'g' 			'string'				s 			0			''		  user id - set MAMBO_USER_ID variable - will own bind mount created folder/files.
 PGID='$(id -g)' 			'u' 			'string'				s 			0			''		  group id - set MAMBO_GROUP_ID variable - will own bind mount created folder/files.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG ARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_PARAMETER ARG" "$@"
 
 #-------------------------------------------------------------------------------------------
 
@@ -153,7 +219,7 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)"
 [ "${DAEMON}" = "1" ] && DAEMON="-d"
 
 case $DOMAIN in
-	install|uninstall )
+	install )
 		;;
 	* )
 		__set_mandatory_root_path_to_default
@@ -171,8 +237,8 @@ case $DOMAIN in
 		$STELLA_API get_features
 	;;
 
-	uninstall )
-		$STELLA_API del_folder "$STELLA_APP_WORK_ROOT"
+	plex )
+		__set_plex_db_cache_size ${ARG}
 	;;
 
 	set )
