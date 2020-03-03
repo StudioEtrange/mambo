@@ -142,6 +142,20 @@ __set_plex_db_cache_size() {
 }
 
 
+# set an attribute value of a node selected by an xpath expression
+# 	__xml_replace_attribute_value "Preferences.xml" "/Preferences" "Preferences" "TranscoderTempDirectory" "/transode"
+# 	xidel Preferences.xml --silent --xml --xquery3 'let $selected := /Preferences return transform(/,function($e) { if ($selected[$e is .]) then <Preferences>{$e/attribute() except $e/@TranscoderTempDirectory, attribute TranscoderTempDirectory { "/transcode" },$e/node()}</Preferences> else $e })'
+#		http://x-query.com/pipermail/talk/2013-December/004266.html
+__xml_set_attribute_value() {
+	local __file="$1"
+	local __xpath_selector="$2"
+	local __node_name="$3"
+	local __attribute_name="$4"
+	local __attribute_value="$5"
+
+	xidel "${__file}" --silent --xml --xquery3 'let $selected := '${__xpath_selector}' return transform(/,function($e) { if ($selected[$e is .]) then <'${__node_name}'>{$e/attribute() except $e/@'${__attribute_name}', attribute '${__attribute_name}' { "'${__attribute_value}'" },$e/node()}</'${__node_name}'> else $e })'
+}
+
 
 
 
