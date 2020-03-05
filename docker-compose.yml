@@ -3,23 +3,14 @@ version: '2.4'
 networks:
   default:
 
-  public:
-    external: true
-
-
 volumes:
+  media:
   data:
     driver: local
     driver_opts:
       type: none
       o: bind
       device: ${MAMBO_DATA_PATH}
-  media:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${MAMBO_MEDIA_PATH}
   download:
     driver: local
     driver_opts:
@@ -50,30 +41,30 @@ volumes:
       type: none
       o: bind
       device: ${MAMBO_DATA_PATH}/plex
-  calibreweb_books_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${MAMBO_DATA_PATH}/calibreweb_books
-  calibreweb_books_media:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_books
-  calibreweb_comics_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${MAMBO_DATA_PATH}/calibreweb_comics
-  calibreweb_comics_media:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
+  # calibreweb_books_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${MAMBO_DATA_PATH}/calibreweb_books
+  # calibreweb_books_media:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_books
+  # calibreweb_comics_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${MAMBO_DATA_PATH}/calibreweb_comics
+  # calibreweb_comics_media:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
 
 
 x-service-disable: &service-disable
@@ -127,14 +118,29 @@ services:
     command: >
       bash -c "echo Hello Mambo."
 
-
-
+  # do some init on internal volume
+  # Clean internal media volume from useless folders {/media} and
+  # create a foo file because when mounting an empty named volume on {/media}, it might get cdrom, floppy, usb... media folders.
+  volume_init:
+    image: bash:4.4.23
+    container_name: mambo_volume_init
+    # need root to delete default {/media} subfolders
+    user: root
+    volumes:
+      - media:/media
+    networks:
+      - default
+    command: >
+      bash -c "rm -Rf /media/cdrom && rm -Rf /media/usb && rm -Rf /media/floppy && touch /media/.mambo"  
+      
   # init service
   # check if mandatory path are specified and create subfolder if needed
   service_init:
     image: bash:4.4.23
     container_name: mambo_service_init
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
+    depends_on:
+      - volume_init
     volumes:
       - data:/data
       - media:/media
@@ -148,11 +154,10 @@ services:
       - default
     command: >
         bash -c "echo Format : {inside path} [outside path]
-        && echo DATA PATH : {/data} is mapped to [${MAMBO_DATA_PATH}]
-        && echo MEDIA PATH : {/media} is mapped to [${MAMBO_MEDIA_PATH}]
-        && echo DOWNLOAD PATH : {/download} is mapped to [${MAMBO_DOWNLOAD_PATH}] 
-        && echo Create media subfolders : ${MAMBO_MEDIA_FOLDERS}
-        && for f in ${MAMBO_MEDIA_FOLDERS}; do mkdir -p /media/$${f}; done
+        && echo DATA PATH : [${MAMBO_DATA_PATH}] is mapped to {/data}
+        && echo DOWNLOAD PATH : [${MAMBO_DOWNLOAD_PATH}] is mapped to {/download}
+        && echo MEDIA FOLDERS : [${MAMBO_MEDIA_FOLDERS}] are mapped to {/media} subfolders
+        && echo Plex transcode folder : [${PLEX_TRANSCODE_PATH}] 
         && echo Create common scripts folder :  {/data/scripts} [${MAMBO_DATA_PATH}/scripts]
         && mkdir -p /data/scripts
         && echo Create vault folder for downloads {/download/scripts} [${MAMBO_DOWNLOAD_PATH}/vault]
@@ -172,10 +177,10 @@ services:
             # plex image have a bug and create Library/Application Support as root instead of PLEX_UID
             mkdir -p '/data/plex/Library/Application Support'
             ;;
-            SERVICE_CALIBRE* )
-            echo Create {/media/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}} [${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
-            mkdir -p /media/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
-            ;;
+            #SERVICE_CALIBRE* )
+            #echo Create {/media/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}} [${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}]
+            #mkdir -p /media/${MAMBO_MEDIA_CALIBREDB_FOLDER}/$${!service}
+            #;;
             esac
             ;;
           esac
@@ -359,16 +364,22 @@ services:
   plex:
     image: plexinc/pms-docker:${PLEX_VERSION:-latest}
     container_name: mambo_plex
+    # will be the default plex name - add a DNS entry to the existing 'plex' entry only inside this container
+    hostname: mambo
     depends_on:
       - service_init
     restart: always
     volumes:
       # will contain plex configuration
       - plex_data:/config
+      - media:/media
+      - ${PLEX_TRANSCODE_PATH}:/transcode
     environment:
       - PLEX_UID=${MAMBO_USER_ID:-0}
       - PLEX_GID=${MAMBO_GROUP_ID:-0}
       - CHANGE_CONFIG_DIR_OWNERSHIP=true
+      # if server have already be claimed, PLEX_CLAIM env var is ignored
+      - PLEX_CLAIM=${PLEX_CLAIM:-}
       - 'ADVERTISE_IP=http://plex:${DIRECT_ACCESS_PORT_PLEX}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,${ADDITIONAL_DOMAIN_PLEX}'
     labels:
       - "traefik.enable=true"
@@ -467,40 +478,40 @@ services:
 
 
 
-  calibreweb_books:
-    << : *default-calibreweb
-    container_name: mambo_calibreweb_books
-    volumes:
-      # will contain calibre-web configuration
-      - calibreweb_books_data:/config
-      # different paths used by calibreweb
-      - calibreweb_books_media:/books
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.calibreweb_books.entrypoints=web_secondary"
-      - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
-      - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
-      - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
-      - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
-      - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
-      - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix"
-      - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/calibreweb_books, /calibreweb_books/"
+  # calibreweb_books:
+  #   << : *default-calibreweb
+  #   container_name: mambo_calibreweb_books
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_books_data:/config
+  #     # different paths used by calibreweb
+  #     - calibreweb_books_media:/books
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.calibreweb_books.entrypoints=web_secondary"
+  #     - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
+  #     - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
+  #     - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix"
+  #     - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/calibreweb_books, /calibreweb_books/"
 
-  calibreweb_comics:
-    << : *default-calibreweb
-    container_name: mambo_calibreweb_comics
-    volumes:
-      # will contain calibre-web configuration
-      - calibreweb_comics_data:/config
-      # different paths used by calibreweb
-      - calibreweb_comics_media:/books
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.calibreweb_comics.entrypoints=web_secondary"
-      - "traefik.http.routers.calibreweb_comics.rule=HostRegexp(`{subdomain:calibreweb_comics}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_comics`)"
-      - "traefik.http.routers.calibreweb_comics.service=calibreweb_comics"
-      - "traefik.http.services.calibreweb_comics.loadbalancer.server.port=8083"
-      - "traefik.http.services.calibreweb_comics.loadbalancer.server.scheme=http"
-      - "traefik.http.services.calibreweb_comics.loadbalancer.passhostheader=true"
-      - "traefik.http.routers.calibreweb_comics.middlewares=calibreweb_comics-stripprefix"
-      - "traefik.http.middlewares.calibreweb_comics-stripprefix.stripprefix.prefixes=/calibreweb_comics, /calibreweb_comics/"
+  # calibreweb_comics:
+  #   << : *default-calibreweb
+  #   container_name: mambo_calibreweb_comics
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_comics_data:/config
+  #     # different paths used by calibreweb
+  #     - calibreweb_comics_media:/books
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.calibreweb_comics.entrypoints=web_secondary"
+  #     - "traefik.http.routers.calibreweb_comics.rule=HostRegexp(`{subdomain:calibreweb_comics}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_comics`)"
+  #     - "traefik.http.routers.calibreweb_comics.service=calibreweb_comics"
+  #     - "traefik.http.services.calibreweb_comics.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_comics.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_comics.loadbalancer.passhostheader=true"
+  #     - "traefik.http.routers.calibreweb_comics.middlewares=calibreweb_comics-stripprefix"
+  #     - "traefik.http.middlewares.calibreweb_comics-stripprefix.stripprefix.prefixes=/calibreweb_comics, /calibreweb_comics/"

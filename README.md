@@ -40,7 +40,7 @@ cd mambo
 * You could create and edit an `env.site` file to set any available variables
 * All default values are setted in `env.default` except default values for 
     * `MAMBO_USER_ID` and `MAMBO_GROUP_ID` which are defined at mambo runtime with current unix user
-    * `MAMBO_DATA_PATH`, `MAMBO_DOWNLOAD_PATH` and `MAMBO_MEDIA_PATH` which are defined at mambo runtime
+    * `MAMBO_DATA_PATH`, `MAMBO_DOWNLOAD_PATH` which are defined at mambo runtime
 
 
 * Shell environment variables override command line value which override configuration files (`env.site`) values which override default configuration files values (`env.default`)
@@ -158,7 +158,9 @@ cd mambo
 
 ## TODO
 
-* plex settings
-    * quality settings  https://github.com/Cloudbox/Cloudbox/blob/master/roles/plex/tasks/subtasks/extra.yml https://github.com/Cloudbox/Cloudbox/blob/master/roles/plex/tasks/subtasks/settings/forced_quality.yml
-    * other settings : https://github.com/Cloudbox/Cloudbox/blob/master/roles/plex/tasks/subtasks/preferences/preferences.yml (fix /transcode folder AND claim server)
+* plex plugins https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks https://github.com/Cloudbox/Cloudbox/tree/master/roles/trakttv-plugin/tasks
 * backup https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
+
+/usr/lib/plexmediaserver/Plex\ Transcoder -codecs
+/usr/lib/plexmediaserver/Plex\ Transcoder -encoders
+nvidia-smi -q -g 0 -d UTILIZATION -l

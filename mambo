@@ -16,6 +16,7 @@ ENV_FILE_USER="${STELLA_APP_ROOT}/env.site"
 __manage_env_and_files() {
 	__create_env_for_docker_compose
 	__set_env_for_bash
+	__translate_all_path
 	__set_docker_compose_file
 }
 
@@ -29,14 +30,28 @@ __create_env_for_docker_compose() {
 # generate an env file to be sourced (ENV_FILE_FOR_BASH_GENERATED)
 __set_env_for_bash() {
 	# Make '.env' docker-compose-file compatible for bash
-	sed -e 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/' "${ENV_FILE_GENERATED}" > "${ENV_FILE_FOR_BASH_GENERATED}"
-	
+	sed -e 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/g' "${ENV_FILE_GENERATED}" > "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_MEDIA_SERVICES=\(.*\)$/MAMBO_MEDIA_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+
 	. "${ENV_FILE_FOR_BASH_GENERATED}"
 
+}
+
+# translate all relative path to absolute
+# these path will overide variable defined in docker compse or env generated files because they are exported
+__translate_all_path() {
 	[ ! "${MAMBO_DATA_PATH}" = "" ] && export MAMBO_DATA_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_DATA_PATH}" "${STELLA_APP_ROOT}")"
 	[ ! "${MAMBO_DOWNLOAD_PATH}" = "" ] && export MAMBO_DOWNLOAD_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_DOWNLOAD_PATH}" "${STELLA_APP_ROOT}")"
-	[ ! "${MAMBO_MEDIA_PATH}" = "" ] && export MAMBO_MEDIA_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_MEDIA_PATH}" "${STELLA_APP_ROOT}")"
-
+	[ ! "${PLEX_TRANSCODE_PATH}" = "" ] && export PLEX_TRANSCODE_PATH="$($STELLA_API rel_to_abs_path "${PLEX_TRANSCODE_PATH}" "${STELLA_APP_ROOT}")"
+	
+	if [ ! "${MAMBO_MEDIA_FOLDERS}" = "" ]; then
+		__tmp=
+		for f in ${MAMBO_MEDIA_FOLDERS}; do
+			f="$($STELLA_API rel_to_abs_path "${f}" "${STELLA_APP_ROOT}")"
+			__tmp="${__tmp} ${f}"
+		done
+		export MAMBO_MEDIA_FOLDERS="${__tmp}"
+	fi
 }
 
 # generate docker compose file
@@ -49,6 +64,8 @@ __set_docker_compose_file() {
 	__set_time
 	__add_service_direct_port_access
 	__set_gpu
+
+	__add_volume_media
 }
 
 
@@ -73,8 +90,6 @@ __set_time() {
 	__add_volume_for_time "sabnzbd"
 	__add_volume_for_time "medusa"
 	__add_volume_for_time "tautulli"
-	__add_volume_for_time "calibreweb_books"
-	__add_volume_for_time "calibreweb_comics"
 }
 
 __add_gpu() {
@@ -93,9 +108,49 @@ __add_volume_for_time() {
 	local __service_name="$1"
 	
 	# create these volumes only if files exists
-	[ -f "/etc/timezone" ] && yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.volumes[+]" "/etc/timezone:/etc/timezone:ro"
-	[ -f "/etc/localtime" ] && yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$1.volumes[+]" "/etc/localtime:/etc/localtime:ro"
+	[ -f "/etc/timezone" ] && __add_volume_mapping_service "${__service_name}" "/etc/timezone:/etc/timezone:ro"
+	[ -f "/etc/localtime" ] && __add_volume_mapping_service "${__service_name}" "/etc/localtime:/etc/localtime:ro"
 }
+
+# add bind mount media volume mapped inside named volume /media
+__add_volume_media() {
+	for f in ${MAMBO_MEDIA_FOLDERS}; do
+		f="$($STELLA_API rel_to_abs_path "${f}" "${STELLA_APP_ROOT}")"
+		target="$(basename "${f}")"
+		if [ -f "${f}" ]; then 
+			echo "** [${f}] is a file, not mounted inside {/media}"
+		else
+			[ ! -d "${f}" ] && echo "** [${f}] is not an existing directory and will be auto created."
+			__name="$($STELLA_API md5 "${f}")"
+			__add_volume_local_definition "media_${__name}" "${f}"
+			for s in $MAMBO_MEDIA_SERVICES; do
+				__add_volume_mapping_service "${s}" "media_${__name}:/media/${target}"
+			done
+			echo "** [${f}] is mapped to {/media/${target}}"			
+		fi
+	done
+}
+
+__add_volume_mapping_service() {
+	local __service="$1"
+	local __mapping="$2"
+
+	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.${__service}.volumes[+]" "${__mapping}"
+
+}
+
+__add_volume_local_definition() {
+	local __name="$1"
+	local __path="$2"
+
+	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "volumes.${__name}.driver" "local"
+	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "volumes.${__name}.driver_opts.type" "none"
+	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "volumes.${__name}.driver_opts.o" "bind"
+	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "volumes.${__name}.driver_opts.device" "${__path}"
+}
+
+
+
 
 __add_service_direct_port_access() {
 	for service in $(compgen -A variable | grep DIRECT_ACCESS_PORT_); do
@@ -114,7 +169,133 @@ __add_service_direct_port_access() {
 	done
 }
 
-# VARIOUS -----------------
+
+
+# PLEX -----------------
+
+__init_service_plex() {
+	# get claim token
+	__claim_token=
+	if [ "$(__is_plex_registered)" = "0" ]; then
+		[ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
+		[ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
+		__auth_token="$(__get_plex_x_plex_token ${PLEX_USER} ${PLEX_PASSWORD})"
+		echo " ** From plex.tv -- get auth token : ${__auth_token}"
+		__claim_token="$(__get_plex_claim_token "${__auth_token}")"
+		echo " ** From plex.tv -- get claim token : ${__claim_token}"
+		if [ "${__claim_token}" = "" ]; then
+			echo "** Error while getting claim token"
+			exit 1
+		fi
+	else
+		echo "** Plex service is already registred"
+	fi
+	# if server have already be claimed, PLEX_CLAIM env var is ignored 
+	export PLEX_CLAIM="${__claim_token}"
+
+	# stop plex if it was already running
+	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop plex 
+	# init plex
+	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up -d plex
+	# wait for conf and db files created
+	sleep 4
+	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop plex
+	sleep 4
+	__set_plex_defaults
+}
+
+__is_plex_registered() {
+	PLEX_PREFERENCES_PATH="${MAMBO_DATA_PATH}/plex/Library/Application Support/Plex Media Server/Preferences.xml"
+	[ -f "${PLEX_PREFERENCES_PATH}" ] && __online_token="$(__xml_get_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences/@PlexOnlineToken")"
+
+	[ ${#__online_token} -gt 0 ] && echo "1" || echo "0"
+}
+
+__get_plex_x_plex_token() {
+	local __login="$1"
+	local __password="$2"
+
+	__auth_token="$(curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
+	-H "X-Plex-Version: 1.0.0" \
+	-H "X-Plex-Product: Mambo" \
+	-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
+	-H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .user.authentication_token)"
+
+	[ "${__auth_token}" = "null" ] && echo "" || echo "${__auth_token}"
+}
+
+
+__get_plex_claim_token() {
+	local __x_plex_token="$1"
+
+	__clam_token="$(curl -kLs -X GET "https://plex.tv/api/claim/token.json" \
+		-H "X-Plex-Version: 1.0.0" \
+		-H "X-Plex-Product: Mambo" \
+		-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
+		-H "X-Plex-Token: ${__x_plex_token}" \
+		-H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .token)"
+
+
+	[ "${__clam_token}" = "null" ] && echo "" || echo "${__clam_token}"
+
+}
+
+
+# quand Preferences@PlexOnlineToken empty
+# call subtasks/preferences/claim_server.yml
+#  - name: Preferences | Set 'plex_server_claimed' variable
+#     set_fact:
+#       plex_server_claimed: "{{ (preferences_xml_resp is succeeded) and
+#         (preferences_xml_resp.matches[0].Preferences.PlexOnlineToken is defined) and
+#         (preferences_xml_resp.matches[0].Preferences.PlexOnlineToken | trim | length > 0) }}"
+
+
+
+__set_plex_defaults() {
+	PLEX_PREFERENCES_PATH="${MAMBO_DATA_PATH}/plex/Library/Application Support/Plex Media Server/Preferences.xml"
+	
+	
+	if [ -f "${PLEX_PREFERENCES_PATH}" ]; then 
+		# transcode folder to store temp files
+		__xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "TranscoderTempDirectory" "/transcode"
+
+		# 'forceAutoAdjustQuality' in Preferences.xml
+		# Force clients to use automatic quality for media unless the quality is set higher than the quality of the video.
+		# ex: quality set to 4mbps; watching >4mbps will trigger auto quality mode)
+		# ex: quality set to original/max; auto quality will never be used & you will always be streaming at the video's original bitrate
+		# default : 0
+		__xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "forceAutoAdjustQuality" "${PLEX_CLIENT_FORCE_AUTO_QUALITY}"
+
+		# 'AllowHighOutputBitrates' in Preferences.xml
+		# Force transcode quality to upscale. But can cause high bandwidth usage for clients.
+		# default : 0
+		__xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "AllowHighOutputBitrates" "${PLEX_CLIENT_FORCE_TRANSCODE_UPSCALE}"
+	fi
+
+	# optimize plex db
+	[ ! "${PLEX_DB_CACHE_SIZE}" = "" ] && __set_plex_db_cache_size "${PLEX_DB_CACHE_SIZE}"
+
+	# TODO : HardwareAcceleratedCodecs="1" Utiliser l'accélération matérielle si disponible
+}
+
+# show plex custom ffmpeg 
+# /usr/lib/plexmediaserver/Plex\ Transcoder 
+# -formats            show available formats
+# -muxers             show available muxers
+# -demuxers           show available demuxers
+# -devices            show available devices
+# -codecs             show available codecs
+# -decoders           show available decoders
+# -encoders           show available encoders
+# -bsfs               show available bit stream filters
+# -protocols          show available protocols
+# -filters            show available filters
+# -pix_fmts           show available pixel formats
+# -layouts            show standard channel layouts
+# -sample_fmts        show available audio sample formats
+# -colors             show available color names
+# -hwaccels           show available HW acceleration methods
+
 
 # optimize plex db
 # could ameliorate some result
@@ -122,7 +303,7 @@ __add_service_direct_port_access() {
 # https://forums.plex.tv/t/plex-library-performance-tip/176195/10
 __set_plex_db_cache_size() {
 	if [ ! "$1" = "" ]; then
-		PLEX_DATABASE_SUBPATH="Library/Application Support/Plex Media Server/Plug-in Support/Databases# sqlite3 com.plexapp.plugins.library.db"
+		PLEX_DATABASE_SUBPATH="Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
 		# set default_cache_size
 		if [ -f "${MAMBO_DATA_PATH}/plex/${PLEX_DATABASE_SUBPATH}" ]; then
 
@@ -142,10 +323,12 @@ __set_plex_db_cache_size() {
 }
 
 
+
+# VARIOUS -----------------
 # set an attribute value of a node selected by an xpath expression
 # 	__xml_replace_attribute_value "Preferences.xml" "/Preferences" "Preferences" "TranscoderTempDirectory" "/transode"
 # 	xidel Preferences.xml --silent --xml --xquery3 'let $selected := /Preferences return transform(/,function($e) { if ($selected[$e is .]) then <Preferences>{$e/attribute() except $e/@TranscoderTempDirectory, attribute TranscoderTempDirectory { "/transcode" },$e/node()}</Preferences> else $e })'
-#		http://x-query.com/pipermail/talk/2013-December/004266.html
+# http://x-query.com/pipermail/talk/2013-December/004266.html
 __xml_set_attribute_value() {
 	local __file="$1"
 	local __xpath_selector="$2"
@@ -153,16 +336,21 @@ __xml_set_attribute_value() {
 	local __attribute_name="$4"
 	local __attribute_value="$5"
 
-	xidel "${__file}" --silent --xml --xquery3 'let $selected := '${__xpath_selector}' return transform(/,function($e) { if ($selected[$e is .]) then <'${__node_name}'>{$e/attribute() except $e/@'${__attribute_name}', attribute '${__attribute_name}' { "'${__attribute_value}'" },$e/node()}</'${__node_name}'> else $e })'
+
+	xidel "${__file}" --silent --xml --xquery3 'let $selected := '${__xpath_selector}' return transform(/,function($e) { if ($selected[$e is .]) then <'${__node_name}'>{$e/attribute() except $e/@'${__attribute_name}', attribute '${__attribute_name}' { "'${__attribute_value}'" },$e/node()}</'${__node_name}'> else $e })' > "${__file}.new"
+	rm -f "${__file}"
+	mv "${__file}.new" "${__file}"
+}
+
+__xml_get_attribute_value() {
+	local __file="$1"
+	local __xpath_selector="$2"
+
+	xidel "${__file}" --silent --extract "${__xpath_selector}"
 }
 
 
-
-
 # Mambo mandatory root path
-# These paths can be defined in ENV_FILE_USER or by environment variable before launching mambo
-# If thery defined these path must exists and can be absolute or relative (dispite of https://github.com/docker/compose/issues/6343) - because we translate it to abs path in and reexport these vars in bash
-# If they are not defined some default values are assigned and path are created (only if default values is used - we are using docker to create with root and give permissions to the chooser user:group id)
 __set_mandatory_root_path_to_default() {
 	if [ "${MAMBO_DATA_PATH}" = "" ]; then
 	 	export MAMBO_DATA_PATH="${STELLA_APP_WORK_ROOT}/data"
@@ -174,17 +362,22 @@ __set_mandatory_root_path_to_default() {
 	 	export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
 		docker run -it --rm -v "${STELLA_APP_WORK_ROOT}":"${STELLA_APP_WORK_ROOT}" bash:4.4.23 bash -c "mkdir -p "${MAMBO_DOWNLOAD_PATH}" && chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DOWNLOAD_PATH}""
 	fi
-	if [ "${MAMBO_MEDIA_PATH}" = "" ]; then
-	 	export MAMBO_MEDIA_PATH="${STELLA_APP_WORK_ROOT}/media"
-		docker run -it --rm -v "${STELLA_APP_WORK_ROOT}":"${STELLA_APP_WORK_ROOT}" bash:4.4.23 bash -c "mkdir -p "${MAMBO_MEDIA_PATH}" && chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_MEDIA_PATH}""
-	fi
 }
+
 
 # test if mandatory root path exists
 __check_mandatory_root_path() {
 	[ ! -d "${MAMBO_DATA_PATH}" ] && echo "* ERROR : Mandatory data root path [${MAMBO_DATA_PATH}] do not exist" && exit 1
 	[ ! -d "${MAMBO_DOWNLOAD_PATH}" ] && echo "* ERROR : Mandatory download root path [${MAMBO_DOWNLOAD_PATH}] do not exist" && exit 1
-	[ ! -d "${MAMBO_MEDIA_PATH}" ] && echo "* ERROR : Mandatory media root path [${MAMBO_MEDIA_PATH}] do not exist" && exit 1
+	if [ "${MAMBO_MEDIA_FOLDERS}" = "" ]; then
+		echo "* WARN : There is no media folders defined"
+	else
+		for f in ${MAMBO_MEDIA_FOLDERS}; do
+			[ ! -d "${f}" ] && echo "* ERROR : Mandatory declared media folder [${f}] do not exist" && exit 1
+		done
+	fi
+
+
 }
 
 # check if mambo have been installed and generate all files to grab MAMBO_SERVICES_LIST
@@ -198,18 +391,22 @@ usage() {
 	echo "USAGE :"
 	echo "----------------"
 	echo "o-- general management :"
-	echo "L     install|uninstall : deploy/undeploy this app"
-	echo "L     up [service] [-d]: launch all mambo services or one service"
+	echo "L     install : deploy this app"
+
+	echo "L     up [service [-d]] : launch all mambo services or one service"
+	echo "L     down [service] : down all mambo services or one service"
+	echo "L     restart [service [-d]] : restart all mambo services or one service"
 	echo "L     status [service] : see status"
 	echo "L     logs [service] : see logs"
+	echo "L     shell <service> : launch a shell into a running service"
 	echo "L     set : generate env files"
-	echo "L		plex db_default_cache_size <value> : set plex db default_cache_size"
+	echo "L		init : TODO review command name --- init services. Do it once before launch. - will stop plex"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-DOMAIN=											'domain' 			a				'set up down status install logs plex' '1' 'Domain.'
-TARGET=												'action' 					a				'${MAMBO_SERVICES_LIST} db_default_cache_size'	'0' 'Target.'
+DOMAIN=											'domain' 			a				'shell set up down status install logs init restart' '1' 'Domain.'
+TARGET=												'action' 					a				'${MAMBO_SERVICES_LIST}'	'0' 'Target.'
 "
 OPTIONS="
 FORCE=''				   'f'		  ''					b			0		'1'					  Force.
@@ -251,9 +448,20 @@ case $DOMAIN in
 		$STELLA_API get_features
 	;;
 
-	plex )
-		__set_plex_db_cache_size ${ARG}
+	shell )
+		if [ "${TARGET}" = "" ]; then
+			echo "** ERROR : specify a running service in which you want a shell access"
+			exit 1
+		else
+			docker exec -it "mambo_${TARGET}" /bin/sh -c "[ -e /bin/bash ] && /bin/bash || /bin/sh"
+		fi
 	;;
+
+	init )
+		echo "** Init service Plex"
+		__init_service_plex
+	;;
+
 
 	set )
 		echo "* Files have been generated."
@@ -276,6 +484,24 @@ case $DOMAIN in
 			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop ${TARGET}
 		;;
 		esac
+	;;
+
+	restart )
+		case "${TARGET}" in
+		"") 
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" down -v 
+		;;
+		*) 
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop ${TARGET}
+		;;
+		esac
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up ${DAEMON} ${TARGET:-mambo}
+		if [ "${DAEMON}" = "" ]; then
+			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+		else
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+		fi
+
 	;;
 
 	status )
