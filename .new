@@ -1,1 +1,0 @@
-xidel  --silent --xml --xquery3 let $selected := /Preferences return transform(/,function($e) { if ($selected[$e is .]) then <Preferences>{$e/attribute() except $e/@AllowHighOutputBitrates, attribute AllowHighOutputBitrates { "0" },$e/node()}</Preferences> else $e })

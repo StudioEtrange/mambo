@@ -1,3 +1,5 @@
+# NOTE : conf in this file are not cumulative and cancel any option passed to traefik at launch with command in docker compose file
+
 api:
   dashboard: true
   debug: false
@@ -7,7 +9,7 @@ api:
 # Enable api/dashboard. (Default: false)
 
 # --api.dashboard:
-# Activate dashboard. (Default: true)
+# Activate dashboard. If not activate, the dashboard UI is not launched (Default: true)
 
 # --api.debug:
 # Enable additional endpoints for debugging and profiling. (Default: false)
@@ -23,18 +25,22 @@ log:
 entryPoints:
   web_main:
     address: ":80"
-  # do we need this entrypoint ?
-  web_ssl:
+  web_main_secure:
     address: ":443"
   web_secondary:
     address: ":8000"
-  web_traefik_admin:
+  web_secondary_secure:
+    address: ":8443"
+  web_admin:
     address: ":9000"
-
+  web_admin_secure:
+    address: ":9443"
 
 providers:
   docker:
     endpoint: unix:///var/run/docker.sock
+    constraints: "Label(`mambo.managed`,`true`)"
+    # If set to false, containers that don't have a traefik.enable=true label will be ignored from the resulting routing configuration
     exposedByDefault: false
   file:
     filename: /etc/traefik/services.yml

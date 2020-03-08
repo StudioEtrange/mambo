@@ -154,7 +154,9 @@ cd mambo
     * openflixr https://www.openflixr.com/ - full VM
     * autopirate https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik + oauth2 proxy
 
+## Configuration Guides
 
+* Plex https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
 
 ## TODO
 
@@ -164,3 +166,33 @@ cd mambo
 /usr/lib/plexmediaserver/Plex\ Transcoder -codecs
 /usr/lib/plexmediaserver/Plex\ Transcoder -encoders
 nvidia-smi -q -g 0 -d UTILIZATION -l
+
+
+
+
+show plex custom ffmpeg 
+/usr/lib/plexmediaserver/Plex\ Transcoder 
+-formats            show available formats
+-muxers             show available muxers
+-demuxers           show available demuxers
+-devices            show available devices
+-codecs             show available codecs
+-decoders           show available decoders
+-encoders           show available encoders
+-bsfs               show available bit stream filters
+-protocols          show available protocols
+-filters            show available filters
+-pix_fmts           show available pixel formats
+-layouts            show standard channel layouts
+-sample_fmts        show available audio sample formats
+-colors             show available color names
+-hwaccels           show available HW acceleration methods
+
+
+
+
+
+
+      HTTP TO HTTPS https://community.containo.us/t/a-global-http-https-redirection/864/7
+      https://community.containo.us/t/global-http-to-https-redirect-in-v2/1658/4
+      https://docs.traefik.io/middlewares/redirectscheme/
