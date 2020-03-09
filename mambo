@@ -22,38 +22,10 @@ __manage_env_and_files() {
 	__set_env_for_bash
 	__translate_all_path
 	__set_docker_compose_file
-	__set_letsencrypt_variable
+
 }
 
 
-# Let's encryot HTTP Challenge is used
-# HTTP Challenge needs to access ports 80 & 443
-# https://docs.traefik.io/user-guides/docker-compose/acme-http/
-# traefik use EXPOSED ports 80 & 443 so from inside traefik container, not the mapped one
-__set_letsencrypt_variable() {
-	local __opt="$1"
-
-	__opt_debug=0
-	for o in $__opt; do
-		[ "${o}" = "DEBUG" ] && __opt_debug=1
-	done
-	
-	# https://docs.traefik.io/reference/static-configuration/env/
-
-
-	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO="true"
-	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO"
-	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_HTTPCHALLENGE="true"
-	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_HTTPCHALLENGE"
-	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_HTTPCHALLENGE_ENTRYPOINT="web_main"
-	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_HTTPCHALLENGE_ENTRYPOINT"
-	[ "${DEBUG}" = "1" ] && export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_CASERVER="${LETS_ENCRYPT_SERVER_DEBUG}" && __update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_CASERVER"
-	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_EMAIL="${LETS_ENCRYPT_MAIL}"
-	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_EMAIL"
-	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_STORAGE="/letsencrypt/acme.json"
-	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_STORAGE"
- 
-}
 
 
 # generate an env file to be uses as env-file in environment section of docker compose file (ENV_FILE_GENERATED)
@@ -77,11 +49,11 @@ __set_env_for_bash() {
 	# Make '.env' docker-compose-file compatible for bash
 	sed -e 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/g' "${ENV_FILE_GENERATED}" > "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_MEDIA_SERVICES=\(.*\)$/MAMBO_MEDIA_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
-	sed -i 's/^MAMBO_SERVICES_ENTRYPOINT_MAIN=\(.*\)$/MAMBO_SERVICES_ENTRYPOINT_MAIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
-	sed -i 's/^MAMBO_SERVICES_ENTRYPOINT_SECONDARY=\(.*\)$/MAMBO_SERVICES_ENTRYPOINT_SECONDARY=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
-	sed -i 's/^MAMBO_SERVICES_ENTRYPOINT_ADMIN=\(.*\)$/MAMBO_SERVICES_ENTRYPOINT_ADMIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_SERVICES_AREA_MAIN=\(.*\)$/MAMBO_SERVICES_AREA_MAIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_SERVICES_AREA_SECONDARY=\(.*\)$/MAMBO_SERVICES_AREA_SECONDARY=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_SERVICES_AREA_ADMIN=\(.*\)$/MAMBO_SERVICES_AREA_ADMIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_SERVICES_REDIRECT_HTTPS=\(.*\)$/MAMBO_SERVICES_REDIRECT_HTTPS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
-	sed -i 's/^MAMBO_SERVICES_USE_LETS_ENCRYPT=\(.*\)$/MAMBO_SERVICES_USE_LETS_ENCRYPT=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^LETS_ENCRYPT_SERVICES=\(.*\)$/LETS_ENCRYPT_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	. "${ENV_FILE_FOR_BASH_GENERATED}"
 
@@ -152,20 +124,24 @@ __set_time_all() {
 
 
 __set_letsencrypt_service_all() {
-	for s in ${MAMBO_SERVICES_USE_LETS_ENCRYPT}; do
-		__add_letsencrypt_service "${s}"
-	done
+	case ${LETS_ENCRYPT} in
+		enable|debug )
+			for s in ${LETS_ENCRYPT_SERVICES}; do
+				__add_letsencrypt_service "${s}"
+			done
+		;;
+	esac
 }
 
 
 __set_entrypoints_service_all() {
-	for s in ${MAMBO_SERVICES_ENTRYPOINT_MAIN}; do
+	for s in ${MAMBO_SERVICES_AREA_MAIN}; do
 		__set_entrypoint_service "${s}"  "web_main"
 	done
-	for s in ${MAMBO_SERVICES_ENTRYPOINT_SECONDARY}; do
+	for s in ${MAMBO_SERVICES_AREA_SECONDARY}; do
 		__set_entrypoint_service "${s}"  "web_secondary"
 	done
-	for s in ${MAMBO_SERVICES_ENTRYPOINT_ADMIN}; do
+	for s in ${MAMBO_SERVICES_AREA_ADMIN}; do
 		__set_entrypoint_service "${s}"  "web_admin"
 	done
 }
@@ -173,13 +149,13 @@ __set_entrypoints_service_all() {
 __set_redirect_https_service_all() {
 	for s in ${MAMBO_SERVICES_REDIRECT_HTTPS}; do
 		# look if on any entrypoint, we have to override the service router rule with the http-catchall rule
-		for se in ${MAMBO_SERVICES_ENTRYPOINT_ADMIN}; do
+		for se in ${MAMBO_SERVICES_AREA_ADMIN}; do
 			[ "${se}" = "${s}" ] && __set_redirect_https_service "${s}"  "web_admin"
 		done
-		for se in ${MAMBO_SERVICES_ENTRYPOINT_SECONDARY}; do
+		for se in ${MAMBO_SERVICES_AREA_SECONDARY}; do
 			[ "${se}" = "${s}" ] && __set_redirect_https_service "${s}"  "web_secondary"
 		done
-		for se in ${MAMBO_SERVICES_ENTRYPOINT_MAIN}; do
+		for se in ${MAMBO_SERVICES_AREA_MAIN}; do
 			[ "${se}" = "${s}" ] && __set_redirect_https_service "${s}"  "web_main"
 		done
 	done
@@ -540,11 +516,17 @@ __check_mandatory_root_path() {
 			[ ! -d "${f}" ] && echo "* ERROR : Mandatory declared media folder [${f}] do not exist" && exit 1
 		done
 	fi
-
-
 }
 
-
+__check_lets_encrypt_settings() {
+ 	case ${LETS_ENCRYPT} in
+    	enable|debug ) 
+			[ "${LETS_ENCRYPT_MAIL}" = "" ] && echo "* ERROR : you have to specify a mail as identity into LETS_ENCRYPT_MAIL variable when using let's encrypt" && exit 1
+			[ "${MAMBO_DOMAIN}" = '.*' ] && echo "* ERROR : you cannot use a generic domain setted by MAMBO_DOMAIN when using let's encrypt" && exit 1
+			[ "${MAMBO_DOMAIN}" = "" ] && echo "* ERROR : you have to set a domain with  MAMBO_DOMAIN variable when using let's encrypt" && exit 1
+		;;
+	esac
+}
 
 usage() {
 	echo "USAGE :"
@@ -603,6 +585,7 @@ case $DOMAIN in
 	* )
 		__set_mandatory_root_path_to_default
 		__check_mandatory_root_path
+		__check_lets_encrypt_settings
 		;;
 esac
 

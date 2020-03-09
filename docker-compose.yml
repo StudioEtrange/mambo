@@ -165,15 +165,15 @@ services:
     command: >
         bash -c " echo ---------==---- MAMBO PATH ----==---------
         && echo Format : [host path] {inside container path}
-        && echo Data path : [${MAMBO_DATA_PATH}] is mapped to {/data}
-        && echo Download path : [${MAMBO_DOWNLOAD_PATH}] is mapped to {/download}
-        && echo Media folders : [${MAMBO_MEDIA_FOLDERS}] are mapped to {/media} subfolders
-        && echo Plex transcode folder : [${PLEX_TRANSCODE_PATH}]  {/transcode}
-        && echo Common scripts folder : [${MAMBO_DATA_PATH}/scripts] {/data/scripts}
+        && echo Data path : [$MAMBO_DATA_PATH] is mapped to {/data}
+        && echo Download path : [$MAMBO_DOWNLOAD_PATH] is mapped to {/download}
+        && echo Media folders : [$MAMBO_MEDIA_FOLDERS] are mapped to {/media} subfolders
+        && echo Plex transcode folder : [$PLEX_TRANSCODE_PATH]  {/transcode}
+        && echo Common scripts folder : [$MAMBO_DATA_PATH/scripts] {/data/scripts}
         && mkdir -p /data/scripts
-        && echo Lets encrypt folder for certificate : [${MAMBO_DATA_PATH}/letsencrypt] {/data/letsencrypt}
+        && echo Lets encrypt store folder : [$MAMBO_DATA_PATH/letsencrypt] {/data/letsencrypt}
         && mkdir -p /data/letsencrypt
-        && echo Vault folder for downloads [${MAMBO_DOWNLOAD_PATH}/vault] {/download/vault}
+        && echo Vault folder for downloads [$MAMBO_DOWNLOAD_PATH/vault] {/download/vault}
         && mkdir -p /download/vault
         && echo ---------==---- MAMBO SERVICES ----==---------
         && for service in $$(compgen -A variable | grep SERVICE_); do
@@ -204,7 +204,7 @@ services:
             echo \"L-- direct access port : $${__direct_access}\"
             case $${service} in
               ORGANIZR2 )
-                echo L-- echo create {/data/organizr2} [${MAMBO_DATA_PATH}/organizr2]
+                echo L-- echo create {/data/organizr2} [$MAMBO_DATA_PATH/organizr2]
                 mkdir -p /data/organizr2
                 ;;
               PLEX )
@@ -214,18 +214,34 @@ services:
                 mkdir -p '/data/plex/Library/Application Support'       
                 ;;
             esac
-            echo L-- properties list :
-            for properties in $$(compgen -A variable | grep $${service}_); do
-              case $${properties} in
-                *PASSWORD* )echo \"  + $${properties}=*****\";;
-                * )echo \"  + $${properties}=$${!properties}\";;
+            echo L-- variables list :
+            for variables in $$(compgen -A variable | grep $${service}_); do
+              case $${variables} in
+                *PASSWORD* )echo \"  + $${variables}=*****\";;
+                * )echo \"  + $${variables}=$${!variables}\";;
               esac
             done
           done \
+        && echo ---------==---- LETS ENCRYPT ----==---------
+        && echo -n \"L-- status : \"
+        && case $${LETS_ENCRYPT} in
+        enable )echo ENABLED;;
+        debug )echo DISABLED with DEBUG lets encrypt server;;
+        * ) echo DISABLED;;
+        esac
         && echo ---------==---- MAMBO NETWORK ----==---------
-        && echo Mambo main HTTP and HTTPS entrypoint [web_main] : $MAMBO_PORT_MAIN $MAMBO_PORT_MAIN_SECURE
-        && echo Mambo secondary HTTP and HTTPS entrypoint [web_secondary] : $MAMBO_PORT_SECONDARY $MAMBO_PORT_SECONDARY_SECURE
-        && echo Mambo admin HTTP and HTTPS entrypoint [web_admin] : $MAMBO_PORT_ADMIN $MAMBO_PORT_ADMIN_SECURE
+        && echo \"* AREA MAIN\"
+        && echo L-- services : $MAMBO_SERVICES_AREA_MAIN
+        && echo L-- HTTP entrypoint [web_main] $MAMBO_PORT_MAIN
+        && echo L-- HTTPS entrypoint [web_main_secure] $MAMBO_PORT_MAIN_SECURE
+        && echo \"* AREA SECONDARY\"
+        && echo L-- services : $MAMBO_SERVICES_AREA_SECONDARY
+        && echo L-- HTTP entrypoint [web_secondary] $MAMBO_PORT_SECONDARY
+        && echo L-- HTTPS entrypoint [web_secondary_secure] $MAMBO_PORT_SECONDARY_SECURE
+        && echo \"* AREA ADMIN\"
+        && echo L-- services : $MAMBO_SERVICES_AREA_ADMIN
+        && echo L-- HTTP entrypoint [web_admin] $MAMBO_PORT_ADMIN
+        && echo L-- HTTPS entrypoint [web_admin_secure] $MAMBO_PORT_ADMIN_SECURE
         && echo"
 
 
@@ -311,6 +327,7 @@ services:
       - ${MAMBO_PORT_ADMIN}:9000
       - ${MAMBO_PORT_ADMIN_SECURE}:9443
     command:
+      # https://docs.traefik.io/reference/static-configuration/cli/
       - "--log=true"
       - "--log.level=DEBUG"
       - "--api=true"
@@ -335,6 +352,10 @@ services:
       - "--providers.docker.exposedByDefault=false"
       - "--certificatesresolvers.mambo=true"
       - "--certificatesresolvers.mambo.acme.httpchallenge=true"
+      - "--certificatesresolvers.mambo.acme.httpchallenge.entrypoint=web_main"
+      - "--certificatesresolvers.mambo.acme.email=${LETS_ENCRYPT_MAIL}"
+      - "--certificatesresolvers.mambo.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.mambo.acme.caserver=${LETS_ENCRYPT_SERVER_DEBUG}"
 
   # Main mambo portal
   # ENTRYPOINT web_secondary

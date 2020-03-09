@@ -1,11 +1,10 @@
 # MAMBO
 
-* A docker traefik based media stack
-
+* A docker based media stack - with traefik2 to manage docker routes
 
 ## REQUIREMENTS
 
-* bash
+* bash 4
 * git
 * docker
 
@@ -13,9 +12,9 @@ If you want to use hardware transcode on nvidia gpu :
 
 * nvidia-docker
 
-NOTE : mambo will auto install docker-compose
+NOTE : mambo will auto install other tools like docker-compose
 
-## SERVICES
+## SERVICES INCLUDED
 
 * Plex
 * Ombi
@@ -62,10 +61,9 @@ NOTE : some default values will be used. so it will just works.
 * Variables can be configured either through conf file or through shell environment variable
 * Shell environment variables override command line value which override your configuration files values which override default configuration files values
 
-* All default values are setted with defaults values in `env.default` except
+* All default values are setted with defaults values from `env.default` except
     * `MAMBO_USER_ID` and `MAMBO_GROUP_ID` which are defined at mambo runtime with current unix user
     * `MAMBO_DATA_PATH`, `MAMBO_DOWNLOAD_PATH` which are defined at mambo runtime
-
 
 
 ### Standard variables
@@ -186,6 +184,16 @@ NOTE : some default values will be used. so it will just works.
     MAMBO_SERVICES_REDIRECT_HTTPS=ombi organizr2
     ```
 
+### Let's encrypt
+
+LETS_ENCRYPT_SERVICES
+
+LETS_ENCRYPT= enable | disable | debug
+Let's encrypt HTTP Challenge is used
+HTTP Challenge needs to access ports 80 & 443
+https://docs.traefik.io/user-guides/docker-compose/acme-http/
+traefik use EXPOSED ports 80 & 443 so from inside traefik container, not the mapped one
+
 ## SERVICES CONFIGURATION
 
 * You need to configure each service. Mambo do only a few configuration on some services. 
@@ -225,6 +233,8 @@ L     init : init services. Do it once before launch. - will stop plex
 * By default
     * all services are on `main` area, so accessible throuh ports 80/443 (ie: http://ombi.mydomain.com)
     * traefik admin services are on `main` area, so accessible throuh ports 30443 (only, no HTTP for traefik admin) (ie: http://traefik.mydomain.com)
+
+* A service can be declared into several logical area
 
 ### Avaibale areas and entrypoints
 
