@@ -23,6 +23,12 @@ volumes:
       type: none
       o: bind
       device: ${MAMBO_DATA_PATH}/scripts
+  letsencrypt:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAMBO_DATA_PATH}/letsencrypt
   vault:
     driver: local
     driver_opts:
@@ -80,7 +86,7 @@ x-calibreweb: &default-calibreweb
   image: studioetrange/calibre-web:${CALIBRE_WEB_VERSION:-latest}
   depends_on: 
     - service_init
-  restart: always
+  restart: unless-stopped
   environment:
     - PUID=${MAMBO_USER_ID:-0}
     - PGID=${MAMBO_GROUP_ID:-0}
@@ -104,7 +110,7 @@ services:
     image: bash:4.4.23
     container_name: mambo
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
-    restart: always
+    restart: unless-stopped
     depends_on:
       - traefik
       - ${SERVICE_OMBI}
@@ -165,53 +171,56 @@ services:
         && echo Plex transcode folder : [${PLEX_TRANSCODE_PATH}]  {/transcode}
         && echo Common scripts folder : [${MAMBO_DATA_PATH}/scripts] {/data/scripts}
         && mkdir -p /data/scripts
+        && echo Lets encrypt folder for certificate : [${MAMBO_DATA_PATH}/letsencrypt] {/data/letsencrypt}
+        && mkdir -p /data/letsencrypt
         && echo Vault folder for downloads [${MAMBO_DOWNLOAD_PATH}/vault] {/download/vault}
         && mkdir -p /download/vault
         && echo ---------==---- MAMBO SERVICES ----==---------
         && for service in $$(compgen -A variable | grep SERVICE_); do
-          service_status=$${service}
-          service=$${service/SERVICE_/}
-          version=$${service}_VERSION
-          version=$${!version}
-          case $${!service_status} in
-            *_disable) 
-              echo \"* $${service}\"
-              echo \"L-- status : DISABLED\"
-              echo \"L-- version : $${version}\"
-              ;;
-            * ) 
-              echo \"* $${service}\"
-              echo \"L-- status : ENABLED\"
-              echo \"L-- version : $${version}\"
-              __var=\"$${service}_ENTRYPOINTS\"; __entrypoints=\"$${!__var}\"; __var=\"$${service}_ENTRYPOINTS_SECURE\"; __entrypoints=\"$${__entrypoints} $${!__var}\";
-              echo \"L-- entrypoints : $${__entrypoints}\"
-              echo -n \"L-- redirect HTTP to HTTPS : \"
-              __redirected=
-              for s in $${MAMBO_SERVICES_REDIRECT_HTTPS}; do
-                [ \"$${service,,}\" = \"$$s\" ] && __redirected=1
-              done
-              [ \"$${__redirected}\" = \"1\" ] && echo yes || echo no
-              case $${service} in
-                ORGANIZR2 )
-                  echo L-- echo create {/data/organizr2} [${MAMBO_DATA_PATH}/organizr2]
-                  mkdir -p /data/organizr2
-                  ;;
-                PLEX )
-                  mkdir -p '/data/plex'
-                  # plex image have a bug and create Library/Application Support owner is root instead of PLEX_UID when launching the docker image 
-                  # so we create Library/Application Support with right owner from here
-                  mkdir -p '/data/plex/Library/Application Support'       
-                  ;;
+            service_status=$${service}
+            service=$${service/SERVICE_/}
+            version=$${service}_VERSION
+            version=$${!version}
+            case $${!service_status} in
+              *_disable) 
+                echo \"* $${service}\"
+                echo \"L-- status : DISABLED\"
+                ;;
+              * ) 
+                echo \"* $${service}\"
+                echo \"L-- status : ENABLED\"
+                ;;
+            esac
+            echo \"L-- version : $${version}\"
+            __var=\"$${service}_ENTRYPOINTS\"; __entrypoints=\"$${!__var}\"; __var=\"$${service}_ENTRYPOINTS_SECURE\"; __entrypoints=\"$${__entrypoints} $${!__var}\";
+            echo \"L-- entrypoints : $${__entrypoints}\"
+            echo -n \"L-- redirect HTTP to HTTPS : \"
+            __redirected=
+            for s in $${MAMBO_SERVICES_REDIRECT_HTTPS}; do
+              [ \"$${service,,}\" = \"$$s\" ] && __redirected=1
+            done
+            [ \"$${__redirected}\" = \"1\" ] && echo yes || echo no
+            __direct_access=\"$${service}_DIRECT_ACCESS_PORT\"; __direct_access=\"$${!__direct_access}\";
+            echo \"L-- direct access port : $${__direct_access}\"
+            case $${service} in
+              ORGANIZR2 )
+                echo L-- echo create {/data/organizr2} [${MAMBO_DATA_PATH}/organizr2]
+                mkdir -p /data/organizr2
+                ;;
+              PLEX )
+                mkdir -p '/data/plex'
+                # plex image have a bug and create Library/Application Support owner is root instead of PLEX_UID when launching the docker image 
+                # so we create Library/Application Support with right owner from here
+                mkdir -p '/data/plex/Library/Application Support'       
+                ;;
+            esac
+            echo L-- properties list :
+            for properties in $$(compgen -A variable | grep $${service}_); do
+              case $${properties} in
+                *PASSWORD* )echo \"  + $${properties}=*****\";;
+                * )echo \"  + $${properties}=$${!properties}\";;
               esac
-              echo L-- properties list :
-              for properties in $$(compgen -A variable | grep $${service}_); do
-                case $${properties} in
-                  *PASSWORD* )echo \"  + $${properties}=*****\";;
-                  * )echo \"  + $${properties}=$${!properties}\";;
-                esac
-              done
-            ;;
-          esac
+            done
           done \
         && echo ---------==---- MAMBO NETWORK ----==---------
         && echo Mambo main HTTP and HTTPS entrypoint [web_main] : $MAMBO_PORT_MAIN $MAMBO_PORT_MAIN_SECURE
@@ -223,11 +232,9 @@ services:
   # Router
   # traefik launch order do not matter. It can be launched before or after all other services
   # ENTRYPOINT web_main
-  #     http://domain:${MAMBO_PORT_MAIN}       
-  #     http://neon.domain                      
+  #     http://domain:${MAMBO_PORT_MAIN}  
   # ENTRYPOINT web_secondary
   #     http://domain:${MAMBO_PORT_SECONDARY}
-  #     http://neon.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
   # ENTRYPOINT web_admin
   #     http://traefik.domain:${MAMBO_PORT_ADMIN}          => go to dashboard
   #     http://traefik.domain:${MAMBO_PORT_ADMIN}/api
@@ -237,11 +244,11 @@ services:
     container_name: mambo_traefik
     depends_on: 
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik-conf.yml:/etc/traefik/traefik.yml
-      - ./traefik-services.yml:/etc/traefik/services.yml
+      #- ./traefik-conf.yml:/etc/traefik/traefik.yml
+      - letsencrypt:/letsencrypt
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
@@ -258,11 +265,6 @@ services:
       # redirect / to /dashboard/
       - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.regex=^(https://[^:/]+(:[0-9]+)?)(/)+$$"
       - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.replacement=$${1}/dashboard/"
-      # http://neon.domain
-      # http://neon.domain:${MAMBO_PORT_SECONDARY}
-      - "traefik.http.routers.neon.entrypoints=web_main,web_secondary"
-      - "traefik.http.routers.neon.rule=HostRegexp(`{subdomain:neon}.{domain:${MAMBO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.neon.service=neon@file"
       # HTTP to HTTPS redirect routers - catch all HTTP request on each entrypoint
       # NOTE : we cannot use the method of set redirect middleware on each routers service because each service routers
       #        may have two entrypoints and middlewares dont know from which entrypoint the request come.
@@ -308,6 +310,31 @@ services:
       - ${MAMBO_PORT_SECONDARY_SECURE}:8443
       - ${MAMBO_PORT_ADMIN}:9000
       - ${MAMBO_PORT_ADMIN_SECURE}:9443
+    command:
+      - "--log=true"
+      - "--log.level=DEBUG"
+      - "--api=true"
+      - "--api.dashboard=true"
+      - "--api.debug=false"
+      - "--api.insecure=false"
+      - "--entrypoints.web_main=true"
+      - "--entrypoints.web_main.address=:80" 
+      - "--entrypoints.web_main_secure=true"
+      - "--entrypoints.web_main_secure.address=:443"
+      - "--entrypoints.web_secondary=true"
+      - "--entrypoints.web_secondary.address=:8000"
+      - "--entrypoints.web_secondary_secure=true"
+      - "--entrypoints.web_secondary_secure.address=:8443"
+      - "--entrypoints.web_admin=true"
+      - "--entrypoints.web_admin.address=:9000"
+      - "--entrypoints.web_admin_secure=true"
+      - "--entrypoints.web_admin_secure.address=:9443"
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.constraints=Label(`mambo.managed`,`true`)"
+      - "--providers.docker.exposedByDefault=false"
+      - "--certificatesresolvers.mambo=true"
+      - "--certificatesresolvers.mambo.acme.httpchallenge=true"
 
   # Main mambo portal
   # ENTRYPOINT web_secondary
@@ -319,7 +346,7 @@ services:
     container_name: mambo_organizr2
     depends_on: 
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       # will contain organizr2 configuration
       - organizr2_data:/config
@@ -347,7 +374,7 @@ services:
     container_name: mambo_ombi
     depends_on: 
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       # data/ombi will contain ombi configuration
       - data:/data
@@ -388,7 +415,7 @@ services:
     container_name: mambo_sabnzbd
     depends_on:
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       # data/sabnzbd will contain sabnzbd configuration
       - data:/data
@@ -445,7 +472,7 @@ services:
     hostname: mambo
     depends_on:
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       # will contain plex configuration
       - plex_data:/config
@@ -457,7 +484,7 @@ services:
       - CHANGE_CONFIG_DIR_OWNERSHIP=true
       # if server have already be claimed, PLEX_CLAIM env var is ignored
       - PLEX_CLAIM=${PLEX_CLAIM:-}
-      - 'ADVERTISE_IP=http://plex:${DIRECT_ACCESS_PORT_PLEX}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,${PLEX_ADDITIONAL_DOMAIN}'
+      - 'ADVERTISE_IP=http://plex:${PLEX_DIRECT_ACCESS_PORT}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,${PLEX_ADDITIONAL_DOMAIN}'
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
@@ -499,7 +526,7 @@ services:
     container_name: mambo_medusa
     depends_on: 
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       # data/medusa will contain medusa configuration
       - data:/data
@@ -542,7 +569,7 @@ services:
     container_name: mambo_tautulli
     depends_on: 
       - service_init
-    restart: always
+    restart: unless-stopped
     volumes:
       # data/tautulli will contain tautulli configuration
       - data:/data

@@ -2,6 +2,6 @@
 cache/
 workspace/
 env.bash
-env.site
+mambo.env
 .env
 docker-compose-gen.yml

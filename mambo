@@ -3,22 +3,58 @@ _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 . "${_CURRENT_FILE_DIR}"/stella-link.sh include
 
+DEBUG="1"
+
 DOCKER_COMPOSE_FILE_DEFAULT="${STELLA_APP_ROOT}/docker-compose.yml"
 DOCKER_COMPOSE_FILE_GENERATED="${STELLA_APP_ROOT}/docker-compose-gen.yml"
 ENV_FILE_DEFAULT="${STELLA_APP_ROOT}/env.default"
 # ".env" file are auto loader by docker-compose
 ENV_FILE_GENERATED="${STELLA_APP_ROOT}/.env"
 ENV_FILE_FOR_BASH_GENERATED="${STELLA_APP_ROOT}/env.bash"
-ENV_FILE_USER="${STELLA_APP_ROOT}/env.site"
+ENV_FILE_USER="${HOME}/mambo.env"
 
+# List of all services embedded that can be manipulated 
+MAMBO_SERVICES_LIST="traefik organizr2 ombi sabnzbd plex medusa tautulli"
 
-# MANAGE ENV AND FILES GENERATION -----------------
+# MANAGE ENV VARIABLES AND FILES GENERATION -----------------
 __manage_env_and_files() {
 	__create_env_for_docker_compose
 	__set_env_for_bash
 	__translate_all_path
 	__set_docker_compose_file
+	__set_letsencrypt_variable
 }
+
+
+# Let's encryot HTTP Challenge is used
+# HTTP Challenge needs to access ports 80 & 443
+# https://docs.traefik.io/user-guides/docker-compose/acme-http/
+# traefik use EXPOSED ports 80 & 443 so from inside traefik container, not the mapped one
+__set_letsencrypt_variable() {
+	local __opt="$1"
+
+	__opt_debug=0
+	for o in $__opt; do
+		[ "${o}" = "DEBUG" ] && __opt_debug=1
+	done
+	
+	# https://docs.traefik.io/reference/static-configuration/env/
+
+
+	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO="true"
+	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO"
+	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_HTTPCHALLENGE="true"
+	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_HTTPCHALLENGE"
+	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_HTTPCHALLENGE_ENTRYPOINT="web_main"
+	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_HTTPCHALLENGE_ENTRYPOINT"
+	[ "${DEBUG}" = "1" ] && export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_CASERVER="${LETS_ENCRYPT_SERVER_DEBUG}" && __update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_CASERVER"
+	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_EMAIL="${LETS_ENCRYPT_MAIL}"
+	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_EMAIL"
+	export TRAEFIK_CERTIFICATESRESOLVERS_MAMBO_ACME_STORAGE="/letsencrypt/acme.json"
+	__update_env_for_docker_compose "TRAEFIK_CERTIFICATESRESOLVERS__MAMBO__ACME_STORAGE"
+ 
+}
+
 
 # generate an env file to be uses as env-file in environment section of docker compose file (ENV_FILE_GENERATED)
 __create_env_for_docker_compose() {
@@ -45,6 +81,7 @@ __set_env_for_bash() {
 	sed -i 's/^MAMBO_SERVICES_ENTRYPOINT_SECONDARY=\(.*\)$/MAMBO_SERVICES_ENTRYPOINT_SECONDARY=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_SERVICES_ENTRYPOINT_ADMIN=\(.*\)$/MAMBO_SERVICES_ENTRYPOINT_ADMIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_SERVICES_REDIRECT_HTTPS=\(.*\)$/MAMBO_SERVICES_REDIRECT_HTTPS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_SERVICES_USE_LETS_ENCRYPT=\(.*\)$/MAMBO_SERVICES_USE_LETS_ENCRYPT=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	. "${ENV_FILE_FOR_BASH_GENERATED}"
 
@@ -66,7 +103,7 @@ __translate_all_path() {
 			f="$($STELLA_API rel_to_abs_path "${f}" "${STELLA_APP_ROOT}")"
 			__tmp="${__tmp} ${f}"
 		done
-		export MAMBO_MEDIA_FOLDERS="${__tmp}"
+		export MAMBO_MEDIA_FOLDERS="$($STELLA_API trim "${__tmp}")"
 		__update_env_for_docker_compose "MAMBO_MEDIA_FOLDERS"
 	fi
 }
@@ -79,11 +116,12 @@ __set_docker_compose_file() {
 	cp -f "${DOCKER_COMPOSE_FILE_DEFAULT}" "${DOCKER_COMPOSE_FILE_GENERATED}"
 
 	__set_time_all
-	__set_entrypoints_all
+	__set_entrypoints_service_all
 	__set_redirect_https_service_all
 	__add_service_direct_port_access_all
 	__set_gpu_all
 	__add_volume_media_all
+	__set_letsencrypt_service_all
 }
 
 
@@ -108,9 +146,19 @@ __set_time_all() {
 	__add_volume_for_time "sabnzbd"
 	__add_volume_for_time "medusa"
 	__add_volume_for_time "tautulli"
+	__add_volume_for_time "traefik"
 }
 
-__set_entrypoints_all() {
+
+
+__set_letsencrypt_service_all() {
+	for s in ${MAMBO_SERVICES_USE_LETS_ENCRYPT}; do
+		__add_letsencrypt_service "${s}"
+	done
+}
+
+
+__set_entrypoints_service_all() {
 	for s in ${MAMBO_SERVICES_ENTRYPOINT_MAIN}; do
 		__set_entrypoint_service "${s}"  "web_main"
 	done
@@ -139,14 +187,14 @@ __set_redirect_https_service_all() {
 
 
 __add_service_direct_port_access_all() {
-	for service in $(compgen -A variable | grep DIRECT_ACCESS_PORT_); do
+	for service in $(compgen -A variable | grep _DIRECT_ACCESS_PORT); do
 		port="${!service}"
 		if [ ! "${port}" = "" ]; then
-			service="${service#DIRECT_ACCESS_PORT_}"
+			service="${service%_DIRECT_ACCESS_PORT}"
 			service="${service,,}"
 			port_inside="$(yq r docker-compose.yml services.$service.expose[0])"
 			if [ ! "${port_inside}" = "" ]; then
-				echo "* Activate direct access to $service : mapping $port to $port_inside"
+				[ "${VERBOSE}" = "1" ] && echo "* Activate direct access to $service : mapping $port to $port_inside"
 				yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.$service.ports[+]" "$port:$port_inside"
 			else
 				echo "* WARN : cannot activate direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
@@ -170,7 +218,7 @@ __add_volume_media_all() {
 			for s in $MAMBO_MEDIA_SERVICES; do
 				__add_volume_mapping_service "${s}" "media_${__name}:/media/${target}"
 			done
-			echo "** [${f}] is mapped to {/media/${target}}"			
+			[ "${VERBOSE}" = "1" ] && echo "** [${f}] will be mapped to {/media/${target}}"			
 		fi
 	done
 }
@@ -206,6 +254,12 @@ __add_volume_for_time() {
 	[ -f "/etc/localtime" ] && __add_volume_mapping_service "${__service}" "/etc/localtime:/etc/localtime:ro"
 }
 
+
+__add_letsencrypt_service() {
+	local __service="$1"
+
+	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "services.${__service}.labels[+]" "traefik.http.routers.${__service}-secure.tls.certresolver=mambo"
+}
 
 # declare an entrypoint to a service aswell to the secured version of the entrypoint
 __set_entrypoint_service() {
@@ -259,7 +313,6 @@ __add_volume_local_definition() {
 	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "volumes.${__name}.driver_opts.o" "bind"
 	yq w -i "${DOCKER_COMPOSE_FILE_GENERATED}" "volumes.${__name}.driver_opts.device" "${__path}"
 }
-
 
 
 
@@ -375,6 +428,8 @@ __set_plex_defaults() {
 		__xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "ManualPortMappingMode" "1"
 		__xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "ManualPortMappingPort" "${MAMBO_PORT_MAIN}"
 
+		#  TODO  secureConnections="1" customCertificateDomain="https://iron.studio-etrange.podzone.net:32400" customCertificateKey="mambo" customCertificatePath=" /var/lib/plexmediaserver/certificate.pfx"
+
 
 		# 'DlnaEnabled' in Preferences.xml
 		__xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "DlnaEnabled" "0"
@@ -396,9 +451,6 @@ __set_plex_defaults() {
 												|| __xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "HardwareAcceleratedCodecs" "0" \
 
 	fi
-
-
-	# secureConnections="1" customCertificateDomain="https://iron.studio-etrange.podzone.net:32400" customCertificateKey="mambo" customCertificatePath=" /var/lib/plexmediaserver/certificate.pfx"
 
 	# optimize plex db
 	[ ! "${PLEX_DB_CACHE_SIZE}" = "" ] && __set_plex_db_cache_size "${PLEX_DB_CACHE_SIZE}"
@@ -492,11 +544,6 @@ __check_mandatory_root_path() {
 
 }
 
-# check if mambo have been installed and generate all files to grab MAMBO_SERVICES_LIST
-type docker-compose 1>/dev/null 2>&1 && {
-	__manage_env_and_files
- 	MAMBO_SERVICES_LIST="$(echo $(docker-compose config --services | grep -v _disable))"
-} || MAMBO_SERVICES_LIST=" "
 
 
 usage() {
@@ -504,7 +551,6 @@ usage() {
 	echo "----------------"
 	echo "o-- general management :"
 	echo "L     install : deploy this app"
-
 	echo "L     up [service [-d]] : launch all mambo services or one service"
 	echo "L     down [service] : down all mambo services or one service"
 	echo "L     restart [service [-d]] : restart all mambo services or one service"
@@ -512,23 +558,32 @@ usage() {
 	echo "L     status [service] : see status"
 	echo "L     logs [service] : see logs"
 	echo "L     shell <service> : launch a shell into a running service"
-	echo "L		init : TODO review command name --- init services. Do it once before launch. - will stop plex"
+	echo "L     init : init services. Do it once before launch. - will stop plex"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-DOMAIN=											'domain' 			a				'info shell up down status install logs init restart' '1' 'Domain.'
-TARGET=												'action' 					a				'${MAMBO_SERVICES_LIST}'	'0' 'Target.'
+DOMAIN=											'action' 			a				'info shell up down status install logs init restart' '1'
+TARGET=												'target' 					a				'${MAMBO_SERVICES_LIST}'	'0'
 "
 OPTIONS="
-FORCE=''				   'f'		  ''					b			0		'1'					  Force.
-DAEMON=''				   'd'		  ''					b			0		'1'					  Daemon mode. When launching whole mambo, it is in daemon mode by default, but when launching a specific service, launch it in daemon mode.
-PUID='$(id -u)' 			'g' 			'string'				s 			0			''		  user id - set MAMBO_USER_ID variable - will own bind mount created folder/files.
-PGID='$(id -g)' 			'u' 			'string'				s 			0			''		  group id - set MAMBO_GROUP_ID variable - will own bind mount created folder/files.
+FILE='${ENV_FILE_USER}'				  		'f'				'path'					s			0		''					  User env site file (example : HOME/mambo.env).
+DAEMON=''				    'd'				''						b			0		''					  Daemon mode. When launching whole mambo, it is in daemon mode by default, but when launching a specific service, launch it in daemon mode.
+VERBOSE=''				    'v'				''						b			0		''					  Verbose mode for debug purpose.
+PUID='$(id -u)' 			'u' 			'string'				s 			0			''		  user id - set MAMBO_USER_ID variable - will own bind mount created folder/files.
+PGID='$(id -g)' 			'g' 			'string'				s 			0			''		  group id - set MAMBO_GROUP_ID variable - will own bind mount created folder/files.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_PARAMETER ARG" "$@"
 
 #-------------------------------------------------------------------------------------------
+ENV_FILE_USER="$($STELLA_API rel_to_abs_path "${FILE}" "${_CURRENT_RUNNING_DIR}")"
+
+# check if mambo have been installed and generate all conf files
+type docker-compose 1>/dev/null 2>&1 && {
+	__manage_env_and_files
+}
+
+
 
 # set environment variables from command line
 [ "${MAMBO_USER_ID}" = "" ] && export MAMBO_USER_ID="${PUID}" \

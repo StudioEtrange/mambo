@@ -42,5 +42,3 @@ providers:
     constraints: "Label(`mambo.managed`,`true`)"
     # If set to false, containers that don't have a traefik.enable=true label will be ignored from the resulting routing configuration
     exposedByDefault: false
-  file:
-    filename: /etc/traefik/services.yml

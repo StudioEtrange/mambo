@@ -1,6 +1,0 @@
-http:
-  services:
-    neon:
-      loadBalancer:
-        servers:
-        - url: "http://neon:4000/"
