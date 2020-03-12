@@ -23,11 +23,13 @@ NOTE : mambo will auto install other tools like docker-compose
 * Tautulli
 * Organizr2
 
+* Use Traefik2 for internal routing
+* Support Let's encrypt HTTP/DNS Challenge for certificate auto generation
+
 ## USAGE
 
 
-NOTE : some default values will be used. so it will just works.
-
+### First steps
 * Install
 
     ```
@@ -39,31 +41,55 @@ NOTE : some default values will be used. so it will just works.
 * First initialization
 
     ```
-    PLEX_USER=no@no.com PLEX_PASSWORD=**** ./mambo init
+    PLEX_USER="no@no.com" PLEX_PASSWORD="****" ./mambo init
+    ```
+
+
+### Minimal configuration
+
+* Create a `mambo.env` file with
+    ```
+    PLEX_USER=no@no.com
+    PLEX_PASSWORD=****
+    MAMBO_DOMAIN=mydomain.com
+    ```
+
+* For HTTPS only access, add 
+    ```
+    LETS_ENCRYPT=enable
+    LETS_ENCRYPT_MAIL=no@no.com
+
+    MAMBO_SERVICES_REDIRECT_HTTPS=ombi sabnzbd tautulli medusa
     ```
 
 * Launch
+    ```
+    ./mambo up -f mambo.env
+    ```
 
-    ```
-    ./mambo up
-    ```
 
 * Stop all
-
     ```
     ./mambo down
     ```
+
 
 ## MAMBO CONFIGURATION
 
 * You could set every mambo configuration variables through a configuration file or shell environment variables when launching mambo. 
 
 * Variables can be configured either through conf file or through shell environment variable
-* Shell environment variables override command line value which override your configuration files values which override default configuration files values
-
-* All default values are setted with defaults values from `env.default` except
+* All default values are setted with defaults values from file `env.default` except
     * `MAMBO_USER_ID` and `MAMBO_GROUP_ID` which are defined at mambo runtime with current unix user
     * `MAMBO_DATA_PATH`, `MAMBO_DOWNLOAD_PATH` which are defined at mambo runtime
+
+* Resolution order :
+    * Command line variables
+    * Shell environment variables 
+    * User configuration file variables
+    * Default configuration file variables
+
+
 
 
 ### Standard variables
@@ -172,28 +198,6 @@ NOTE : some default values will be used. so it will just works.
     ./mambo down <service>
     ```
 
-## HTTP/HTTPS CONFIGURATION
-
-* For enable HTTPS only access to each service, declare them in `MAMBO_SERVICES_REDIRECT_HTTPS` variable
-* A certificate will be autogenerate -- TO BE COMPLETED letsencrypt --
-
-* NOTE : some old plex client do not support HTTPS (like playstation 3)
-
-* ie in conf file : 
-    ```
-    MAMBO_SERVICES_REDIRECT_HTTPS=ombi organizr2
-    ```
-
-### Let's encrypt
-
-LETS_ENCRYPT_SERVICES
-
-LETS_ENCRYPT= enable | disable | debug
-Let's encrypt HTTP Challenge is used
-HTTP Challenge needs to access ports 80 & 443
-https://docs.traefik.io/user-guides/docker-compose/acme-http/
-traefik use EXPOSED ports 80 & 443 so from inside traefik container, not the mapped one
-
 ## SERVICES CONFIGURATION
 
 * You need to configure each service. Mambo do only a few configuration on some services. 
@@ -268,6 +272,45 @@ L     init : init services. Do it once before launch. - will stop plex
     ```
 
 
+## HTTP/HTTPS CONFIGURATION
+
+### HTTPS redirection
+
+* To enable/disable HTTPS only access to each service, declare them in `MAMBO_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
+    * NOTE : some old plex client do not support HTTPS (like playstation 3) so plex might be exclude from this variable
+
+* ie in user conf file : 
+    ```
+    MAMBO_SERVICES_REDIRECT_HTTPS=ombi organizr2
+    ```
+
+### Certificate with Let's encrypt
+
+* Variable LETS_ENCRYPT control if let's encrypt (https://letsencrypt.org/) is enabled or disabled for certificate generation
+    * `LETS_ENCRYPT=disable` (default value) will disable auto generation
+    * `LETS_ENCRYPT=enable` will auto generate a certificate for each services declared in `LETS_ENCRYPT_SERVICES`. (All services by default)
+    * `LETS_ENCRYPT=debug` will use the test server of letsencrypt to not reach rate limit (https://letsencrypt.org/fr/docs/rate-limits/)
+    
+### Let's encrypt and non default port for main area
+
+* If you change the network ports of main area to other ports than 80/443, you have to use change the letsencrypt method from `HTTP Challenge` to `DNS Challenge`
+    * By default Mambo uses the `HTTP Challenge` which *requires* port 80/443 to be opened (https://docs.traefik.io/user-guides/docker-compose/acme-http/). 
+    * Otherwise you need to configure API to access to your DNS provider to set the `DNS Challenge` (https://docs.traefik.io/user-guides/docker-compose/acme-dns/)
+
+* How-to : in your user conf file
+    * Set `LETS_ENCRYPT_CHALLENGE` to `DNS`
+    * Set `LETS_ENCRYPT_CHALLENGE_DNS_PROVIDER` with your provider name 
+    * Add needed variables for your providers. Consult https://docs.traefik.io/https/acme/#providers for details
+
+    ```
+        LETS_ENCRYPT_CHALLENGE=DNS
+        LETS_ENCRYPT_CHALLENGE_DNS_PROVIDER=ovh
+        OVH_ENDPOINT=xxx
+        OVH_APPLICATION_KEY=xxx
+        OVH_APPLICATION_SECRET=xxx
+        OVH_CONSUMER_KEY=xxx
+    ```
+
 
 ## GPU
 
@@ -295,6 +338,7 @@ L     init : init services. Do it once before launch. - will stop plex
 * Traefik anad oauth2 proxy https://geek-cookbook.funkypenguin.co.nz/reference/oauth_proxy/
 * Media distribution
     * cloudbox https://github.com/Cloudbox/Cloudbox - docker based - ansible config script for service and install guide for each service
+    * cloudbox addon https://github.com/Cloudbox/Community
     * openflixr https://www.openflixr.com/ - full VM
     * autopirate https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik + oauth2 proxy
     * a media stack on docker with traefik https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
@@ -305,7 +349,10 @@ L     init : init services. Do it once before launch. - will stop plex
 ## TODO
 
 * plex plugins https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks https://github.com/Cloudbox/Cloudbox/tree/master/roles/trakttv-plugin/tasks
-* backup https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
+* backup 
+    * https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
+    * https://rclone.org/
+    * https://github.com/restic/restic
 
 * show gpu usage stat
     ```

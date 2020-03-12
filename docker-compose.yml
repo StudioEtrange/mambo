@@ -110,7 +110,6 @@ services:
     image: bash:4.4.23
     container_name: mambo
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
-    restart: unless-stopped
     depends_on:
       - traefik
       - ${SERVICE_OMBI}
@@ -157,7 +156,7 @@ services:
       - PUID=${MAMBO_USER_ID:-0}
       - PGID=${MAMBO_GROUP_ID:-0}
     env_file:
-      - .env
+      - ./.env
     labels:
       - "mambo.managed=true"
     networks:
@@ -171,8 +170,10 @@ services:
         && echo Plex transcode folder : [$PLEX_TRANSCODE_PATH]  {/transcode}
         && echo Common scripts folder : [$MAMBO_DATA_PATH/scripts] {/data/scripts}
         && mkdir -p /data/scripts
-        && echo Lets encrypt store folder : [$MAMBO_DATA_PATH/letsencrypt] {/data/letsencrypt}
+        && echo Lets encrypt store file : [$MAMBO_DATA_PATH/letsencrypt/acme.json] {/data/letsencrypt/acme.json}
         && mkdir -p /data/letsencrypt
+        && touch /data/letsencrypt/acme.json
+        && chmod 600 /data/letsencrypt/acme.json
         && echo Vault folder for downloads [$MAMBO_DOWNLOAD_PATH/vault] {/download/vault}
         && mkdir -p /download/vault
         && echo ---------==---- MAMBO SERVICES ----==---------
@@ -204,7 +205,7 @@ services:
             echo \"L-- direct access port : $${__direct_access}\"
             case $${service} in
               ORGANIZR2 )
-                echo L-- echo create {/data/organizr2} [$MAMBO_DATA_PATH/organizr2]
+                echo L-- create {/data/organizr2} [$MAMBO_DATA_PATH/organizr2]
                 mkdir -p /data/organizr2
                 ;;
               PLEX )
@@ -229,16 +230,19 @@ services:
         debug )echo DISABLED with DEBUG lets encrypt server;;
         * ) echo DISABLED;;
         esac
+        && echo \"L-- certificates generated for : $LETS_ENCRYPT_SERVICES\"
+        && echo \"L-- challenge method : $LETS_ENCRYPT_CHALLENGE\"
         && echo ---------==---- MAMBO NETWORK ----==---------
-        && echo \"* AREA MAIN\"
+        && echo \"* DOMAIN : $MAMBO_DOMAIN \"
+        && echo \"* MAIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_MAIN
         && echo L-- HTTP entrypoint [web_main] $MAMBO_PORT_MAIN
         && echo L-- HTTPS entrypoint [web_main_secure] $MAMBO_PORT_MAIN_SECURE
-        && echo \"* AREA SECONDARY\"
+        && echo \"* SECONDARY AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_SECONDARY
         && echo L-- HTTP entrypoint [web_secondary] $MAMBO_PORT_SECONDARY
         && echo L-- HTTPS entrypoint [web_secondary_secure] $MAMBO_PORT_SECONDARY_SECURE
-        && echo \"* AREA ADMIN\"
+        && echo \"* ADMIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_ADMIN
         && echo L-- HTTP entrypoint [web_admin] $MAMBO_PORT_ADMIN
         && echo L-- HTTPS entrypoint [web_admin_secure] $MAMBO_PORT_ADMIN_SECURE
@@ -265,16 +269,19 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       #- ./traefik-conf.yml:/etc/traefik/traefik.yml
       - letsencrypt:/letsencrypt
+    env_file:
+      - ./.env
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
       # http://traefik.domain:${MAMBO_PORT_ADMIN} http://traefik.domain:${MAMBO_PORT_ADMIN}/api http://traefik.domain:${MAMBO_PORT_ADMIN}/dashboard
-      - "traefik.http.routers.traefik-api-secure.entrypoints=web_admin_secure"
+      - "traefik.http.routers.traefik-secure.entrypoints=web_admin_secure"
       # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
-      - "traefik.http.routers.traefik-api-secure.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
-      - "traefik.http.routers.traefik-api-secure.service=api@internal"
-      - "traefik.http.routers.traefik-api-secure.tls=true"
-      - "traefik.http.routers.traefik-api-secure.middlewares=traefik-api-redirect,traefik-api-redirect2"
+      - "traefik.http.routers.traefik-secure.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
+      - "traefik.http.routers.traefik-secure.service=api@internal"
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.domains[0].main=traefik.${MAMBO_DOMAIN:-.*}"
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-api-redirect,traefik-api-redirect2"
       # redirect /dashboard to /dashboard/
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.regex=^(https://[^:/]+(:[0-9]+)?)/dashboard$$"
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.replacement=$${1}/dashboard/"
@@ -351,11 +358,10 @@ services:
       - "--providers.docker.constraints=Label(`mambo.managed`,`true`)"
       - "--providers.docker.exposedByDefault=false"
       - "--certificatesresolvers.mambo=true"
-      - "--certificatesresolvers.mambo.acme.httpchallenge=true"
-      - "--certificatesresolvers.mambo.acme.httpchallenge.entrypoint=web_main"
       - "--certificatesresolvers.mambo.acme.email=${LETS_ENCRYPT_MAIL}"
       - "--certificatesresolvers.mambo.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.mambo.acme.caserver=${LETS_ENCRYPT_SERVER_DEBUG}"
+      
+
 
   # Main mambo portal
   # ENTRYPOINT web_secondary
@@ -407,11 +413,12 @@ services:
       - "traefik.http.routers.ombi.entrypoints=${OMBI_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:ombi}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.ombi.service=ombi"
-      - "traefik.http.routers.ombi.priority=${OMBI_REDIRECT_HTTPS:-200}"
+      - "traefik.http.routers.ombi.priority=${OMBI_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.ombi-secure.entrypoints=${OMBI_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.ombi-secure.rule=HostRegexp(`{subdomain:ombi}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.ombi-secure.service=ombi"
       - "traefik.http.routers.ombi-secure.tls=true"
+      - "traefik.http.routers.ombi-secure.tls.domains[0].main=ombi.${MAMBO_DOMAIN:-.*}"
       - "traefik.http.services.ombi.loadbalancer.server.port=5000"
       - "traefik.http.services.ombi.loadbalancer.server.scheme=http"
       - "traefik.http.services.ombi.loadbalancer.passhostheader=true"
@@ -447,23 +454,25 @@ services:
       - media:/media
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
-      - 'HOST_WHITELIST_ENTRIES=sabnzbd,sabnzbd.${MAMBO_DOMAIN},${SABNZBD_ADDITIONAL_DOMAIN}'
+      - 'HOST_WHITELIST_ENTRIES=sabnzbd,sabnzbd.${MAMBO_DOMAIN},${MAMBO_HOSTNAME},${MAMBO_HOSTNAME}.${MAMBO_DOMAIN},${SABNZBD_ADDITIONAL_DOMAIN}'
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.sabnzbd.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
-      - "traefik.http.routers.sabnzbd.priority=${SABNZBD_REDIRECT_HTTPS:-200}"
+      - "traefik.http.routers.sabnzbd.priority=${SABNZBD_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.sabnzbd.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
       - "traefik.http.routers.sabnzbd-secure.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.tls=true"
+      - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=sabnzbd.${MAMBO_DOMAIN:-.*}"
       - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
       - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
       - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
-      - "traefik.http.routers.sabnzbd.middlewares=sabnzbd-stripprefix"
       - "traefik.http.middlewares.sabnzbd-stripprefix.stripprefix.prefixes=/sabnzbd, /sabnzbd/"
+      - "traefik.http.routers.sabnzbd.middlewares=sabnzbd-stripprefix"
+      - "traefik.http.routers.sabnzbd-secure.middlewares=sabnzbd-stripprefix"
     networks:
       - default
     expose:
@@ -505,18 +514,19 @@ services:
       - CHANGE_CONFIG_DIR_OWNERSHIP=true
       # if server have already be claimed, PLEX_CLAIM env var is ignored
       - PLEX_CLAIM=${PLEX_CLAIM:-}
-      - 'ADVERTISE_IP=http://plex:${PLEX_DIRECT_ACCESS_PORT}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,${PLEX_ADDITIONAL_DOMAIN}'
+      - 'ADVERTISE_IP=http://${MAMBO_HOSTNAME}:${PLEX_DIRECT_ACCESS_PORT}/,https://${MAMBO_HOSTNAME}:${PLEX_DIRECT_ACCESS_PORT}/,http://plex:${MAMBO_PORT_MAIN}/,https://plex:${MAMBO_PORT_MAIN_SECURE}/,http://plex:${MAMBO_PORT_SECONDARY}/,https://plex:${MAMBO_PORT_SECONDARY_SECURE}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,https://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN_SECURE}/,http://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,https://plex.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY_SECURE}/,http://${MAMBO_HOSTNAME}.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN}/,https://${MAMBO_HOSTNAME}.${MAMBO_DOMAIN}:${MAMBO_PORT_MAIN_SECURE}/,http://${MAMBO_HOSTNAME}.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY}/,https://${MAMBO_HOSTNAME}.${MAMBO_DOMAIN}:${MAMBO_PORT_SECONDARY_SECURE}/,${PLEX_ADDITIONAL_DOMAIN}'
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.plex.entrypoints=${PLEX_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.plex.rule=HostRegexp(`{subdomain:plex}.{domain:${MAMBO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.plex.priority=${PLEX_REDIRECT_HTTPS:-200}"
+      - "traefik.http.routers.plex.priority=${PLEX_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.plex.service=plex"
       - "traefik.http.routers.plex-secure.entrypoints=${PLEX_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.plex-secure.rule=HostRegexp(`{subdomain:plex}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.plex-secure.service=plex"
       - "traefik.http.routers.plex-secure.tls=true"
+      - "traefik.http.routers.plex-secure.tls.domains[0].main=plex.${MAMBO_DOMAIN:-.*}"
       - "traefik.http.services.plex.loadbalancer.server.port=32400"
       - "traefik.http.services.plex.loadbalancer.server.scheme=http"
       - "traefik.http.services.plex.loadbalancer.passhostheader=true"
@@ -561,12 +571,13 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.medusa.entrypoints=${MEDUSA_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.medusa.priority=${MEDUSA_REDIRECT_HTTPS:-200}"
+      - "traefik.http.routers.medusa.priority=${MEDUSA_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.medusa.service=medusa"
-      - "traefik.http.routers.medusa-secure.entrypoints=${MEDUSA_ENTRYPOINTS_SECURE:-web_main}"
+      - "traefik.http.routers.medusa-secure.entrypoints=${MEDUSA_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.medusa-secure.rule=HostRegexp(`{subdomain:medusa}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.medusa-secure.service=medusa"
       - "traefik.http.routers.medusa-secure.tls=true"
+      - "traefik.http.routers.medusa-secure.tls.domains[0].main=medusa.${MAMBO_DOMAIN:-.*}"
       - "traefik.http.services.medusa.loadbalancer.server.port=8081"
       - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
       - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
@@ -601,12 +612,13 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.tautulli.entrypoints=${TAUTULLI_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:tautulli}.{domain:${MAMBO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.tautulli.priority=${TAUTULLI_REDIRECT_HTTPS:-200}"
+      - "traefik.http.routers.tautulli.priority=${TAUTULLI_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.tautulli.service=tautulli"
-      - "traefik.http.routers.tautulli-secure.entrypoints=${TAUTULLI_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.tautulli-secure.entrypoints=${TAUTULLI_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.tautulli-secure.rule=HostRegexp(`{subdomain:tautulli}.{domain:${MAMBO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.tautulli-secure.service=tautulli"
       - "traefik.http.routers.tautulli-secure.tls=true"
+      - "traefik.http.routers.tautulli-secure.tls.domains[0].main=tautulli.${MAMBO_DOMAIN:-.*}"
       - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
       - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
       - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
