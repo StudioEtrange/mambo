@@ -1,6 +1,7 @@
 #!/bin/bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
+STELLA_LOG_STATE="OFF"
 . "${_CURRENT_FILE_DIR}"/stella-link.sh include
 
 DEBUG="1"
@@ -652,25 +653,26 @@ case $ACTION in
 	;;
 
 	info )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up service_init
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up service_init
 	;;
 
 	up )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up ${DAEMON} ${TARGET:-mambo}
+		# NOTE we need to specify project directory because when launching from an other directory, docker compose seems to NOT auto load .env file
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
 		if [ "${DAEMON}" = "" ]; then
-			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		else
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		fi
 	;;
 
 	down )
 		case "${TARGET}" in
 		"") 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" down -v 
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
 		;;
 		*) 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop ${TARGET}
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
 		;;
 		esac
 	;;
@@ -678,27 +680,27 @@ case $ACTION in
 	restart )
 		case "${TARGET}" in
 		"") 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" down -v 
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
 		;;
 		*) 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop ${TARGET}
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
 		;;
 		esac
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up ${DAEMON} ${TARGET:-mambo}
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
 		if [ "${DAEMON}" = "" ]; then
-			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		else
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs service_init
+			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		fi
 
 	;;
 
 	status )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" ps ${TARGET}
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" ps ${TARGET}
 	;;
 
 	logs )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" logs -t ${TARGET}
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs -t ${TARGET}
 	;;
 esac
 

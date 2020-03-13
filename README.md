@@ -204,6 +204,16 @@ NOTE : mambo will auto install other tools like docker-compose
 * Keep in mind that each service is reached from other one with url like `http://<service>:<default service port>` (ie `http://ombi:5000`)
 
 
+### Tautulli
+
+    * access to tautulli and use your plex account
+    * on the "Plex Media Server" page, set the following:
+        * "Plex IP or Hostname": plex
+        * "Port Number": 32400
+        * "Use SSL": disabled
+        * "Remote Server": disabled
+        * Click "Verify"
+
 ### Various configuration guides
 
 * Plex https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server

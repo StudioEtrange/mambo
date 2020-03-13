@@ -382,6 +382,19 @@ services:
       - PGID=${MAMBO_GROUP_ID:-0}
     labels:
       - "mambo.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.organizr2.entrypoints=${OMBI_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:organizr2}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2.service=organizr2"
+      - "traefik.http.routers.organizr2.priority=${OMBI_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.organizr2-secure.entrypoints=${OMBI_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:organizr2}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2-secure.service=organizr2"
+      - "traefik.http.routers.organizr2-secure.tls=true"
+      - "traefik.http.routers.organizr2-secure.tls.domains[0].main=organizr2.${MAMBO_DOMAIN:-.*}"
+      - "traefik.http.services.organizr2.loadbalancer.server.port=80"
+      - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
+      - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
     networks:
       - default
     expose:
@@ -630,7 +643,7 @@ services:
       context: https://github.com/StudioEtrange/docker-tautulli.git#:ver/${TAUTULLI_VERSION:-latest}
   tautulli_disable:
     << : *service-disable
-
+  
 
 
   # calibreweb_books:
