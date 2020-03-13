@@ -15,7 +15,7 @@ ENV_FILE_FOR_BASH_GENERATED="${STELLA_APP_ROOT}/env.bash"
 ENV_FILE_USER="${HOME}/mambo.env"
 
 # List of all services embedded that can be manipulated in command line
-MAMBO_SERVICES_LIST="traefik organizr2 ombi sabnzbd plex medusa tautulli"
+MAMBO_SERVICES_LIST="traefik organizr2 ombi sabnzbd plex medusa tautulli web"
 
 
 # MANAGE ENV VARIABLES AND FILES GENERATION -----------------

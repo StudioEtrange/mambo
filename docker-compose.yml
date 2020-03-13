@@ -35,6 +35,18 @@ volumes:
       type: none
       o: bind
       device: ${MAMBO_DOWNLOAD_PATH}/vault
+  web_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAMBO_DATA_PATH}/web
+  newsletter_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAMBO_DATA_PATH}/web/newsletter
   organizr2_data:
     driver: local
     driver_opts:
@@ -176,6 +188,9 @@ services:
         && chmod 600 /data/letsencrypt/acme.json
         && echo Vault folder for downloads [$MAMBO_DOWNLOAD_PATH/vault] {/download/vault}
         && mkdir -p /download/vault
+        && echo generic web folder \(including newsletter,...\) [$MAMBO_DATA_PATH/web] {/data/web}
+        && mkdir -p /data/web
+        && mkdir -p /data/web/newsletter
         && echo ---------==---- MAMBO SERVICES ----==---------
         && for service in $$(compgen -A variable | grep SERVICE_); do
             service_status=$${service}
@@ -216,7 +231,7 @@ services:
                 ;;
             esac
             echo L-- variables list :
-            for variables in $$(compgen -A variable | grep $${service}_); do
+            for variables in $$(compgen -A variable | grep ^$${service}_); do
               case $${variables} in
                 *PASSWORD* )echo \"  + $${variables}=*****\";;
                 * )echo \"  + $${variables}=$${!variables}\";;
@@ -618,6 +633,8 @@ services:
     volumes:
       # data/tautulli will contain tautulli configuration
       - data:/data
+      # newsletter_data will be used for generated newsletter
+      - newsletter_data:/newsletter
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
@@ -644,6 +661,36 @@ services:
   tautulli_disable:
     << : *service-disable
   
+  web:
+    image: httpd:2.4
+    container_name: mambo_web
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - web_data:/usr/local/apache2/htdocs
+    labels:
+      - "mambo.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.entrypoints=${WEB_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.web.rule=HostRegexp(`{subdomain:web}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web.priority=${WEB_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.web.service=web"
+      - "traefik.http.routers.web-secure.entrypoints=${WEB_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.web-secure.rule=HostRegexp(`{subdomain:web}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web-secure.service=web"
+      - "traefik.http.routers.web-secure.tls=true"
+      - "traefik.http.routers.web-secure.tls.domains[0].main=web.${MAMBO_DOMAIN:-.*}"
+      - "traefik.http.services.web.loadbalancer.server.port=80"
+      - "traefik.http.services.web.loadbalancer.server.scheme=http"
+      - "traefik.http.services.web.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 80
+  web_disable:
+    << : *service-disable
+
 
 
   # calibreweb_books:

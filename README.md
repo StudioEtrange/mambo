@@ -213,6 +213,9 @@ NOTE : mambo will auto install other tools like docker-compose
         * "Use SSL": disabled
         * "Remote Server": disabled
         * Click "Verify"
+        * In web interface / advanced settings / "Enable HTTP Proxy" : enabled
+        * In web interface / advanced settings /  "Enable HTTPS" : disabled
+        * In web interface / advanced settings / "Public Tautulli Domain" : http://web.chimere-harpie.org
 
 ### Various configuration guides
 
