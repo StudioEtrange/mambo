@@ -76,18 +76,17 @@ NOTE : mambo will auto install other tools like docker-compose
 
 ## MAMBO CONFIGURATION
 
-* You could set every mambo configuration variables through a configuration file or shell environment variables when launching mambo. 
+* You could set every mambo configuration variables through a configuration file, shell environment variables and some from command line. 
 
-* Variables can be configured either through conf file or through shell environment variable
-* All default values are setted with defaults values from file `env.default` except
-    * `MAMBO_USER_ID` and `MAMBO_GROUP_ID` which are defined at mambo runtime with current unix user
-    * `MAMBO_DATA_PATH`, `MAMBO_DOWNLOAD_PATH` which are defined at mambo runtime
 
-* Resolution order :
+* All existing variables are listed in `env.default`
+
+* Resolution priority order :
     * Command line variables
-    * Shell environment variables 
+    * Shell environment variables
     * User configuration file variables
     * Default configuration file variables
+    * Default values from mambo itself
 
 
 
@@ -206,16 +205,19 @@ NOTE : mambo will auto install other tools like docker-compose
 
 ### Tautulli
 
-    * access to tautulli and use your plex account
-    * on the "Plex Media Server" page, set the following:
+    * access to tautulli - setup wizard will be launched
+    * create an admin account
+    * signin with your plex account
+    * For Plex Media Server :
         * "Plex IP or Hostname": plex
         * "Port Number": 32400
         * "Use SSL": disabled
         * "Remote Server": disabled
         * Click "Verify"
-        * In web interface / advanced settings / "Enable HTTP Proxy" : enabled
-        * In web interface / advanced settings /  "Enable HTTPS" : disabled
-        * In web interface / advanced settings / "Public Tautulli Domain" : http://web.chimere-harpie.org
+    * Then after setup finished, in settings
+        * Web interface / advanced settings / "Enable HTTP Proxy" : enabled
+        * Web interface / advanced settings / "Enable HTTPS" : disabled
+        * Web interface / advanced settings / "Public Tautulli Domain" : http://web.chimere-harpie.org
 
 ### Various configuration guides
 
