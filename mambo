@@ -14,42 +14,48 @@ ENV_FILE_GENERATED="${STELLA_APP_ROOT}/.env"
 ENV_FILE_FOR_BASH_GENERATED="${STELLA_APP_ROOT}/env.bash"
 ENV_FILE_USER="${HOME}/mambo.env"
 
-# List of all services embedded that can be manipulated in command line
-MAMBO_SERVICES_LIST="traefik organizr2 ombi sabnzbd plex medusa tautulli web"
-
 
 # MANAGE ENV VARIABLES AND FILES GENERATION -----------------
-__manage_env_and_files() {
-	__create_env_for_docker_compose
-	__set_env_for_bash
-	__translate_all_path
-	__set_docker_compose_file
 
+
+# update env files with current declared variables in VARIABLES_LIST
+__update_env_files() {
+	local __text="$1"
+	echo "# ------ UPDATE : update_env_files : $(date) -- ${__text}" >> "${ENV_FILE_GENERATED}"
+	echo "# ------ UPDATE : update_env_files : $(date) -- ${__text}" >> "${ENV_FILE_FOR_BASH_GENERATED}"
+	for __variable in ${VARIABLES_LIST}; do
+		echo "${__variable}=${!__variable}" >> "${ENV_FILE_GENERATED}"
+		echo "${__variable}=\"${!__variable}\"" >> "${ENV_FILE_FOR_BASH_GENERATED}"		
+	done
 }
 
-
+# add variables to variables list
+__add_variables() {
+	VARIABLES_LIST="${VARIABLES_LIST} $1"
+}
 
 
 # generate an env file to be uses as env-file in environment section of docker compose file (ENV_FILE_GENERATED)
 __create_env_for_docker_compose() {
-	[ -f "${ENV_FILE_USER}" ] && cat "${ENV_FILE_DEFAULT}" <(echo) "${ENV_FILE_USER}" <(echo) > "${ENV_FILE_GENERATED}" \
-					|| cat "${ENV_FILE_DEFAULT}" <(echo) > "${ENV_FILE_GENERATED}"
+	echo "# ------ CREATE : create_env_for_docker_compose : $(date)" > "${ENV_FILE_GENERATED}"
 
-}
+	# combine user env file and default env file
+	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# PART --- FROM ${ENV_FILE_USER}) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_GENERATED}" \
+					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) >> "${ENV_FILE_GENERATED}"
 
-# exporting variable is not enough to have access to its value into a bash shell into a container
-# export a var is enough for docker compose to use its value and replace occurences in compose file
-# we have to explicity add variable in env-file
-__update_env_for_docker_compose() {
-	local __variable="$1"
-
-	echo "${__variable}=${!__variable}" >> "${ENV_FILE_GENERATED}"
 }
 
 # generate an env file to be sourced (ENV_FILE_FOR_BASH_GENERATED)
-__set_env_for_bash() {
-	# Make '.env' docker-compose-file compatible for bash
-	sed -e 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/g' "${ENV_FILE_GENERATED}" > "${ENV_FILE_FOR_BASH_GENERATED}"
+__create_env_for_bash() {
+	echo "# ------ CREATE : create_env_for_bash : $(date)" > "${ENV_FILE_FOR_BASH_GENERATED}"
+
+	# combine user env file and default env file
+	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# PART FROM ${ENV_FILE_USER}) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}" \
+					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}"
+
+	# Preserve some variables like list
+	sed -i 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_DOMAIN=\(.*\)$/MAMBO_DOMAIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_MEDIA_SERVICES=\(.*\)$/MAMBO_MEDIA_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_SERVICES_AREA_MAIN=\(.*\)$/MAMBO_SERVICES_AREA_MAIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_SERVICES_AREA_SECONDARY=\(.*\)$/MAMBO_SERVICES_AREA_SECONDARY=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
@@ -57,8 +63,11 @@ __set_env_for_bash() {
 	sed -i 's/^MAMBO_SERVICES_REDIRECT_HTTPS=\(.*\)$/MAMBO_SERVICES_REDIRECT_HTTPS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^LETS_ENCRYPT_SERVICES=\(.*\)$/LETS_ENCRYPT_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 
-	. "${ENV_FILE_FOR_BASH_GENERATED}"
+	# remove empty lines and commentaries
+	sed -i -e '/^[[:space:]]*$/d' -e '/^[#].*$/d' "${ENV_FILE_FOR_BASH_GENERATED}"
 
+	# preserve existing setted variables - inherited from shell env
+	sed -i 's/^\(.*\)=\(.*\)$/\[ -z \"\${\1}\" \] \&\& \1=\2/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 }
 
 # translate all relative path to absolute
@@ -68,9 +77,7 @@ __translate_all_path() {
 	[ ! "${MAMBO_DOWNLOAD_PATH}" = "" ] && export MAMBO_DOWNLOAD_PATH="$($STELLA_API rel_to_abs_path "${MAMBO_DOWNLOAD_PATH}" "${STELLA_APP_ROOT}")"
 	[ ! "${PLEX_TRANSCODE_PATH}" = "" ] && export PLEX_TRANSCODE_PATH="$($STELLA_API rel_to_abs_path "${PLEX_TRANSCODE_PATH}" "${STELLA_APP_ROOT}")"
 	
-	__update_env_for_docker_compose "MAMBO_DATA_PATH"
-	__update_env_for_docker_compose "MAMBO_DOWNLOAD_PATH"
-	__update_env_for_docker_compose "PLEX_TRANSCODE_PATH"
+
 	if [ ! "${MAMBO_MEDIA_FOLDERS}" = "" ]; then
 		__tmp=
 		for f in ${MAMBO_MEDIA_FOLDERS}; do
@@ -78,12 +85,11 @@ __translate_all_path() {
 			__tmp="${__tmp} ${f}"
 		done
 		export MAMBO_MEDIA_FOLDERS="$($STELLA_API trim "${__tmp}")"
-		__update_env_for_docker_compose "MAMBO_MEDIA_FOLDERS"
 	fi
 }
 
 # generate docker compose file
-__set_docker_compose_file() {
+__create_docker_compose_file() {
 	rm -f "${DOCKER_COMPOSE_FILE_GENERATED}"
 
 	# copy original docker compose file
@@ -97,7 +103,6 @@ __set_docker_compose_file() {
 	__add_volume_media_all
 	__set_letsencrypt_service_all
 }
-
 
 
 
@@ -121,6 +126,7 @@ __set_time_all() {
 	__add_volume_for_time "medusa"
 	__add_volume_for_time "tautulli"
 	__add_volume_for_time "traefik"
+	__add_volume_for_time "web"
 }
 
 
@@ -267,12 +273,12 @@ __set_entrypoint_service() {
 	local __previous
 	[ ! "${!__var}" = "" ] && __previous=",${!__var}"
 	eval "export ${__var}=${__entrypoint}${__previous}"
-	__update_env_for_docker_compose "${__var}"
+	__add_variables "${__var}"
 
 	__previous=
 	[ ! "${!__var_secure}" = "" ] && __previous=",${!__var_secure}"
 	eval "export ${__var_secure}=${__entrypoint}_secure${__previous}"
-	__update_env_for_docker_compose "${__var_secure}"
+	__add_variables "${__var_secure}"
 }
 
 # change rule priority of a service to be overriden by the http-catchall rule
@@ -283,7 +289,7 @@ __set_redirect_https_service() {
 	local __var="${__service}_REDIRECT_HTTPS_PRIORITY"
 
 	eval "export ${__var}=50"
-	__update_env_for_docker_compose "${__var}"
+	__add_variables "${__var}"
 
 	# DEPRECATED : technique was to add a middleware redirect rule for each service
 	# add only once ',' separator to compose file only if there is other middlewars declarated 
@@ -335,7 +341,7 @@ __init_service_plex() {
 	fi
 	# if plex was already be claimed, PLEX_CLAIM env var passed to plex is ignored
 	export PLEX_CLAIM="${__claim_token}"
-	__update_env_for_docker_compose "PLEX_CLAIM"
+	__add_variables "PLEX_CLAIM"
 
 	# stop plex if it was already running
 	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop plex 
@@ -483,6 +489,13 @@ __set_plex_db_cache_size() {
 
 
 # VARIOUS -----------------
+
+__get_variable_names() {
+	local __file="$1"
+	sed -e '/^[[:space:]]*$/d' -e '/^[#].*$/d' -e 's/^\(.*\)=\(.*\)$/\1/g' "${__file}"
+}
+
+
 # set an attribute value of a node selected by an xpath expression
 # 	__xml_replace_attribute_value "Preferences.xml" "/Preferences" "Preferences" "TranscoderTempDirectory" "/transode"
 # 	xidel Preferences.xml --silent --xml --xquery3 'let $selected := /Preferences return transform(/,function($e) { if ($selected[$e is .]) then <Preferences>{$e/attribute() except $e/@TranscoderTempDirectory, attribute TranscoderTempDirectory { "/transcode" },$e/node()}</Preferences> else $e })'
@@ -510,16 +523,12 @@ __xml_get_attribute_value() {
 
 # mambo mandatory root paths
 __set_mandatory_root_path_to_default() {
-	if [ "${MAMBO_DATA_PATH}" = "" ]; then
-	 	export MAMBO_DATA_PATH="${STELLA_APP_WORK_ROOT}/data"
-		 __update_env_for_docker_compose "MAMBO_DATA_PATH"
+	if [ "${DEFAULT_HARDCODED_MAMBO_DATA_PATH}" = "1" ]; then
 		 # TODO 1 chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DATA_PATH}" ? if exists ? or do it in service_init ?
 		 # TODO 2 create dir in all cases ? not only in case we are using default values
 		docker run -it --rm -v "${STELLA_APP_WORK_ROOT}":"${STELLA_APP_WORK_ROOT}" bash:4.4.23 bash -c "mkdir -p "${MAMBO_DATA_PATH}" && chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DATA_PATH}""
 	fi
-	if [ "${MAMBO_DOWNLOAD_PATH}" = "" ]; then
-	 	export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
-		__update_env_for_docker_compose "MAMBO_DOWNLOAD_PATH"
+	if [ "${DEFAULT_HARDCODED_MAMBO_DOWNLOAD_PATH}" = "1" ]; then
 		docker run -it --rm -v "${STELLA_APP_WORK_ROOT}":"${STELLA_APP_WORK_ROOT}" bash:4.4.23 bash -c "mkdir -p "${MAMBO_DOWNLOAD_PATH}" && chown ${MAMBO_USER_ID}:${MAMBO_GROUP_ID} "${MAMBO_DOWNLOAD_PATH}""
 	fi
 }
@@ -568,7 +577,7 @@ usage() {
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
 ACTION=											'action' 			a				'info shell up down status install logs init restart' '1'
-TARGET=												'target' 					a				'${MAMBO_SERVICES_LIST}'	'0'
+TARGET=												'target' 					a				'traefik organizr2 ombi sabnzbd plex medusa tautulli web'	'0'
 "
 OPTIONS="
 DOMAIN='' 					'' 				'domain'				s 			0			''		  Mambo domain name.
@@ -576,43 +585,125 @@ FILE='${ENV_FILE_USER}'				  		'f'				'path'					s			0		''					  User env site f
 DEBUG='' 					'' 				''				b 			0			''		  Debug mode. More verbose and use lets encrypt debug server to not reach rate limit.
 VERBOSE=''				    'v'				''						b			0		''					  Verbose mode for debug purpose.
 DAEMON=''				    'd'				''						b			0		''					  Daemon mode. When launching whole mambo, it is in daemon mode by default, but when launching a specific service, launch it in daemon mode.
-PUID='$(id -u)' 			'u' 			'string'				s 			0			''		  user id - set MAMBO_USER_ID variable - will own bind mount created folder/files.
-PGID='$(id -g)' 			'g' 			'string'				s 			0			''		  group id - set MAMBO_GROUP_ID variable - will own bind mount created folder/files.
+PUID='' 			'u' 			'string'				s 			0			''		  user id - set MAMBO_USER_ID variable - will own bind mount created folder/files - Default current user group $(id -u).
+PGID='' 			'g' 			'string'				s 			0			''		  group id - set MAMBO_GROUP_ID variable - will own bind mount created folder/files - Default current user group $(id -g).
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_PARAMETER ARG" "$@"
 
 #-------------------------------------------------------------------------------------------
 ENV_FILE_USER="$($STELLA_API rel_to_abs_path "${FILE}" "${_CURRENT_RUNNING_DIR}")"
+[ "${DAEMON}" = "1" ] && DAEMON="-d"
+if [ "${DEBUG}" = "1" ]; then
+	VERBOSE="1"
+	DOCKER_COMPOSE_LOG="--verbose"
+fi
+
 
 # check if mambo have been installed and generate all conf files
 type docker-compose 1>/dev/null 2>&1 && {
-	__manage_env_and_files
+
+	# NOTE variable resolution priority
+	#	1.command line
+	#	2.shell env variables
+	# 	3.user env file
+	# 	4.default env file
+	# 	5.default values hardcoded in mambo
+
+	# variables list
+	VARIABLES_LIST="$(__get_variable_names "${ENV_FILE_DEFAULT}")"
+
+	# generate env files
+	__create_env_for_docker_compose
+	__create_env_for_bash
+
+	# set some environment variables created at runtime
+	export MAMBO_HOST_IP="${STELLA_HOST_IP}"
+	__add_variables "MAMBO_HOST_IP"
+	export MAMBO_HOST_DEFAULT_IP="${STELLA_HOST_DEFAULT_IP}"
+	__add_variables "MAMBO_HOST_DEFAULT_IP"
+	export MAMBO_HOSTNAME="$(hostname)"
+	__add_variables "MAMBO_HOSTNAME"
+	export MAMBO_EXTERNAL_IP="$(curl -s ipinfo.io/ip)"
+	__add_variables "MAMBO_EXTERNAL_IP"
+	
+	# load variables 
+	# so priority here become :
+	# 	- user env file
+	# 	- default env file
+	. "${ENV_FILE_FOR_BASH_GENERATED}"
+
+	# update env files with current variables values
+	# so priority here become :
+	#	- shell env variables
+	# 	- user env file
+	# 	- default env file
+	__update_env_files "ingest variables from shell env and created/modified ones"
+
+	# load variables 
+	# so priority here become :
+	#	- shell env variables
+	# 	- user env file
+	# 	- default env file
+	. "${ENV_FILE_FOR_BASH_GENERATED}"
+
+	# set environment variables from command line
+	# so priority here become :
+	#	- command line
+	#	- shell env variables
+	# 	- user env file
+	# 	- default env file
+	[ ! "${PUID}" = "" ] && export MAMBO_USER_ID="${PUID}"
+	[ ! "${PGID}" = "" ] && export MAMBO_GROUP_ID="${PGID}"
+	[ ! "${DOMAIN}" = "" ] && export MAMBO_DOMAIN="${DOMAIN}"
+	if [ "${DEBUG}" = "1" ]; then
+		[ "${LETS_ENCRYPT}" = "enable" ] && export LETS_ENCRYPT="debug"
+	fi
+
+	# set environment variables with hardcoded default values
+	# so priority here become :
+	#	- command line
+	#	- shell env variables
+	# 	- user env file
+	# 	- default env file
+	# 	- default values hardcoded in mambo
+	[ "${MAMBO_USER_ID}" = "" ] && export MAMBO_USER_ID="$(id -u)"
+	[ "${MAMBO_GROUP_ID}" = "" ] && export MAMBO_GROUP_ID="$(id -g)"
+	[ "${MAMBO_DATA_PATH}" = "" ] && DEFAULT_HARDCODED_MAMBO_DATA_PATH="1" && export MAMBO_DATA_PATH="${STELLA_APP_WORK_ROOT}/data"
+	[ "${MAMBO_DOWNLOAD_PATH}" = "" ] && DEFAULT_HARDCODED_MAMBO_DOWNLOAD_PATH="1" && export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
+
+
+	# update some loaded variables
+	__translate_all_path
+
+	# generate compose file - add some new variables to VARIABLES_LIST
+	__create_docker_compose_file
+
+	# update env files with current variables values
+	# so priority here become :
+	#	- command line
+	#	- shell env variables
+	# 	- user env file
+	# 	- default env file
+	# 	- default values hardcoded in mambo
+	__update_env_files "ingest variables from command line and created/modified ones"
+	# load variables 
+	# so priority here become :
+	#	- command line
+	#	- shell env variables
+	# 	- user env file
+	# 	- default env file
+	# 	- default values hardcoded in mambo
+	. "${ENV_FILE_FOR_BASH_GENERATED}"
+
+} || {
+	if [ ! "${ACTION}" = "install" ]; then
+		echo "** ERROR : please install app first"
+		exit 1
+	fi
 }
 
-# set some environment variables at runtime
-export MAMBO_HOSTNAME="$(hostname)"
-__update_env_for_docker_compose "MAMBO_HOSTNAME"
 
-# set environment variables from command line
-[ "${MAMBO_USER_ID}" = "" ] && export MAMBO_USER_ID="${PUID}" \
-								|| export MAMBO_USER_ID="${MAMBO_USER_ID}"
 
-[ "${MAMBO_GROUP_ID}" = "" ] && export MAMBO_GROUP_ID="${PGID}" \
-								|| export MAMBO_GROUP_ID="${MAMBO_GROUP_ID}"
-
-__update_env_for_docker_compose "MAMBO_USER_ID"
-__update_env_for_docker_compose "MAMBO_GROUP_ID"
-
-[ ! "${DOMAIN}" = "" ] && export MAMBO_DOMAIN="${DOMAIN}"
-__update_env_for_docker_compose "MAMBO_DOMAIN"
-
-[ "${DAEMON}" = "1" ] && DAEMON="-d"
-
-if [ "${DEBUG}" = "1" ]; then
-	VERBOSE="1"
-	[ "${LETS_ENCRYPT}" = "enable" ] && export LETS_ENCRYPT="debug"
-	__update_env_for_docker_compose "LETS_ENCRYPT"
-fi
 
 case $ACTION in
 	install )
@@ -653,26 +744,26 @@ case $ACTION in
 	;;
 
 	info )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up service_init
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up service_init
 	;;
 
 	up )
 		# NOTE we need to specify project directory because when launching from an other directory, docker compose seems to NOT auto load .env file
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
 		if [ "${DAEMON}" = "" ]; then
 			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		else
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		fi
 	;;
 
 	down )
 		case "${TARGET}" in
 		"") 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
 		;;
 		*) 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
 		;;
 		esac
 	;;
@@ -680,27 +771,27 @@ case $ACTION in
 	restart )
 		case "${TARGET}" in
 		"") 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
 		;;
 		*) 
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
 		;;
 		esac
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
 		if [ "${DAEMON}" = "" ]; then
-			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			[ "${TARGET}" = "" ] && docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		else
-			docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
 		fi
 
 	;;
 
 	status )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" ps ${TARGET}
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" ${DOCKER_COMPOSE_LOG} --project-directory "${STELLA_APP_ROOT}" ps ${TARGET}
 	;;
 
 	logs )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs -t ${TARGET}
+		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" ${DOCKER_COMPOSE_LOG} --project-directory "${STELLA_APP_ROOT}" logs -t ${TARGET}
 	;;
 esac
 

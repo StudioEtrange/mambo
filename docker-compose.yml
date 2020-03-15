@@ -123,11 +123,12 @@ services:
     container_name: mambo
     user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     depends_on:
-      - traefik
+      - ${SERVICE_TRAEFIK}
       - ${SERVICE_OMBI}
       - ${SERVICE_SABNZBD}
       - ${SERVICE_MEDUSA}
       - ${SERVICE_TAUTULLI}
+      - ${SERVICE_WEB}
       - ${SERVICE_PLEX}
       - ${SERVICE_ORGANIZR2}
     labels:
@@ -215,7 +216,7 @@ services:
             for s in $${MAMBO_SERVICES_REDIRECT_HTTPS}; do
               [ \"$${service,,}\" = \"$$s\" ] && __redirected=1
             done
-            [ \"$${__redirected}\" = \"1\" ] && echo yes || echo no
+            [ \"$${__redirected}\" = \"1\" ] && echo YES || echo NO
             __direct_access=\"$${service}_DIRECT_ACCESS_PORT\"; __direct_access=\"$${!__direct_access}\";
             echo \"L-- direct access port : $${__direct_access}\"
             case $${service} in
@@ -230,6 +231,7 @@ services:
                 mkdir -p '/data/plex/Library/Application Support'       
                 ;;
             esac
+            echo L-- URLs :
             echo L-- variables list :
             for variables in $$(compgen -A variable | grep ^$${service}_); do
               case $${variables} in
@@ -248,7 +250,12 @@ services:
         && echo \"L-- certificates generated for : $LETS_ENCRYPT_SERVICES\"
         && echo \"L-- challenge method : $LETS_ENCRYPT_CHALLENGE\"
         && echo ---------==---- MAMBO NETWORK ----==---------
-        && echo \"* DOMAIN : $MAMBO_DOMAIN \"
+        && echo \"* IP & Domain\"
+        && echo L-- Mambo declared domain : \"$MAMBO_DOMAIN\"
+        && echo L-- Mambo external IP : $MAMBO_EXTERNAL_IP
+        && echo L-- Mambo host name : $MAMBO_HOSTNAME
+        && echo L-- Mambo host default local IP : $MAMBO_HOST_DEFAULT_IP
+        && echo L-- Mambo host local IPs : $MAMBO_HOST_IP
         && echo \"* MAIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_MAIN
         && echo L-- HTTP entrypoint [web_main] $MAMBO_PORT_MAIN
@@ -275,7 +282,7 @@ services:
   #     http://traefik.domain:${MAMBO_PORT_ADMIN}/api
   #     http://traefik.domain:${MAMBO_PORT_ADMIN}/dashboard
   traefik:
-    image: traefik:v2.1.6
+    image: traefik:${TRAEFIK_VERSION:-latest}
     container_name: mambo_traefik
     depends_on: 
       - service_init
@@ -290,18 +297,23 @@ services:
       - "mambo.managed=true"
       - "traefik.enable=true"
       # http://traefik.domain:${MAMBO_PORT_ADMIN} http://traefik.domain:${MAMBO_PORT_ADMIN}/api http://traefik.domain:${MAMBO_PORT_ADMIN}/dashboard
-      - "traefik.http.routers.traefik-secure.entrypoints=web_admin_secure"
+      - "traefik.http.routers.traefik.entrypoints=${TRAEFIK_ENTRYPOINTS:-web_admin_secure}"
       # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
+      - "traefik.http.routers.traefik.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.priority=${TRAEFIK_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.traefik.middlewares=traefik-api-redirect,traefik-api-redirect2"
+      - "traefik.http.routers.traefik-secure.entrypoints=${TRAEFIK_ENTRYPOINTS:-web_admin_secure}"
       - "traefik.http.routers.traefik-secure.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
       - "traefik.http.routers.traefik-secure.service=api@internal"
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-api-redirect,traefik-api-redirect2"
       - "traefik.http.routers.traefik-secure.tls=true"
       - "traefik.http.routers.traefik-secure.tls.domains[0].main=traefik.${MAMBO_DOMAIN:-.*}"
-      - "traefik.http.routers.traefik-secure.middlewares=traefik-api-redirect,traefik-api-redirect2"
       # redirect /dashboard to /dashboard/
-      - "traefik.http.middlewares.traefik-api-redirect.redirectregex.regex=^(https://[^:/]+(:[0-9]+)?)/dashboard$$"
+      - "traefik.http.middlewares.traefik-api-redirect.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)/dashboard$$"
       - "traefik.http.middlewares.traefik-api-redirect.redirectregex.replacement=$${1}/dashboard/"
       # redirect / to /dashboard/
-      - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.regex=^(https://[^:/]+(:[0-9]+)?)(/)+$$"
+      - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)(/)+$$"
       - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.replacement=$${1}/dashboard/"
       # HTTP to HTTPS redirect routers - catch all HTTP request on each entrypoint
       # NOTE : we cannot use the method of set redirect middleware on each routers service because each service routers
@@ -375,7 +387,8 @@ services:
       - "--certificatesresolvers.mambo=true"
       - "--certificatesresolvers.mambo.acme.email=${LETS_ENCRYPT_MAIL}"
       - "--certificatesresolvers.mambo.acme.storage=/letsencrypt/acme.json"
-      
+  traefik_disable:
+    << : *service-disable  
 
 
   # Main mambo portal
@@ -662,7 +675,7 @@ services:
     << : *service-disable
   
   web:
-    image: httpd:2.4
+    image: httpd:${WEB_VERSION:-latest}
     container_name: mambo_web
     depends_on: 
       - service_init
