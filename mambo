@@ -24,8 +24,8 @@ __update_env_files() {
 	echo "# ------ UPDATE : update_env_files : $(date) -- ${__text}" >> "${ENV_FILE_GENERATED}"
 	echo "# ------ UPDATE : update_env_files : $(date) -- ${__text}" >> "${ENV_FILE_FOR_BASH_GENERATED}"
 	for __variable in ${VARIABLES_LIST}; do
-		echo "${__variable}=${!__variable}" >> "${ENV_FILE_GENERATED}"
-		echo "${__variable}=\"${!__variable}\"" >> "${ENV_FILE_FOR_BASH_GENERATED}"		
+		[ -z ${!__variable+x} ] || echo "${__variable}=${!__variable}" >> "${ENV_FILE_GENERATED}"
+		[ -z ${!__variable+x} ] || echo "${__variable}=\"${!__variable}\"" >> "${ENV_FILE_FOR_BASH_GENERATED}"		
 	done
 }
 
@@ -50,7 +50,7 @@ __create_env_for_bash() {
 	echo "# ------ CREATE : create_env_for_bash : $(date)" > "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# combine user env file and default env file
-	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# PART FROM ${ENV_FILE_USER}) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}" \
+	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}" \
 					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# Preserve some variables like list
@@ -64,10 +64,10 @@ __create_env_for_bash() {
 	sed -i 's/^LETS_ENCRYPT_SERVICES=\(.*\)$/LETS_ENCRYPT_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# remove empty lines and commentaries
-	sed -i -e '/^[[:space:]]*$/d' -e '/^[#].*$/d' "${ENV_FILE_FOR_BASH_GENERATED}"
+	#sed -i -e '/^[[:space:]]*$/d' -e '/^[#].*$/d' "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# preserve existing setted variables - inherited from shell env
-	sed -i 's/^\(.*\)=\(.*\)$/\[ -z \"\${\1}\" \] \&\& \1=\2/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	#sed -i 's/^\(.*\)=\(.*\)$/\[ -z \"\${\1}\" \] \&\& \1=\2/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 }
 
 # translate all relative path to absolute
@@ -571,7 +571,7 @@ usage() {
 	echo "L     status [service] : see status"
 	echo "L     logs [service] : see logs"
 	echo "L     shell <service> : launch a shell into a running service"
-	echo "L     init : init services. Do it once before launch. - will stop plex"
+	echo "L     init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force to claim server even it is already registred TODo"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -625,14 +625,10 @@ type docker-compose 1>/dev/null 2>&1 && {
 	__add_variables "MAMBO_HOSTNAME"
 	export MAMBO_EXTERNAL_IP="$(curl -s ipinfo.io/ip)"
 	__add_variables "MAMBO_EXTERNAL_IP"
-	
-	# load variables 
-	# so priority here become :
-	# 	- user env file
-	# 	- default env file
-	. "${ENV_FILE_FOR_BASH_GENERATED}"
 
-	# update env files with current variables values
+	
+
+	# update env files with current setted variables values
 	# so priority here become :
 	#	- shell env variables
 	# 	- user env file
@@ -672,6 +668,21 @@ type docker-compose 1>/dev/null 2>&1 && {
 	[ "${MAMBO_DOWNLOAD_PATH}" = "" ] && DEFAULT_HARDCODED_MAMBO_DOWNLOAD_PATH="1" && export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
 
 
+	if [ "${ACTION}" = "info" ]; then
+		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_MAIN}")" = "TRUE" ] && export MAMBO_PORT_MAIN_REACHABLE=1
+		__add_variables "MAMBO_PORT_MAIN_REACHABLE"
+		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_MAIN_SECURE}")" = "TRUE" ] && export MAMBO_PORT_MAIN_SECURE_REACHABLE=1
+		__add_variables "MAMBO_PORT_MAIN_SECURE_REACHABLE"
+		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_SECONDARY}")" = "TRUE" ] && export MAMBO_PORT_SECONDARY_REACHABLE=1
+		__add_variables "MAMBO_PORT_SECONDARY_REACHABLE"
+		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_SECONDARY_SECURE}")" = "TRUE" ] && export MAMBO_PORT_SECONDARY_SECURE_REACHABLE=1
+		__add_variables "MAMBO_PORT_SECONDARY_SECURE_REACHABLE"
+		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_ADMIN}")" = "TRUE" ] && export MAMBO_PORT_ADMIN_REACHABLE=1
+		__add_variables "MAMBO_PORT_ADMIN_REACHABLE"
+		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_ADMIN_SECURE}")" = "TRUE" ] && export MAMBO_PORT_ADMIN_SECURE_REACHABLE=1
+		__add_variables "MAMBO_PORT_ADMIN_SECURE_REACHABLE"
+	fi
+
 	# update some loaded variables
 	__translate_all_path
 
@@ -705,7 +716,7 @@ type docker-compose 1>/dev/null 2>&1 && {
 
 
 
-case $ACTION in
+case ${ACTION} in
 	install )
 		;;
 	up|restart )

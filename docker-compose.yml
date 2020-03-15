@@ -231,7 +231,18 @@ services:
                 mkdir -p '/data/plex/Library/Application Support'       
                 ;;
             esac
-            echo L-- URLs :
+            __urls=
+            
+            for e in $${__entrypoints}; do
+              e=\"$${e/web_/MAMBO_PORT_}\"
+              e=\"$${e^^}\"
+              __with_s=
+              case $$e in
+              *SECURE )__with_s=\"s\";; 
+              esac
+              __urls=\" $${__urls} http$${__with_s}://$${service,,}.$${MAMBO_DOMAIN/\.\*/\*}:$${!e}\"
+            done
+            echo L-- URLs : $${__urls}
             echo L-- variables list :
             for variables in $$(compgen -A variable | grep ^$${service}_); do
               case $${variables} in
@@ -244,9 +255,10 @@ services:
         && echo -n \"L-- status : \"
         && case $${LETS_ENCRYPT} in
         enable )echo ENABLED;;
-        debug )echo DISABLED with DEBUG lets encrypt server;;
+        debug )echo ENABLED with DEBUG lets encrypt server;;
         * ) echo DISABLED;;
         esac
+        && echo \"L-- email used : $LETS_ENCRYPT_MAIL\"
         && echo \"L-- certificates generated for : $LETS_ENCRYPT_SERVICES\"
         && echo \"L-- challenge method : $LETS_ENCRYPT_CHALLENGE\"
         && echo ---------==---- MAMBO NETWORK ----==---------
@@ -258,16 +270,16 @@ services:
         && echo L-- Mambo host local IPs : $MAMBO_HOST_IP
         && echo \"* MAIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_MAIN
-        && echo L-- HTTP entrypoint [web_main] $MAMBO_PORT_MAIN
-        && echo L-- HTTPS entrypoint [web_main_secure] $MAMBO_PORT_MAIN_SECURE
+        && echo L-- HTTP entrypoint [web_main] - port : $MAMBO_PORT_MAIN reachable from internet : $$([ \"$${MAMBO_PORT_MAIN_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
+        && echo L-- HTTPS entrypoint [web_main_secure] - port : $MAMBO_PORT_MAIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_MAIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
         && echo \"* SECONDARY AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_SECONDARY
-        && echo L-- HTTP entrypoint [web_secondary] $MAMBO_PORT_SECONDARY
-        && echo L-- HTTPS entrypoint [web_secondary_secure] $MAMBO_PORT_SECONDARY_SECURE
+        && echo L-- HTTP entrypoint [web_secondary] - port : $MAMBO_PORT_SECONDARY reachable from internet : $$([ \"$${MAMBO_PORT_SECONDARY_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
+        && echo L-- HTTPS entrypoint [web_secondary_secure] - port : $MAMBO_PORT_SECONDARY_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_SECONDARY_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
         && echo \"* ADMIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_ADMIN
-        && echo L-- HTTP entrypoint [web_admin] $MAMBO_PORT_ADMIN
-        && echo L-- HTTPS entrypoint [web_admin_secure] $MAMBO_PORT_ADMIN_SECURE
+        && echo L-- HTTP entrypoint [web_admin] - port : $MAMBO_PORT_ADMIN reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
+        && echo L-- HTTPS entrypoint [web_admin_secure] - port : $MAMBO_PORT_ADMIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
         && echo"
 
 
