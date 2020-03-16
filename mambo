@@ -62,6 +62,8 @@ __create_env_for_bash() {
 	sed -i 's/^MAMBO_SERVICES_AREA_ADMIN=\(.*\)$/MAMBO_SERVICES_AREA_ADMIN=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^MAMBO_SERVICES_REDIRECT_HTTPS=\(.*\)$/MAMBO_SERVICES_REDIRECT_HTTPS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 	sed -i 's/^LETS_ENCRYPT_SERVICES=\(.*\)$/LETS_ENCRYPT_SERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_SUBSERVICES=\(.*\)$/MAMBO_SUBSERVICES=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
+	sed -i 's/^MAMBO_ADDONS=\(.*\)$/MAMBO_ADDONS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# remove empty lines and commentaries
 	#sed -i -e '/^[[:space:]]*$/d' -e '/^[#].*$/d' "${ENV_FILE_FOR_BASH_GENERATED}"
@@ -133,11 +135,17 @@ __set_time_all() {
 
 __set_letsencrypt_service_all() {
 
-
+	
 	case ${LETS_ENCRYPT} in
 		enable|debug )
-			for s in ${LETS_ENCRYPT_SERVICES}; do
-				__add_letsencrypt_service "${s}"
+			for serv in ${LETS_ENCRYPT_SERVICES}; do
+				__add_letsencrypt_service "${serv}"
+				# add lets encrypt support for subservices
+				for sub in ${MAMBO_SUBSERVICES}; do
+					case $sub in
+						$serv ) __add_letsencrypt_service "${sub}";;
+					esac
+				done
 			done
 
 			case ${LETS_ENCRYPT_CHALLENGE} in
@@ -319,7 +327,6 @@ __add_volume_local_definition() {
 
 
 
-
 # PLEX -----------------
 
 __init_service_plex() {
@@ -328,7 +335,7 @@ __init_service_plex() {
 	if [ "$(__is_plex_registered)" = "0" ]; then
 		[ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
 		[ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
-		__auth_token="$(__get_plex_x_plex_token ${PLEX_USER} ${PLEX_PASSWORD})"
+		__auth_token="$(__get_plex_x_plex_auth_token ${PLEX_USER} ${PLEX_PASSWORD})"
 		echo " ** From plex.tv -- get auth token : ${__auth_token}"
 		__claim_token="$(__get_plex_claim_token "${__auth_token}")"
 		echo " ** From plex.tv -- get claim token : ${__claim_token}"
@@ -344,12 +351,12 @@ __init_service_plex() {
 	__add_variables "PLEX_CLAIM"
 
 	# stop plex if it was already running
-	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop plex 
+	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop plex
 	# init plex
-	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" up -d plex
+	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up -d plex
 	# wait for conf and db files created
 	sleep 4
-	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" stop plex
+	docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop plex
 	sleep 4
 	__set_plex_defaults
 }
@@ -363,7 +370,7 @@ __is_plex_registered() {
 }
 
 # get a plex auth token
-__get_plex_x_plex_token() {
+__get_plex_x_plex_auth_token() {
 	local __login="$1"
 	local __password="$2"
 
@@ -564,20 +571,21 @@ usage() {
 	echo "----------------"
 	echo "o-- general management :"
 	echo "L     install : deploy this app"
+	echo "L     init [plex|addons] [--claim] : init services & addons. Do it once before launch. - will stop plex --claim : will force to claim server even it is already registred TODO"
 	echo "L     up [service [-d]] : launch all mambo services or one service"
 	echo "L     down [service] : down all mambo services or one service"
 	echo "L     restart [service [-d]] : restart all mambo services or one service"
-	echo "L     info : give info on Mambo. Will generate conf files and print configuration used when launching any service."
+	echo "L     info [plex]: give info on Mambo. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see status"
 	echo "L     logs [service] : see logs"
 	echo "L     shell <service> : launch a shell into a running service"
-	echo "L     init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force to claim server even it is already registred TODo"
+	
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
 ACTION=											'action' 			a				'info shell up down status install logs init restart' '1'
-TARGET=												'target' 					a				'traefik organizr2 ombi sabnzbd plex medusa tautulli web'	'0'
+TARGET=												'target' 					a				'addons traefik organizr2 ombi sabnzbd plex medusa tautulli web'	'0'
 "
 OPTIONS="
 DOMAIN='' 					'' 				'domain'				s 			0			''		  Mambo domain name.
@@ -668,20 +676,22 @@ type docker-compose 1>/dev/null 2>&1 && {
 	[ "${MAMBO_DOWNLOAD_PATH}" = "" ] && DEFAULT_HARDCODED_MAMBO_DOWNLOAD_PATH="1" && export MAMBO_DOWNLOAD_PATH="${STELLA_APP_WORK_ROOT}/download"
 
 
-	if [ "${ACTION}" = "info" ]; then
-		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_MAIN}")" = "TRUE" ] && export MAMBO_PORT_MAIN_REACHABLE=1
-		__add_variables "MAMBO_PORT_MAIN_REACHABLE"
-		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_MAIN_SECURE}")" = "TRUE" ] && export MAMBO_PORT_MAIN_SECURE_REACHABLE=1
-		__add_variables "MAMBO_PORT_MAIN_SECURE_REACHABLE"
-		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_SECONDARY}")" = "TRUE" ] && export MAMBO_PORT_SECONDARY_REACHABLE=1
-		__add_variables "MAMBO_PORT_SECONDARY_REACHABLE"
-		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_SECONDARY_SECURE}")" = "TRUE" ] && export MAMBO_PORT_SECONDARY_SECURE_REACHABLE=1
-		__add_variables "MAMBO_PORT_SECONDARY_SECURE_REACHABLE"
-		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_ADMIN}")" = "TRUE" ] && export MAMBO_PORT_ADMIN_REACHABLE=1
-		__add_variables "MAMBO_PORT_ADMIN_REACHABLE"
-		[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_ADMIN_SECURE}")" = "TRUE" ] && export MAMBO_PORT_ADMIN_SECURE_REACHABLE=1
-		__add_variables "MAMBO_PORT_ADMIN_SECURE_REACHABLE"
-	fi
+	case ${ACTION} in
+		info|up|restart )
+			[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_MAIN}")" = "TRUE" ] && export MAMBO_PORT_MAIN_REACHABLE=1
+			__add_variables "MAMBO_PORT_MAIN_REACHABLE"
+			[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_MAIN_SECURE}")" = "TRUE" ] && export MAMBO_PORT_MAIN_SECURE_REACHABLE=1
+			__add_variables "MAMBO_PORT_MAIN_SECURE_REACHABLE"
+			[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_SECONDARY}")" = "TRUE" ] && export MAMBO_PORT_SECONDARY_REACHABLE=1
+			__add_variables "MAMBO_PORT_SECONDARY_REACHABLE"
+			[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_SECONDARY_SECURE}")" = "TRUE" ] && export MAMBO_PORT_SECONDARY_SECURE_REACHABLE=1
+			__add_variables "MAMBO_PORT_SECONDARY_SECURE_REACHABLE"
+			[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_ADMIN}")" = "TRUE" ] && export MAMBO_PORT_ADMIN_REACHABLE=1
+			__add_variables "MAMBO_PORT_ADMIN_REACHABLE"
+			[ "$(__check_tcp_port_open "${MAMBO_EXTERNAL_IP}" "${MAMBO_PORT_ADMIN_SECURE}")" = "TRUE" ] && export MAMBO_PORT_ADMIN_SECURE_REACHABLE=1
+			__add_variables "MAMBO_PORT_ADMIN_SECURE_REACHABLE"
+		;;
+	esac
 
 	# update some loaded variables
 	__translate_all_path
@@ -750,12 +760,40 @@ case $ACTION in
 	;;
 
 	init )
-		echo "** Init service Plex"
-		__init_service_plex
+		
+		case ${TARGET} in
+			plex )
+				echo "** Init service Plex"
+				__init_service_plex
+				;;
+			addons )
+				echo "** Init service Mambo addons"
+				docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up addons
+				;;
+			* )
+				echo "** Init service Plex"
+				__init_service_plex
+				echo "** Init service Mambo addons"
+				docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up addons
+				;;
+		esac
 	;;
 
 	info )
-		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up service_init
+		case "${TARGET}" in
+			plex )
+				echo "---------==---- PLEX ----==---------"
+				[ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
+				[ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
+				echo "L-- X-Plex-Token : $(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
+			;;
+			* )
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up service_init
+			;;
+		esac
+		
+
+		
 	;;
 
 	up )
@@ -770,12 +808,12 @@ case $ACTION in
 
 	down )
 		case "${TARGET}" in
-		"") 
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
-		;;
-		*) 
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
-		;;
+			"") 
+				docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
+			;;
+			*) 
+				docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
+			;;
 		esac
 	;;
 

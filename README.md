@@ -1,6 +1,10 @@
-# MAMBO
+# MAMBO - A docker based media stack
 
-* A docker based media stack - with traefik2 to manage docker routes
+
+* Support nvidia transcoding for plex
+* Support Let's encrypt for HTTPS certificate generation
+* Configurable through env variables or env file
+* Highly based on traefik2 for internal routing
 
 ## REQUIREMENTS
 
@@ -23,8 +27,6 @@ NOTE : mambo will auto install other tools like docker-compose
 * Tautulli
 * Organizr2
 
-* Use Traefik2 for internal routing
-* Support Let's encrypt HTTP/DNS Challenge for certificate auto generation
 
 ## USAGE
 
@@ -59,7 +61,7 @@ NOTE : mambo will auto install other tools like docker-compose
     LETS_ENCRYPT=enable
     LETS_ENCRYPT_MAIL=no@no.com
 
-    MAMBO_SERVICES_REDIRECT_HTTPS=ombi sabnzbd tautulli medusa
+    MAMBO_SERVICES_REDIRECT_HTTPS=traefik ombi sabnzbd tautulli medusa
     ```
 
 * Launch
@@ -73,10 +75,26 @@ NOTE : mambo will auto install other tools like docker-compose
     ./mambo down
     ```
 
+## AVAILABLE COMMANDS
+
+```
+L     install : deploy this app
+L     init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force to claim server even it is already registred
+L     up [service [-d]] : launch all mambo services or one service
+L     down [service] : down all mambo services or one service
+L     restart [service [-d]] : restart all mambo services or one service
+L     info : give info on Mambo. Will generate conf files and print configuration used when launching any service.
+L     status [service] : see status
+L     logs [service] : see logs
+L     shell <service> : launch a shell into a running service
+```
+
+
+
 
 ## MAMBO CONFIGURATION
 
-* You could set every mambo configuration variables through a configuration file, shell environment variables and some from command line. 
+* You could set every mambo variables through a user environment file, shell environment variables and some from command line. 
 
 
 * All existing variables are listed in `env.default`
@@ -84,7 +102,7 @@ NOTE : mambo will auto install other tools like docker-compose
 * Resolution priority order :
     * Command line variables
     * Shell environment variables
-    * User configuration file variables
+    * User environment file variables
     * Default configuration file variables
     * Default values from mambo itself
 
@@ -96,10 +114,10 @@ NOTE : mambo will auto install other tools like docker-compose
 
 |NAME|DESC|DEFAULT VALUE|SAMPLE VALUE|
 |-|-|-|-|
-|MAMBO_DOMAIN|domain used to access mambo. `.*` stands for any domain or host ip.|`.*`|`mydomain.com`|
-|MAMBO_USER_ID|unix user which will run services and acces to files.|current user `id -u`|`1000`|
-|MAMBO_GROUP_ID|unix group which will run services and acces to files.|current group `id -g`|`1000`|
-|MAMBO_MEDIA_FOLDERS|list of paths on host that contains media files. Must exists. If relative path is relative to mambo path|`./mambo/workspace/media`|`/mnt/MEDIA/MOVIES /mnt/MEDIA/TV_SHOWS`|
+|MAMBO_DOMAIN|domain used to access mambo. It is a regexp. `.*` stands for any domain or host ip.|`.*`|`mydomain.com`|
+|MAMBO_USER_ID|unix user which will run services and acces to files.|current user : `id -u`|`1000`|
+|MAMBO_GROUP_ID|unix group which will run services and acces to files.|current group : `id -g`|`1000`|
+|MAMBO_MEDIA_FOLDERS|list of paths on host that contains media files. Relative path to mambo app path|-|`/mnt/MEDIA/MOVIES /mnt/MEDIA/TV_SHOWS`|
 |MAMBO_DATA_PATH|path on host for services conf and data files. Relative to mambo app path.|`./mambo/workspace/data`|`../data`|
 |MAMBO_DOWNLOAD_PATH|path on host for downloaded files. Relative to mambo app path.|`./mambo/workspace/download`|`../download`|
 |PLEX_USER|your plex account|-|`no@no.com`|
@@ -109,18 +127,20 @@ NOTE : mambo will auto install other tools like docker-compose
 
 * see `env.default` for detail
 
-* TO BE COMPLETED
+* TODO TO BE COMPLETED
 
 
-### Using a conf file
+### Using a user environment file
 
-* You could create a conf file (ie: `mambo.env`) to set any available variables and put it everywhere. By default it will be looked for from your home directory
+* You could create a user environment file (default name : `mambo.env`) to set any available variables and put it everywhere. By default it will be looked for from your home directory
 
     ```
-    ./mambo -f $HOME/mambo.site up
+    ./mambo -f mambo.env up
     ```
 
-* A conf file syntax is liked docker-compose env file syntax. It is **NOT** a shell file. Values are not evaluated.
+* By default, mambo will look for any existing user environment file into `$HOME/mambo.env`
+
+* A user environment file syntax is liked docker-compose env file syntax. It is **NOT** a shell file. Values are not evaluated.
 
 
     ```
@@ -140,7 +160,7 @@ NOTE : mambo will auto install other tools like docker-compose
     ```
 
 
-### For Your Information about env files
+### For Your Information about env files - internal mechanisms
 
 
 * At each launch mambo use `env.default` file and your conf file (`mambo.env`) files to generate
@@ -169,7 +189,7 @@ NOTE : mambo will auto install other tools like docker-compose
             bash -c "echo from docker compose : $MAMBO_PORT_MAIN from running container env variable : $$MAMBO_PORT_MAIN"
     ```
 
-## SERVICE MANIPULATION
+## SERVICE ADMINISTRATION
 
 ### Enable/disable
 
@@ -177,7 +197,7 @@ NOTE : mambo will auto install other tools like docker-compose
     * to enable use the service name as value 
     * to disable add `_disable` to service name
 
-* ie in conf file : 
+* ie in user env file : 
     ```
     SERVICE_OMBI=ombi
     SERVICE_SABNZBD=sabnzbd_disable
@@ -199,47 +219,83 @@ NOTE : mambo will auto install other tools like docker-compose
 
 ## SERVICES CONFIGURATION
 
-* You need to configure each service. Mambo do only a few configuration on some services. 
+* You need to configure yourself each service. Mambo do only a few configurations on some services. 
 * Keep in mind that each service is reached from other one with url like `http://<service>:<default service port>` (ie `http://ombi:5000`)
 
+### Plex
+
+* Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
 
 ### Tautulli
 
-    * access to tautulli - setup wizard will be launched
-    * create an admin account
-    * signin with your plex account
-    * For Plex Media Server :
-        * "Plex IP or Hostname": plex
-        * "Port Number": 32400
-        * "Use SSL": disabled
-        * "Remote Server": disabled
-        * Click "Verify"
-    * Then after setup finished, in settings
-        * Web interface / advanced settings / "Enable HTTP Proxy" : enabled
-        * Web interface / advanced settings / "Enable HTTPS" : disabled
-        * Web interface / advanced settings / "Public Tautulli Domain" : http://web.chimere-harpie.org
-
-### Various configuration guides
-
-* Plex https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
-* Ombi https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Ombi
+* access to tautulli - setup wizard will be launched
+* create an admin account
+* signin with your plex account
+* For Plex Media Server :
+    * Plex IP or Hostname : `plex`
+    * Port Number : `32400`
+    * Use SSL : `disabled`
+    * Remote Server : `disabled`
+    * Click Verify
+* Then after setup finished, in settings
+    * Web interface / advanced settings / Enable HTTP Proxy : `enabled`
+    * Web interface / advanced settings / Enable HTTPS" : `disabled`
+    * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletter and image - newsletter are exposed through mambo service `web`)
 
 
+### Sabnzbd
 
-## AVAILABLE COMMANDS
+* Folders 
+    * Temporary Download Folder : `/download/incomplete`
+    * Completed Download Folder : `/download/complete`
+    * Watched Folder : `/vault/nzb`
+    * Scripts Folder : `/scripts`
 
-```
-L     install : deploy this app
-L     up [service [-d]] : launch all mambo services or one service
-L     down [service] : down all mambo services or one service
-L     restart [service [-d]] : restart all mambo services or one service
-L     info : give info on Mambo. Will generate conf files and print configuration used when launching any service.
-L     status [service] : see status
-L     logs [service] : see logs
-L     shell <service> : launch a shell into a running service
-L     init : init services. Do it once before launch. - will stop plex
-```
+* Categories
+    * Create a categorie for each kind of media and store media files in folder/path `/media/folders` as defined by variables `MAMBO_MEDIA_FOLDERS`
 
+
+### Medusa
+
+* Medusa configuration :
+    * General / Misc
+        * Show root directories : add each tv media folders from `/media/folders` as defined by variables `MAMBO_MEDIA_FOLDERS`
+
+* Sabnzbd configuration :
+    * Search settings/NZB Search
+        * Enable nzb search providers
+        * Send .nzb files : `SABnzbd`
+        * SABnzbd server url : http://sabnzbd:8080
+        * Set sabnzbd user/password and api key
+
+
+* Plex configuration:
+    * Notifications/Plex Media Server
+        * get Auth token with `./mambo info plex`
+        * set plex media server ip:port : `plex:32400`
+        * HTTPS : `enabled`
+
+
+### Ombi
+
+* Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Ombi
+
+* Parameters 
+    * Ombi / do not allow to collect analytics data
+    * Configuration / User importer 
+        * Import Plex Users : `enabled`
+        * Import Plex Admin : `enabled`
+        * Default Roles : Request Movie/TV
+    * Configuration / Authentification
+        * Enable plex OAuth : `enabled`
+    * Media Server / Plex configuration / Add server
+        * Server Name : free text
+        * Hostname : `plex`
+        * Port : `32400`
+        * SSL : `enabled`
+        * Plex Authorization Token : get Auth token with `./mambo info plex`
+        * Click on Test Connectivity
+        * Click on Load Libraries and select libraries in which content will look for user request
 
 
 ## NETWORK CONFIGURATION
@@ -255,7 +311,7 @@ L     init : init services. Do it once before launch. - will stop plex
 
 * A service can be declared into several logical area
 
-### Avaibale areas and entrypoints
+### Available areas and entrypoints
 
 |logical area|entrypoint name|protocol|default port|variable|
 |-|-|-|-|-|
@@ -294,9 +350,9 @@ L     init : init services. Do it once before launch. - will stop plex
 * To enable/disable HTTPS only access to each service, declare them in `MAMBO_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
     * NOTE : some old plex client do not support HTTPS (like playstation 3) so plex might be exclude from this variable
 
-* ie in user conf file : 
+* ie in user env file : 
     ```
-    MAMBO_SERVICES_REDIRECT_HTTPS=ombi organizr2
+    MAMBO_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
     ```
 
 ### Certificate with Let's encrypt
@@ -336,6 +392,66 @@ L     init : init services. Do it once before launch. - will stop plex
 * If your Docker host also has a dedicated graphics card, the video encoding acceleration of Intel Quick Sync Video may become unavailable when the GPU is in use. 
 * If your computer has an NVIDIA GPU, please install the latest Latest NVIDIA drivers for Linux to make sure that Plex can use your NVIDIA graphics card for video encoding (only) when Intel Quick Sync Video becomes unavailable.
 
+## MAMBO ADDONS
+
+
+* declare addons
+
+    * ie in user env file : 
+        ```
+        MAMBO_ADDONS=addon_name#version
+        ```
+
+* install addons
+    ```
+    ./mambo init addons
+    ```
+
+
+
+### nzbToMedia
+
+* Use to connect medusa and sabnzbd
+* https://github.com/clinton-hall/nzbToMedia
+
+* sample
+
+    ```
+    MAMBO_ADDONS="nzbToMedia#12.1.04" ./mambo init addons
+    ```
+
+* configure sabnzbd
+    * Folders/Scripts Folder : `/scripts/nzbToMedia`
+
+* configure autoProcessMedia.cfg
+    ```
+    [General]
+    force_clean = 1
+    [SickBeard]
+    #### autoProcessing for TV Series
+    #### tv - category that gets called for post-processing with SB
+    [[tv]]
+        enabled = 1
+        host = medusa
+        port = 8081
+        apikey = ***-medusa-api-key-***
+        username = ***-medusa-username-***
+        password = ***-medusa-password-***
+        ###### ADVANCED USE - ONLY EDIT IF YOU KNOW WHAT YOU'RE DOING ######
+        # Set this to minimum required size to consider a media file valid (in MB)
+        minSize = 50
+    
+    [Nzb]
+        ###### clientAgent - Supported clients: sabnzbd, nzbget
+        clientAgent = sabnzbd
+        ###### SabNZBD (You must edit this if you're using nzbToMedia.py with SabNZBD)
+        sabnzbd_host = http://sabnzbd
+        sabnzbd_port = 8080
+        sabnzbd_apikey = ***-sabnzbd-api-key-***
+        ###### Enter the default path to your default download directory (non-category downloads). this directory is protected by safe>
+        default_downloadDirectory = /download/complete
+    ```
+
 
 ## SIDE NOTES
 
@@ -359,6 +475,8 @@ L     init : init services. Do it once before launch. - will stop plex
     * a media stack on docker with traefik https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
     * https://github.com/ghostserverd/mediaserver-docker/blob/master/docker-compose.yml
 * Let's encrypt challenge types : https://letsencrypt.org/fr/docs/challenge-types/
+
+
 
 
 ## TODO

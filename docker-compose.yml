@@ -41,12 +41,12 @@ volumes:
       type: none
       o: bind
       device: ${MAMBO_DATA_PATH}/web
-  newsletter_data:
+  newsletters_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAMBO_DATA_PATH}/web/newsletter
+      device: ${MAMBO_DATA_PATH}/tautulli/newsletters
   organizr2_data:
     driver: local
     driver_opts:
@@ -154,7 +154,6 @@ services:
       bash -c "rm -Rf /media/cdrom && rm -Rf /media/usb && rm -Rf /media/floppy && touch /media/.mambo"  
       
   # init service
-  # check if mandatory path are specified and create subfolder if needed
   service_init:
     image: bash:4.4.23
     container_name: mambo_service_init
@@ -165,9 +164,7 @@ services:
       - data:/data
       - media:/media
       - download:/download
-    environment:
-      - PUID=${MAMBO_USER_ID:-0}
-      - PGID=${MAMBO_GROUP_ID:-0}
+      - ./pool:/pool
     env_file:
       - ./.env
     labels:
@@ -189,9 +186,9 @@ services:
         && chmod 600 /data/letsencrypt/acme.json
         && echo Vault folder for downloads [$MAMBO_DOWNLOAD_PATH/vault] {/download/vault}
         && mkdir -p /download/vault
-        && echo generic web folder \(including newsletter,...\) [$MAMBO_DATA_PATH/web] {/data/web}
+        && echo generic web folder \(including newsletters,...\) [$MAMBO_DATA_PATH/web] {/data/web}
         && mkdir -p /data/web
-        && mkdir -p /data/web/newsletter
+        && mkdir -p /data/tautulli/newsletters
         && echo ---------==---- MAMBO SERVICES ----==---------
         && for service in $$(compgen -A variable | grep SERVICE_); do
             service_status=$${service}
@@ -280,8 +277,35 @@ services:
         && echo L-- services : $MAMBO_SERVICES_AREA_ADMIN
         && echo L-- HTTP entrypoint [web_admin] - port : $MAMBO_PORT_ADMIN reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
         && echo L-- HTTPS entrypoint [web_admin_secure] - port : $MAMBO_PORT_ADMIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
-        && echo"
+        && echo ---------==---- MAMBO ADDONS ----==---------
+        && echo \"* Mambo addons : $MAMBO_ADDONS\""
 
+
+  # init mambo addons
+  addons:
+    image: bash:4.4.23
+    container_name: mambo_addons
+    user: ${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
+    depends_on:
+      - volume_init
+    volumes:
+      - data:/data
+      - media:/media
+      - download:/download
+      - ./pool:/pool
+    env_file:
+      - ./.env
+    labels:
+      - "mambo.managed=true"
+    networks:
+      - default
+    command: >
+        bash -c "echo ---------==---- MAMBO ADDONS ----==---------
+        && echo \"* Mambo addons : $MAMBO_ADDONS\"
+        && for addon in $${MAMBO_ADDONS}; do
+          echo \"L-- install $${addon%#*} $${addon#*#}\"
+          \"/pool/addons/install_$${addon%#*}.sh\" \"$${addon#*#}\"
+        done"
 
   # Router
   # traefik launch order do not matter. It can be launched before or after all other services
@@ -309,24 +333,24 @@ services:
       - "mambo.managed=true"
       - "traefik.enable=true"
       # http://traefik.domain:${MAMBO_PORT_ADMIN} http://traefik.domain:${MAMBO_PORT_ADMIN}/api http://traefik.domain:${MAMBO_PORT_ADMIN}/dashboard
-      - "traefik.http.routers.traefik.entrypoints=${TRAEFIK_ENTRYPOINTS:-web_admin_secure}"
+      - "traefik.http.routers.traefik_api.entrypoints=${TRAEFIK_ENTRYPOINTS:-web_admin}"
       # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
-      - "traefik.http.routers.traefik.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.priority=${TRAEFIK_REDIRECT_HTTPS_PRIORITY:-200}"
-      - "traefik.http.routers.traefik.middlewares=traefik-api-redirect,traefik-api-redirect2"
-      - "traefik.http.routers.traefik-secure.entrypoints=${TRAEFIK_ENTRYPOINTS:-web_admin_secure}"
-      - "traefik.http.routers.traefik-secure.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
-      - "traefik.http.routers.traefik-secure.service=api@internal"
-      - "traefik.http.routers.traefik-secure.middlewares=traefik-api-redirect,traefik-api-redirect2"
-      - "traefik.http.routers.traefik-secure.tls=true"
-      - "traefik.http.routers.traefik-secure.tls.domains[0].main=traefik.${MAMBO_DOMAIN:-.*}"
+      - "traefik.http.routers.traefik_api.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
+      - "traefik.http.routers.traefik_api.service=api@internal"
+      - "traefik.http.routers.traefik_api.priority=${TRAEFIK_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.traefik_api.middlewares=traefik_api-redirect,traefik_api-redirect2"
+      - "traefik.http.routers.traefik_api-secure.entrypoints=${TRAEFIK_ENTRYPOINTS_SECURE:-web_admin_secure}"
+      - "traefik.http.routers.traefik_api-secure.rule=HostRegexp(`{subdomain:traefik}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
+      - "traefik.http.routers.traefik_api-secure.service=api@internal"
+      - "traefik.http.routers.traefik_api-secure.middlewares=traefik_api-redirect,traefik_api-redirect2"
+      - "traefik.http.routers.traefik_api-secure.tls=true"
+      - "traefik.http.routers.traefik_api-secure.tls.domains[0].main=traefik.${MAMBO_DOMAIN:-.*}"
       # redirect /dashboard to /dashboard/
-      - "traefik.http.middlewares.traefik-api-redirect.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)/dashboard$$"
-      - "traefik.http.middlewares.traefik-api-redirect.redirectregex.replacement=$${1}/dashboard/"
+      - "traefik.http.middlewares.traefik_api-redirect.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)/dashboard$$"
+      - "traefik.http.middlewares.traefik_api-redirect.redirectregex.replacement=$${1}/dashboard/"
       # redirect / to /dashboard/
-      - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)(/)+$$"
-      - "traefik.http.middlewares.traefik-api-redirect2.redirectregex.replacement=$${1}/dashboard/"
+      - "traefik.http.middlewares.traefik_api-redirect2.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)(/)+$$"
+      - "traefik.http.middlewares.traefik_api-redirect2.redirectregex.replacement=$${1}/dashboard/"
       # HTTP to HTTPS redirect routers - catch all HTTP request on each entrypoint
       # NOTE : we cannot use the method of set redirect middleware on each routers service because each service routers
       #        may have two entrypoints and middlewares dont know from which entrypoint the request come.
@@ -405,7 +429,7 @@ services:
 
   # Main mambo portal
   # ENTRYPOINT web_secondary
-  #   http://medusa.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
+  #   http://organizr2.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
   # DIRECT ACCESS
   #   http://host:{DIRECT_ACCESS_PORT}
   organizr2:
@@ -658,8 +682,8 @@ services:
     volumes:
       # data/tautulli will contain tautulli configuration
       - data:/data
-      # newsletter_data will be used for generated newsletter
-      - newsletter_data:/newsletter
+      # newsletters_data will be used for generated newsletter
+      - newsletters_data:/data/tautulli/newsletters
     environment:
       - SERVICE_USER=${MAMBO_USER_ID:-0}:${MAMBO_GROUP_ID:-0}
     labels:
@@ -694,6 +718,7 @@ services:
     restart: unless-stopped
     volumes:
       - web_data:/usr/local/apache2/htdocs
+      - newsletters_data:/usr/local/apache2/htdocs/newsletter
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
@@ -709,6 +734,18 @@ services:
       - "traefik.http.services.web.loadbalancer.server.port=80"
       - "traefik.http.services.web.loadbalancer.server.scheme=http"
       - "traefik.http.services.web.loadbalancer.passhostheader=true"
+      # sub service web_newsletter
+      - "traefik.http.routers.web_newsletter.entrypoints=${WEB_ENTRYPOINTS:-web_main}"
+      # NOTE : this rule have priority over router web because it is longer !
+      - "traefik.http.routers.web_newsletter.rule=HostRegexp(`{subdomain:web}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
+      - "traefik.http.routers.web_newsletter.priority=${WEB_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.web_newsletter.service=tautulli"
+      - "traefik.http.routers.web_newsletter-secure.entrypoints=${WEB_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.web_newsletter-secure.rule=HostRegexp(`{subdomain:web}.{domain:${MAMBO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
+      - "traefik.http.routers.web_newsletter-secure.service=tautulli"
+      - "traefik.http.routers.web_newsletter-secure.tls=true"
+      - "traefik.http.routers.web_newsletter-secure.tls.domains[0].main=web.${MAMBO_DOMAIN:-.*}"
+    networks:
     networks:
       - default
     expose:
@@ -716,6 +753,7 @@ services:
   web_disable:
     << : *service-disable
 
+    
 
 
   # calibreweb_books:
