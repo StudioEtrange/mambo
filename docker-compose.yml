@@ -59,6 +59,18 @@ volumes:
       type: none
       o: bind
       device: ${MAMBO_DATA_PATH}/plex
+  jdownloader2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAMBO_DATA_PATH}/jdownloader2
+  jdownloader2_download:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAMBO_DOWNLOAD_PATH}/jdownloader2
   # calibreweb_books_data:
   #   driver: local
   #   driver_opts:
@@ -131,6 +143,7 @@ services:
       - ${SERVICE_WEB}
       - ${SERVICE_PLEX}
       - ${SERVICE_ORGANIZR2}
+      - ${SERVICE_JDOWNLOADER2}
     labels:
       - "mambo.managed=true"
     networks:
@@ -218,14 +231,21 @@ services:
             echo \"L-- direct access port : $${__direct_access}\"
             case $${service} in
               ORGANIZR2 )
-                echo L-- create {/data/organizr2} [$MAMBO_DATA_PATH/organizr2]
+                echo L-- create [$MAMBO_DATA_PATH/organizr2] {/data/organizr2}
                 mkdir -p /data/organizr2
                 ;;
               PLEX )
+                echo L-- create [$MAMBO_DATA_PATH/plex] {/data/plex}
                 mkdir -p '/data/plex'
                 # plex image have a bug and create Library/Application Support owner is root instead of PLEX_UID when launching the docker image 
                 # so we create Library/Application Support with right owner from here
                 mkdir -p '/data/plex/Library/Application Support'       
+                ;;
+              JDOWNLOADER2 )
+                echo L-- create [$MAMBO_DATA_PATH/jdownloader2] {/data/jdownloader2}
+                mkdir -p '/data/jdownloader2'
+                echo L-- create [$MAMBO_DOWNLOAD_PATH/jdownloader2] {/download/jdownloader2}
+                mkdir -p '/download/jdownloader2'
                 ;;
             esac
             __urls=
@@ -267,16 +287,16 @@ services:
         && echo L-- Mambo host local IPs : $MAMBO_HOST_IP
         && echo \"* MAIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_MAIN
-        && echo L-- HTTP entrypoint [web_main] - port : $MAMBO_PORT_MAIN reachable from internet : $$([ \"$${MAMBO_PORT_MAIN_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
-        && echo L-- HTTPS entrypoint [web_main_secure] - port : $MAMBO_PORT_MAIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_MAIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
+        && echo L-- HTTP entrypoint [web_main] - port : $MAMBO_PORT_MAIN reachable from internet : $$([ \"$${MAMBO_PORT_MAIN_REACHABLE}\" = \"1\" ] && echo YES || echo dont know)
+        && echo L-- HTTPS entrypoint [web_main_secure] - port : $MAMBO_PORT_MAIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_MAIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo dont know)
         && echo \"* SECONDARY AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_SECONDARY
-        && echo L-- HTTP entrypoint [web_secondary] - port : $MAMBO_PORT_SECONDARY reachable from internet : $$([ \"$${MAMBO_PORT_SECONDARY_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
-        && echo L-- HTTPS entrypoint [web_secondary_secure] - port : $MAMBO_PORT_SECONDARY_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_SECONDARY_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
+        && echo L-- HTTP entrypoint [web_secondary] - port : $MAMBO_PORT_SECONDARY reachable from internet : $$([ \"$${MAMBO_PORT_SECONDARY_REACHABLE}\" = \"1\" ] && echo YES || echo dont know)
+        && echo L-- HTTPS entrypoint [web_secondary_secure] - port : $MAMBO_PORT_SECONDARY_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_SECONDARY_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo dont know)
         && echo \"* ADMIN AREA\"
         && echo L-- services : $MAMBO_SERVICES_AREA_ADMIN
-        && echo L-- HTTP entrypoint [web_admin] - port : $MAMBO_PORT_ADMIN reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
-        && echo L-- HTTPS entrypoint [web_admin_secure] - port : $MAMBO_PORT_ADMIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo unknown)
+        && echo L-- HTTP entrypoint [web_admin] - port : $MAMBO_PORT_ADMIN reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_REACHABLE}\" = \"1\" ] && echo YES || echo dont know)
+        && echo L-- HTTPS entrypoint [web_admin_secure] - port : $MAMBO_PORT_ADMIN_SECURE reachable from internet : $$([ \"$${MAMBO_PORT_ADMIN_SECURE_REACHABLE}\" = \"1\" ] && echo YES || echo dont know)
         && echo ---------==---- MAMBO ADDONS ----==---------
         && echo \"* Mambo addons : $MAMBO_ADDONS\""
 
@@ -309,10 +329,6 @@ services:
 
   # Router
   # traefik launch order do not matter. It can be launched before or after all other services
-  # ENTRYPOINT web_main
-  #     http://domain:${MAMBO_PORT_MAIN}  
-  # ENTRYPOINT web_secondary
-  #     http://domain:${MAMBO_PORT_SECONDARY}
   # ENTRYPOINT web_admin
   #     http://traefik.domain:${MAMBO_PORT_ADMIN}          => go to dashboard
   #     http://traefik.domain:${MAMBO_PORT_ADMIN}/api
@@ -428,10 +444,6 @@ services:
 
 
   # Main mambo portal
-  # ENTRYPOINT web_secondary
-  #   http://organizr2.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
-  # DIRECT ACCESS
-  #   http://host:{DIRECT_ACCESS_PORT}
   organizr2:
     image: organizrtools/organizr-v2:${ORGANIZR2_VERSION:-latest}
     container_name: mambo_organizr2
@@ -447,15 +459,15 @@ services:
     labels:
       - "mambo.managed=true"
       - "traefik.enable=true"
-      - "traefik.http.routers.organizr2.entrypoints=${OMBI_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:organizr2}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-organizr2}}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.organizr2.service=organizr2"
-      - "traefik.http.routers.organizr2.priority=${OMBI_REDIRECT_HTTPS_PRIORITY:-200}"
-      - "traefik.http.routers.organizr2-secure.entrypoints=${OMBI_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:organizr2}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2.priority=${ORGANIZR2_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.organizr2-secure.entrypoints=${ORGANIZR2_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-organizr2}}.{domain:${MAMBO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.organizr2-secure.service=organizr2"
       - "traefik.http.routers.organizr2-secure.tls=true"
-      - "traefik.http.routers.organizr2-secure.tls.domains[0].main=organizr2.${MAMBO_DOMAIN:-.*}"
+      - "traefik.http.routers.organizr2-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN:-organizr2}.${MAMBO_DOMAIN:-.*}"
       - "traefik.http.services.organizr2.loadbalancer.server.port=80"
       - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
       - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
@@ -467,12 +479,7 @@ services:
     << : *service-disable
 
 
-  # Manage movie/tv show request
-  # ENTRYPOINT web_secondary
-  #   http[s]://ombi.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
-  #   http[s]://domain:${MAMBO_PORT_SECONDARY}/ombi [SUBPATH] [KO] Try --baseurl option at ombi launch to support subpath 
-  # DIRECT ACCESS
-  #   http://host:{DIRECT_ACCESS_PORT}
+  # Manage movie/tv show requests
   ombi:
     image: studioetrange/docker-ombi:${OMBI_VERSION:-latest}
     container_name: mambo_ombi
@@ -510,11 +517,6 @@ services:
     << : *service-disable
 
   # Newzgroup downloader
-  # ENTRYPOINT web_secondary
-  #   http://sabnzbd.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
-  #   http://domain:${MAMBO_PORT_SECONDARY}/sabnzbd [SUBPATH]
-  # DIRECT ACCESS
-  #   http://host:{DIRECT_ACCESS_PORT}
   sabnzbd:
     image: studioetrange/docker-sabnzbd:${SABNZBD_VERSION:-latest}
     container_name: mambo_sabnzbd
@@ -562,15 +564,8 @@ services:
   sabnzbd_disable:
     << : *service-disable
 
+
   # Media server
-  # https://github.com/plexinc/pms-docker
-  # https://hub.docker.com/r/plexinc/pms-docker
-  # ENTRYPOINT web_main
-  #   http://plex.domain:${MAMBO_PORT_MAIN} [SUBDOMAIN]
-  # ENTRYPOINT web_secondary
-  #   http://plex.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
-  # DIRECT ACCESS
-  #   http://host:{DIRECT_ACCESS_PORT}
   plex:
     image: plexinc/pms-docker:${PLEX_VERSION:-latest}
     container_name: mambo_plex
@@ -625,10 +620,6 @@ services:
 
 
   # Tv show download manager
-  # ENTRYPOINT web_secondary
-  #   http://medusa.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
-  # DIRECT ACCESS
-  #   http://host:{DIRECT_ACCESS_PORT}
   medusa:
     image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
     container_name: mambo_medusa
@@ -669,10 +660,6 @@ services:
     << : *service-disable
 
   # Plex statistics and management tools
-  # ENTRYPOINT web_secondary
-  #   http://tautulli.domain:${MAMBO_PORT_SECONDARY} [SUBDOMAIN]
-  # DIRECT ACCESS
-  #   http://host:{DIRECT_ACCESS_PORT}
   tautulli:
     image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
     container_name: mambo_tautulli
@@ -710,6 +697,7 @@ services:
   tautulli_disable:
     << : *service-disable
   
+  # web area
   web:
     image: httpd:${WEB_VERSION:-latest}
     container_name: mambo_web
@@ -746,12 +734,50 @@ services:
       - "traefik.http.routers.web_newsletter-secure.tls=true"
       - "traefik.http.routers.web_newsletter-secure.tls.domains[0].main=web.${MAMBO_DOMAIN:-.*}"
     networks:
-    networks:
       - default
     expose:
       - 80
   web_disable:
     << : *service-disable
+
+  
+  # direct download manager
+  # https://github.com/PlusMinus0/headless-jd2-docker
+  jdownloader2:
+    image: plusminus/jdownloader2-headless:${JDOWNLOADER2_VERSION:-latest}
+    container_name: mambo_jdownloader2
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - jdownloader2_download:/opt/JDownloader/Downloads
+      - jdownloader2_data:/opt/JDownloader/cfg
+    environment:
+      - UID=${MAMBO_USER_ID:-0}
+      - GID=${MAMBO_GROUP_ID:-0}
+      - EMAIL=${JDOWNLOADER2_EMAIL:-}
+      - PASSWORD=${JDOWNLOADER2_PASSWORD:-}
+    labels:
+      - "mambo.managed=true"
+      - "traefik.enable=false"
+      # - "traefik.http.routers.jdownloader2.entrypoints=${JDOWNLOADER2_ENTRYPOINTS:-web_main}"
+      # - "traefik.http.routers.jdownloader2.rule=HostRegexp(`{subdomain:jdownloader2}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      # - "traefik.http.routers.jdownloader2.priority=${JDOWNLOADER2_REDIRECT_HTTPS_PRIORITY:-200}"
+      # - "traefik.http.routers.jdownloader2.service=jdownloader2"
+      # - "traefik.http.routers.jdownloader2-secure.entrypoints=${JDOWNLOADER2_ENTRYPOINTS_SECURE:-web_main_secure}"
+      # - "traefik.http.routers.jdownloader2-secure.rule=HostRegexp(`{subdomain:jdownloader2}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+      # - "traefik.http.routers.jdownloader2-secure.service=jdownloader2"
+      # - "traefik.http.routers.jdownloader2-secure.tls=true"
+      # - "traefik.http.routers.jdownloader2-secure.tls.domains[0].main=jdownloader2.${MAMBO_DOMAIN:-.*}"
+      # - "traefik.http.services.jdownloader2.loadbalancer.server.port=80"
+      # - "traefik.http.services.jdownloader2.loadbalancer.server.scheme=http"
+      # - "traefik.http.services.jdownloader2.loadbalancer.passhostheader=true"
+    networks:
+      - default
+  jdownloader2_disable:
+    << : *service-disable
+
+  
 
     
 

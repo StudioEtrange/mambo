@@ -20,11 +20,12 @@ NOTE : mambo will auto install other tools like docker-compose
 
 ## SERVICES INCLUDED
 
-* Plex
-* Ombi
-* Sabnzbd
-* Medusa
-* Tautulli
+* Plex - media center
+* Ombi - user request content  
+* Sabnzbd - newzgroup download
+* Medusa - tv episodes search and subtitles management
+* Tautulli - plex statistics and newsletter
+* JDownloader2 - direct download manager
 * Organizr2
 
 
@@ -297,6 +298,79 @@ L     shell <service> : launch a shell into a running service
         * Click on Test Connectivity
         * Click on Load Libraries and select libraries in which content will look for user request
 
+### JDownloader2
+
+* set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
+* you can see your instance at https://my.jdownloader.org/
+
+
+### organizr2
+
+* With organiz2, you could bring up a central portal for all your services
+
+* Setup
+    * License : personal
+    * User : plex admin username, email and some other password
+    * Hash : choose a keyword
+    * registration password : choose a password so that user can signup themselves
+    * db name : db
+    * db path : /config/www/db
+
+* Setup Theme
+    * Settings / Customize / Appearance / Top bar : set title and description
+    * Settings / Customize / Appearance / Login Page : pick login logo, wallpaper and minimal login screen
+    * Settings / Customize / Marketplace : install plex theme
+    * Settings / Customize / Appearance / Colors & Themes : select theme plex
+
+* Add services - a sample for ombi service
+    * Tab editor
+        * Tab name : Ombi
+        * Test tab : it will indicate if we can use this tab as iframe
+        * Tab Url : http://ombi.mydomain.com
+
+* NOTE :
+    * `Local Tab URL` if not empty is used when organizr detect http request come from local network instead of value of `Tab URL` which is used when requesting from outside network (internet). But in **all cases** ORL in `Local Tab URL` or `Tab URL` must be reachable from the browser.
+    * You should write reverse proxy rules to 
+        * firstly reverse proxy the service because these URL which may not be reachable from outside network (internet)
+        * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
+        * lastly use organizr SSO by playing around http header with reverse proxy role [https://docs.organizr.app/books/setup-features/page/sso]
+    * For writing specific reverse proxy rules for organizr nginx is more suitable than traefik2 because it can modify the response and inject some code like CSS for cutom thema with `sub_filter` instruction
+        ```
+        location /sonarr {
+            proxy_pass http://192.168.1.34:8990/sonarr;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_redirect off;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_no_cache $cookie_session;
+            # modify CSS part
+            proxy_set_header Accept-Encoding "";
+            sub_filter
+            '</head>'
+            '<link rel="stylesheet" type="text/css" href="https://gilbn.github.io/theme.park/CSS/themes/sonarr/plex.css">
+            </head>';
+            sub_filter_once on;
+        }
+        ```
+    
+* Organizr authentification with Plex configuration [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
+    * Settings / System Settings / Main / Authentication
+        * Type : Organizr DB + Backend
+        * Backend : plex
+        * Do get plex token / get plex machine
+        * Admin username : a plex user admin that will match admin organir admin account
+        * Strict plex friends : enabled
+        * Enable Plex oAuth : enabled (active plex login to log into organizr)
+    * Settings / System Settings / Main / Login
+        * Hide registration : enabled - if you wish to disable auto registration
+
+* NOTE : information on organizr Single Sign On integration with other services : https://docs.organizr.app/books/setup-features/page/sso
+
+
+
+https://github.com/causefx/Organizr/issues/1240
 
 ## NETWORK CONFIGURATION
 
@@ -453,6 +527,23 @@ L     shell <service> : launch a shell into a running service
     ```
 
 
+## ADDING A SERVICE
+
+* Steps for adding a `foo` service
+    * in `docker-compose.yml` 
+        * add a `foo` service
+        * add a dependency on this service into `mambo` service
+    * in `env.default`
+        * add a variable `FOO_VERSION=latest`
+        * add a variable `SERVICE_FOO=foo`
+        * if this service needs to access all media folders, add it to `MAMBO_MEDIA_SERVICES`
+        * choose to which logical areas by default this service will be attached `main`, `secondary`, `admin` and add it to `MAMBO_SERVICES_AREA_MAIN`,`MAMBO_SERVICES_AREA_SECONDARY` and `MAMBO_SERVICES_AREA_ADMIN`
+        * if this service has subservices, declare subservices into `MAMBO_SUBSERVICES`
+        * add a `FOO_DIRECT_ACCESS_PORT` empty variable
+    * in `mambo`
+        * add time management in `__set_time_all`
+        * add `foo` in command line argument in `TARGET` choices
+
 ## SIDE NOTES
 
 * I tried my best to stick to docker-compose file features and write less bash code. But very quickly I gave up, docker-compose files is very bad when dealing with conf and env var.
@@ -460,59 +551,77 @@ L     shell <service> : launch a shell into a running service
 
 ## LINKS
 
-* Some traefik guides
-    * https://medium.com/@containeroo/traefik-2-0-docker-an-advanced-guide-d098b9e9be96
-    * https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
-* Organizr2 and nginx
-    * translate this nginx to traefik: https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
-* Traefik forward auth and keycloak https://geek-cookbook.funkypenguin.co.nz/ha-docker-swarm/traefik-forward-auth/keycloak/
-* Traefik anad oauth2 proxy https://geek-cookbook.funkypenguin.co.nz/reference/oauth_proxy/
 * Media distribution
     * cloudbox https://github.com/Cloudbox/Cloudbox - docker based - ansible config script for service and install guide for each service
     * cloudbox addon https://github.com/Cloudbox/Community
     * openflixr https://www.openflixr.com/ - full VM
-    * autopirate https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik + oauth2 proxy
-    * a media stack on docker with traefik https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
-    * https://github.com/ghostserverd/mediaserver-docker/blob/master/docker-compose.yml
-* Let's encrypt challenge types : https://letsencrypt.org/fr/docs/challenge-types/
+    * autopirate - https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik1 + oauth2 proxy
+    * a media stack on docker with traefik1 https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
+
+* Traefik2
+    * Traefik1 forward auth and keycloak https://geek-cookbook.funkypenguin.co.nz/ha-docker-swarm/traefik-forward-auth/keycloak/
+    * Traefik2 reverse proxy + reverse an external url : https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
+    * Traefik1 and oauth2 proxy https://geek-cookbook.funkypenguin.co.nz/reference/oauth_proxy/
+
+* Organizr2
+    * organizr2 and nginx : https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
+    * organizr2 + nginx (using subdomains or subdirectories) + letsencrypt https://technicalramblings.com/blog/how-to-setup-organizr-with-letsencrypt-on-unraid/
+    * organizr + nginx samples for several services https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
+
+* Let's encrypt
+    * challenge types : https://letsencrypt.org/fr/docs/challenge-types/
+
+* Aria2 download utility aria2
+    * https://aria2.github.io/ - support standard download method and bitorrent and metalink format
+    * http://ariang.mayswind.net/ - frontend
+    * https://github.com/lukasmrtvy/lsiobase-aria2-webui - docker image
+
+* youtube-dl download online videos
+    * HTML GUI for youtube-dl : https://github.com/Rudloff/alltube
 
 
+* Plex 
+    * guides https://plexguide.com/
+    * install plugin webtool https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks
+    * install traktv plugin https://github.com/Cloudbox/Cloudbox/tree/master/roles/trakttv-plugin/tasks
+    * install some agent and scanner https://github.com/Cloudbox/Community/wiki/Plex-Scanners-and-Agents 
 
-
-## TODO
-
-* plex plugins https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks https://github.com/Cloudbox/Cloudbox/tree/master/roles/trakttv-plugin/tasks
-* backup 
+* Backup solutions
     * https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
     * https://rclone.org/
     * https://github.com/restic/restic
 
-* show gpu usage stat
-    ```
-    /usr/lib/plexmediaserver/Plex\ Transcoder -codecs
-    /usr/lib/plexmediaserver/Plex\ Transcoder -encoders
-    nvidia-smi -q -g 0 -d UTILIZATION -l
-    ```
-* show plex transcode custom ffmpeg
+* Graphics themas
+    * https://github.com/Archmonger/Blackberry-Themes
+    * https://github.com/gilbN/theme.park
 
-    ```
-    /usr/lib/plexmediaserver/Plex\ Transcoder 
-    -formats            show available formats
-    -muxers             show available muxers
-    -demuxers           show available demuxers
-    -devices            show available devices
-    -codecs             show available codecs
-    -decoders           show available decoders
-    -encoders           show available encoders
-    -bsfs               show available bit stream filters
-    -protocols          show available protocols
-    -filters            show available filters
-    -pix_fmts           show available pixel formats
-    -layouts            show standard channel layouts
-    -sample_fmts        show available audio sample formats
-    -colors             show available color names
-    -hwaccels           show available HW acceleration methods
+* NVIDIA GPU    
+    * NVIDIA GPU unlock non-pro cards : https://github.com/keylase/nvidia-patch
 
-    ```
+    * show gpu usage stat
+        ```
+        /usr/lib/plexmediaserver/Plex\ Transcoder -codecs
+        /usr/lib/plexmediaserver/Plex\ Transcoder -encoders
+        nvidia-smi -q -g 0 -d UTILIZATION -l
+        ```
+    * show plex transcode custom ffmpeg
 
-* unlock non pro nvidia gpu https://github.com/keylase/nvidia-patch
+        ```
+        /usr/lib/plexmediaserver/Plex\ Transcoder 
+        -formats            show available formats
+        -muxers             show available muxers
+        -demuxers           show available demuxers
+        -devices            show available devices
+        -codecs             show available codecs
+        -decoders           show available decoders
+        -encoders           show available encoders
+        -bsfs               show available bit stream filters
+        -protocols          show available protocols
+        -filters            show available filters
+        -pix_fmts           show available pixel formats
+        -layouts            show standard channel layouts
+        -sample_fmts        show available audio sample formats
+        -colors             show available color names
+        -hwaccels           show available HW acceleration methods
+
+        ```

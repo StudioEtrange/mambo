@@ -40,8 +40,8 @@ __create_env_for_docker_compose() {
 	echo "# ------ CREATE : create_env_for_docker_compose : $(date)" > "${ENV_FILE_GENERATED}"
 
 	# combine user env file and default env file
-	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# PART --- FROM ${ENV_FILE_USER}) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_GENERATED}" \
-					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) >> "${ENV_FILE_GENERATED}"
+	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) <(echo) "${ENV_FILE_DEFAULT}" <(echo) <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_GENERATED}" \
+					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) <(echo) "${ENV_FILE_DEFAULT}" <(echo) <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) <(echo) >> "${ENV_FILE_GENERATED}"
 
 }
 
@@ -50,8 +50,8 @@ __create_env_for_bash() {
 	echo "# ------ CREATE : create_env_for_bash : $(date)" > "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# combine user env file and default env file
-	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}" \
-					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) "${ENV_FILE_DEFAULT}" <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}"
+	[ -f "${ENV_FILE_USER}" ] && cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) <(echo) "${ENV_FILE_DEFAULT}" <(echo) <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) <(echo) "${ENV_FILE_USER}" <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}" \
+					|| cat <(echo \# --- PART FROM ${ENV_FILE_DEFAULT}) <(echo) <(echo) "${ENV_FILE_DEFAULT}" <(echo) <(echo \# --- PART FROM ${ENV_FILE_USER}) <(echo) <(echo) >> "${ENV_FILE_FOR_BASH_GENERATED}"
 
 	# Preserve some variables like list
 	sed -i 's/^MAMBO_MEDIA_FOLDERS=\(.*\)$/MAMBO_MEDIA_FOLDERS=\"\1\"/g' "${ENV_FILE_FOR_BASH_GENERATED}"
@@ -117,10 +117,6 @@ __set_gpu_all() {
 
 # set timezone to containers which need it
 __set_time_all() {
-	if [ -f "/etc/timezone" ]; then
-		TZ="$(cat /etc/timezone)"
-		yq w -i -- "${DOCKER_COMPOSE_FILE_GENERATED}" "services.plex.environment[+]" "TZ=${TZ}"
-	fi
 	
 	__add_volume_for_time "organizr2"
 	__add_volume_for_time "ombi"
@@ -129,6 +125,14 @@ __set_time_all() {
 	__add_volume_for_time "tautulli"
 	__add_volume_for_time "traefik"
 	__add_volume_for_time "web"
+	__add_volume_for_time "jdownloader2"
+
+	# service plex use TZ internal env var for time settings
+	if [ -f "/etc/timezone" ]; then
+		TZ="$(cat /etc/timezone)"
+		yq w -i -- "${DOCKER_COMPOSE_FILE_GENERATED}" "services.plex.environment[+]" "TZ=${TZ}"
+	fi
+	
 }
 
 
@@ -585,7 +589,7 @@ usage() {
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
 ACTION=											'action' 			a				'info shell up down status install logs init restart' '1'
-TARGET=												'target' 					a				'addons traefik organizr2 ombi sabnzbd plex medusa tautulli web'	'0'
+TARGET=												'target' 					a				'jdownloader2 addons traefik organizr2 ombi sabnzbd plex medusa tautulli web'	'0'
 "
 OPTIONS="
 DOMAIN='' 					'' 				'domain'				s 			0			''		  Mambo domain name.
