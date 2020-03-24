@@ -300,6 +300,7 @@ L     shell <service> : launch a shell into a running service
 
 ### JDownloader2
 
+* create an account on https://my.jdownloader.org/ and install a browser extension
 * set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
 * you can see your instance at https://my.jdownloader.org/
 
@@ -469,7 +470,7 @@ https://github.com/causefx/Organizr/issues/1240
 ## MAMBO ADDONS
 
 
-* declare addons
+* declare used addons
 
     * ie in user env file : 
         ```

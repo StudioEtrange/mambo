@@ -217,13 +217,14 @@ __add_service_direct_port_access_all() {
 }
 
 
-# add bind mount media volume mapped inside named volume /media
+# add a media_xxx named volume defintion
+# attach this media_xxx named volume to a /media/xxxx folder to each service listed in MAMBO_MEDIA_SERVICES
 __add_volume_media_all() {
 	for f in ${MAMBO_MEDIA_FOLDERS}; do
 		f="$($STELLA_API rel_to_abs_path "${f}" "${STELLA_APP_ROOT}")"
 		target="$(basename "${f}")"
 		if [ -f "${f}" ]; then 
-			echo "** [${f}] is a file, not mounted inside {/media}"
+			echo "** [${f}] is a file, not mounted inside folder {/media}"
 		else
 			[ ! -d "${f}" ] && echo "** [${f}] is not an existing directory and will be auto created."
 			__name="$($STELLA_API md5 "${f}")"
@@ -772,13 +773,13 @@ case $ACTION in
 				;;
 			addons )
 				echo "** Init service Mambo addons"
-				docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up addons
+				docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" up addons
 				;;
 			* )
 				echo "** Init service Plex"
 				__init_service_plex
 				echo "** Init service Mambo addons"
-				docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up addons
+				docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" up addons
 				;;
 		esac
 	;;
@@ -792,7 +793,7 @@ case $ACTION in
 				echo "L-- X-Plex-Token : $(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
 			;;
 			* )
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up service_init
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" up service_init
 			;;
 		esac
 		
@@ -802,21 +803,21 @@ case $ACTION in
 
 	up )
 		# NOTE we need to specify project directory because when launching from an other directory, docker compose seems to NOT auto load .env file
-		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
 		if [ "${DAEMON}" = "" ]; then
-			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			[ "${TARGET}" = "" ] && docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" logs service_init
 		else
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" logs service_init
 		fi
 	;;
 
 	down )
 		case "${TARGET}" in
 			"") 
-				docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
+				docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" down -v 
 			;;
 			*) 
-				docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
+				docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
 			;;
 		esac
 	;;
@@ -824,27 +825,27 @@ case $ACTION in
 	restart )
 		case "${TARGET}" in
 		"") 
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" down -v 
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" down -v 
 		;;
 		*) 
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" stop ${TARGET}
 		;;
 		esac
-		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" up ${DAEMON} ${TARGET:-mambo}
 		if [ "${DAEMON}" = "" ]; then
-			[ "${TARGET}" = "" ] && docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			[ "${TARGET}" = "" ] && docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" logs service_init
 		else
-			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-directory "${STELLA_APP_ROOT}" logs service_init
+			docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" logs service_init
 		fi
 
 	;;
 
 	status )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" ${DOCKER_COMPOSE_LOG} --project-directory "${STELLA_APP_ROOT}" ps ${TARGET}
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" ps ${TARGET}
 	;;
 
 	logs )
-		docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" ${DOCKER_COMPOSE_LOG} --project-directory "${STELLA_APP_ROOT}" logs -t ${TARGET}
+		docker-compose ${DOCKER_COMPOSE_LOG} -f "${DOCKER_COMPOSE_FILE_GENERATED}" --project-name mambo --project-directory "${STELLA_APP_ROOT}" logs -t ${TARGET}
 	;;
 esac
 

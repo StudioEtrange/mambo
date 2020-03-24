@@ -108,13 +108,18 @@ x-service-disable: &service-disable
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
 x-calibreweb: &default-calibreweb
   image: studioetrange/calibre-web:${CALIBRE_WEB_VERSION:-latest}
+  #container_name: mambo_tautulli
   depends_on: 
     - service_init
   restart: unless-stopped
+  #volumes:
   environment:
     - PUID=${MAMBO_USER_ID:-0}
     - PGID=${MAMBO_GROUP_ID:-0}
     - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_VERSION:-latest}
+  labels:
+    - "mambo.managed=true"
+    - "traefik.enable=true"
   networks:
     - default
   expose:
@@ -578,7 +583,7 @@ services:
     volumes:
       # will contain plex configuration
       - plex_data:/config
-      - media:/media
+      #- media:/media
       - ${PLEX_TRANSCODE_PATH}:/transcode
     environment:
       - PLEX_UID=${MAMBO_USER_ID:-0}
@@ -791,10 +796,15 @@ services:
   #     # different paths used by calibreweb
   #     - calibreweb_books_media:/books
   #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.calibreweb_books.entrypoints=web_secondary"
+  #     - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBRE_ENTRYPOINTS:-web_main}"
   #     - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${MAMBO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${MAMBO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
   #     - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
+  #     - "traefik.http.routers.calibreweb_books.priority=${CALIBRE_ENTRYPOINTS:-200}"
+  #     - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBRE_ENTRYPOINTS_SECURE:-web_main_secure}"
+  #     - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${MAMBO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
+  #     - "traefik.http.routers.calibreweb_books-secure.tls=true"
+  #     - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=calibreweb_books.${MAMBO_DOMAIN:-.*}"
   #     - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
   #     - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
   #     - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
