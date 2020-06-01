@@ -26,6 +26,7 @@ NOTE : mambo will auto install other tools like docker-compose
 * Medusa - tv episodes search and subtitles management
 * Tautulli - plex statistics and newsletter
 * JDownloader2 - direct download manager
+* Tranmission - torrent downloader
 * Organizr2
 
 
@@ -54,7 +55,7 @@ NOTE : mambo will auto install other tools like docker-compose
     ```
     PLEX_USER=no@no.com
     PLEX_PASSWORD=****
-    MAMBO_DOMAIN=mydomain.com
+    TANGO_DOMAIN=mydomain.com
     ```
 
 * For HTTPS only access, add 
@@ -62,7 +63,7 @@ NOTE : mambo will auto install other tools like docker-compose
     LETS_ENCRYPT=enable
     LETS_ENCRYPT_MAIL=no@no.com
 
-    MAMBO_SERVICES_REDIRECT_HTTPS=traefik ombi sabnzbd tautulli medusa
+    NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi sabnzbd tautulli medusa
     ```
 
 * Launch
@@ -81,9 +82,9 @@ NOTE : mambo will auto install other tools like docker-compose
 ```
 L     install : deploy this app
 L     init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force to claim server even it is already registred
-L     up [service [-d]] : launch all mambo services or one service
+L     up [service] : launch all mambo services or one service
 L     down [service] : down all mambo services or one service
-L     restart [service [-d]] : restart all mambo services or one service
+L     restart [service ] : restart all mambo services or one service
 L     info : give info on Mambo. Will generate conf files and print configuration used when launching any service.
 L     status [service] : see status
 L     logs [service] : see logs
@@ -98,7 +99,7 @@ L     shell <service> : launch a shell into a running service
 * You could set every mambo variables through a user environment file, shell environment variables and some from command line. 
 
 
-* All existing variables are listed in `env.default`
+* All existing variables are listed in `tango.default.env`
 
 * Resolution priority order :
     * Command line variables
@@ -115,18 +116,18 @@ L     shell <service> : launch a shell into a running service
 
 |NAME|DESC|DEFAULT VALUE|SAMPLE VALUE|
 |-|-|-|-|
-|MAMBO_DOMAIN|domain used to access mambo. It is a regexp. `.*` stands for any domain or host ip.|`.*`|`mydomain.com`|
-|MAMBO_USER_ID|unix user which will run services and acces to files.|current user : `id -u`|`1000`|
-|MAMBO_GROUP_ID|unix group which will run services and acces to files.|current group : `id -g`|`1000`|
-|MAMBO_MEDIA_FOLDERS|list of paths on host that contains media files. Relative path to mambo app path|-|`/mnt/MEDIA/MOVIES /mnt/MEDIA/TV_SHOWS`|
-|MAMBO_DATA_PATH|path on host for services conf and data files. Relative to mambo app path.|`./mambo/workspace/data`|`../data`|
-|MAMBO_DOWNLOAD_PATH|path on host for downloaded files. Relative to mambo app path.|`./mambo/workspace/download`|`../download`|
+|TANGO_DOMAIN|domain used to access mambo. It is a regexp. `.*` stands for any domain or host ip.|`.*`|`mydomain.com`|
+|TANGO_USER_ID|unix user which will run services and acces to files.|current user : `id -u`|`1000`|
+|TANGO_GROUP_ID|unix group which will run services and acces to files.|current group : `id -g`|`1000`|
+|TANGO_ARTEFACT_FOLDERS|list of paths on host that contains media files. Relative path to mambo app path|-|`/mnt/MEDIA/MOVIES /mnt/MEDIA/TV_SHOWS`|
+|APP_DATA_PATH|path on host for services conf and data files. Relative to mambo app path.|`./mambo/workspace/data`|`../data`|
+|DOWNLOAD_PATH|path on host for downloaded files. Relative to mambo app path.|`./mambo/workspace/download`|`../download`|
 |PLEX_USER|your plex account|-|`no@no.com`|
 |PLEX_PASSWORD|your plex password|-|`mypassword`|
 
 ### Advanced variables
 
-* see `env.default` for detail
+* see `tango.default.env` for detail
 
 * TODO TO BE COMPLETED
 
@@ -145,10 +146,10 @@ L     shell <service> : launch a shell into a running service
 
 
     ```
-    MAMBO_PORT_MAIN=80
-    MAMBO_DATA_PATH=../mambo-data
-    MAMBO_DOWNLOAD_PATH=../mambo-download
-    MAMBO_MEDIA_FOLDERS=/mnt/MEDIA/MOVIES /mnt/MEDIA/TV_SHOWS
+    NETWORK_PORT_MAIN=80
+    APP_DATA_PATH=../mambo-data
+    DOWNLOAD_PATH=../mambo-download
+    TANGO_ARTEFACT_FOLDERS=/mnt/MEDIA/MOVIES /mnt/MEDIA/TV_SHOWS
     ```
 
 
@@ -157,16 +158,16 @@ L     shell <service> : launch a shell into a running service
 * Set variables at mambo launch or export them before launch
 
     ```
-    MAMBO_DOMAIN="mydomain.com" MAMBO_DATA_PATH="/home/$USER/mambo-data" ./mambo up
+    TANGO_DOMAIN="mydomain.com" APP_DATA_PATH="/home/$USER/mambo-data" ./mambo up
     ```
 
 
 ### For Your Information about env files - internal mechanisms
 
 
-* At each launch mambo use `env.default` file and your conf file (`mambo.env`) files to generate
+* At each launch mambo use `tango.default.env` file and your conf file (`mambo.env`) files to generate
     * `.env` file used by docker-compose
-    * `env.bash` file used by mambo shell scripts
+    * `bash.env` file used by mambo shell scripts
 
 
 * You may know that a `.env` file is read by docker-compose by default to replace any variable present in docker-compose file anywhere in the file but NOT for define shell environment variable inside running container ! 
@@ -176,10 +177,10 @@ L     shell <service> : launch a shell into a running service
     test:
         image: bash:4.4.23
         command: >
-            bash -c "echo from docker compose : $MAMBO_PORT_MAIN from running container env variable : $$MAMBO_PORT_MAIN"
+            bash -c "echo from docker compose : $NETWORK_PORT_MAIN from running container env variable : $$NETWORK_PORT_MAIN"
     ```
 
-    * This above only show MAMBO_PORT_MAIN value but $$MAMBO_PORT_MAIN (with double dollar to not have docker-compose replace the value) is empty unless you add this :
+    * This above only show NETWORK_PORT_MAIN value but $$NETWORK_PORT_MAIN (with double dollar to not have docker-compose replace the value) is empty unless you add this :
 
     ```
     test:
@@ -187,7 +188,7 @@ L     shell <service> : launch a shell into a running service
         env_file:
             - .env
         command: >
-            bash -c "echo from docker compose : $MAMBO_PORT_MAIN from running container env variable : $$MAMBO_PORT_MAIN"
+            bash -c "echo from docker compose : $NETWORK_PORT_MAIN from running container env variable : $$NETWORK_PORT_MAIN"
     ```
 
 ## SERVICE ADMINISTRATION
@@ -243,6 +244,10 @@ L     shell <service> : launch a shell into a running service
     * Web interface / advanced settings / Enable HTTPS" : `disabled`
     * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletter and image - newsletter are exposed through mambo service `web`)
 
+* NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
+    ```
+    Newsletter url : {newsletter_url} 
+    ```
 
 ### Sabnzbd
 
@@ -253,14 +258,14 @@ L     shell <service> : launch a shell into a running service
     * Scripts Folder : `/scripts`
 
 * Categories
-    * Create a categorie for each kind of media and store media files in folder/path `/media/folders` as defined by variables `MAMBO_MEDIA_FOLDERS`
+    * Create a categorie for each kind of media and store media files in folder/path `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
 
 
 ### Medusa
 
 * Medusa configuration :
     * General / Misc
-        * Show root directories : add each tv media folders from `/media/folders` as defined by variables `MAMBO_MEDIA_FOLDERS`
+        * Show root directories : add each tv media folders from `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
 
 * Sabnzbd configuration :
     * Search settings/NZB Search
@@ -304,6 +309,9 @@ L     shell <service> : launch a shell into a running service
 * set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
 * you can see your instance at https://my.jdownloader.org/
 
+### transmission
+
+* NOTE : settings are saved only when transmission is stopped
 
 ### organizr2
 
@@ -390,12 +398,12 @@ https://github.com/causefx/Organizr/issues/1240
 
 |logical area|entrypoint name|protocol|default port|variable|
 |-|-|-|-|-|
-|main|web_main|HTTP|80|MAMBO_PORT_MAIN|
-|main|web_main_secure|HTTPS|443|MAMBO_PORT_MAIN_SECURE|
-|secondary|web_secondary|HTTP|20000|MAMBO_PORT_SECONDARY|
-|secondary|web_secondary_secure|HTTPS|20443|MAMBO_PORT_SECONDARY_SECURE|
-|admin|web_admin|HTTP|30000|MAMBO_PORT_ADMIN|
-|admin|web_admin_secure|HTTPS|30443|MAMBO_PORT_ADMIN_SECURE|
+|main|web_main|HTTP|80|NETWORK_PORT_MAIN|
+|main|web_main_secure|HTTPS|443|NETWORK_PORT_MAIN_SECURE|
+|secondary|web_secondary|HTTP|20000|NETWORK_PORT_SECONDARY|
+|secondary|web_secondary_secure|HTTPS|20443|NETWORK_PORT_SECONDARY_SECURE|
+|admin|web_admin|HTTP|30000|NETWORK_PORT_ADMIN|
+|admin|web_admin_secure|HTTPS|30443|NETWORK_PORT_ADMIN_SECURE|
 
 ### Sample usage
 
@@ -407,7 +415,7 @@ https://github.com/causefx/Organizr/issues/1240
     MAMBO_SERVICES_ENTRYPOINT_SECONDARY=ombi medusa sabnzbd
     ```
 
-### Direct access port for debuging purpose
+### Direct access port for debugging purpose
 
 
 * For debugging, you can declare a direct access HTTP port to the service without using traefik with variables `*_DIRECT_ACCESS_PORT`. The first port declared as exposed in docker-compose file is mapped to its value.
@@ -422,12 +430,12 @@ https://github.com/causefx/Organizr/issues/1240
 
 ### HTTPS redirection
 
-* To enable/disable HTTPS only access to each service, declare them in `MAMBO_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
+* To enable/disable HTTPS only access to each service, declare them in `NETWORK_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
     * NOTE : some old plex client do not support HTTPS (like playstation 3) so plex might be exclude from this variable
 
 * ie in user env file : 
     ```
-    MAMBO_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
+    NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
     ```
 
 ### Certificate with Let's encrypt
@@ -467,20 +475,7 @@ https://github.com/causefx/Organizr/issues/1240
 * If your Docker host also has a dedicated graphics card, the video encoding acceleration of Intel Quick Sync Video may become unavailable when the GPU is in use. 
 * If your computer has an NVIDIA GPU, please install the latest Latest NVIDIA drivers for Linux to make sure that Plex can use your NVIDIA graphics card for video encoding (only) when Intel Quick Sync Video becomes unavailable.
 
-## MAMBO ADDONS
-
-
-* declare used addons
-
-    * ie in user env file : 
-        ```
-        MAMBO_ADDONS=addon_name#version
-        ```
-
-* install addons
-    ```
-    ./mambo init addons
-    ```
+## MAMBO PLUGINS
 
 
 
@@ -534,12 +529,12 @@ https://github.com/causefx/Organizr/issues/1240
     * in `docker-compose.yml` 
         * add a `foo` service
         * add a dependency on this service into `mambo` service
-    * in `env.default`
+    * in `tango.default.env`
         * add a variable `FOO_VERSION=latest`
         * add a variable `SERVICE_FOO=foo`
-        * if this service needs to access all media folders, add it to `MAMBO_MEDIA_SERVICES`
-        * choose to which logical areas by default this service will be attached `main`, `secondary`, `admin` and add it to `MAMBO_SERVICES_AREA_MAIN`,`MAMBO_SERVICES_AREA_SECONDARY` and `MAMBO_SERVICES_AREA_ADMIN`
-        * if this service has subservices, declare subservices into `MAMBO_SUBSERVICES`
+        * if this service needs to access all media folders, add it to `TANGO_ARTEFACT_SERVICES`
+        * choose to which logical areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
+        * if this service has subservices, declare subservices into `TANGO_SUBSERVICES`
         * add a `FOO_DIRECT_ACCESS_PORT` empty variable
     * in `mambo`
         * add time management in `__set_time_all`
@@ -559,18 +554,21 @@ https://github.com/causefx/Organizr/issues/1240
     * autopirate - https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik1 + oauth2 proxy
     * a media stack on docker with traefik1 https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
 
-* Traefik2
-    * Traefik1 forward auth and keycloak https://geek-cookbook.funkypenguin.co.nz/ha-docker-swarm/traefik-forward-auth/keycloak/
-    * Traefik2 reverse proxy + reverse an external url : https://blog.eleven-labs.com/fr/utiliser-traefik-comme-reverse-proxy/
-    * Traefik1 and oauth2 proxy https://geek-cookbook.funkypenguin.co.nz/reference/oauth_proxy/
 
 * Organizr2
     * organizr2 and nginx : https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
     * organizr2 + nginx (using subdomains or subdirectories) + letsencrypt https://technicalramblings.com/blog/how-to-setup-organizr-with-letsencrypt-on-unraid/
     * organizr + nginx samples for several services https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
+    * various 
+        * https://docs.organizr.app/books/setup-features/page/serverauth
+        * https://docs.organizr.app/books/setup-features/page/sso
+        * https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
+        * https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
+        * https://github.com/causefx/Organizr/issues/1116
+        * https://www.reddit.com/r/organizr/comments/axbo3r/organizr_authenticate_other_services_radarr/
+        * https://www.reddit.com/r/organizr/
 
-* Let's encrypt
-    * challenge types : https://letsencrypt.org/fr/docs/challenge-types/
+
 
 * Aria2 download utility aria2
     * https://aria2.github.io/ - support standard download method and bitorrent and metalink format
@@ -580,12 +578,14 @@ https://github.com/causefx/Organizr/issues/1240
 * youtube-dl download online videos
     * HTML GUI for youtube-dl : https://github.com/Rudloff/alltube
 
+* filebot ansible role https://github.com/Cloudbox/Community/blob/master/roles/filebot/tasks/main.yml
 
 * Plex 
     * guides https://plexguide.com/
     * install plugin webtool https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks
     * install traktv plugin https://github.com/Cloudbox/Cloudbox/tree/master/roles/trakttv-plugin/tasks
     * install some agent and scanner https://github.com/Cloudbox/Community/wiki/Plex-Scanners-and-Agents 
+    * dashboard stat : https://github.com/Boerderij/Varken
 
 * Backup solutions
     * https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
@@ -593,8 +593,61 @@ https://github.com/causefx/Organizr/issues/1240
     * https://github.com/restic/restic
 
 * Graphics themas
-    * https://github.com/Archmonger/Blackberry-Themes
-    * https://github.com/gilbN/theme.park
+    * CSS changes to many popular web services https://github.com/Archmonger/Blackberry-Themes
+    * A collection of themes/skins for your favorite apps 
+        https://github.com/gilbN/theme.park
+
+* Unmanic - Video files converter with web ui and scheduler https://github.com/Josh5/unmanic
+
+* Torrent
+
+    * opening ports 
+        * For better download/upload torrent client should be an active node by opening its port. Else less client
+        can connect directly to your torrent client. So you may need to open this port on your router. check with https://canyouseeme.org/
+        * In case of using VPN, most VPN provider do not offer port forwarding and your torrent client may not be reacheable.
+        * Having a good upload rate is usefull with private tracker with quota rules or test for direct connection capability.
+        But for such private trackers the VPN may have limited benefit (?) as long as the transfer traffic itself is encrypted, only the members can see what you download and upload and in private trackers.
+        https://superuser.com/a/1053429/486518
+        https://dietpi.com/phpbb/viewtopic.php?p=17692#p17692
+        * to check if your IP have been detected using torrent : https://iknowwhatyoudownload.com
+        * PIA vpn provider provide port forwarding on some server : https://www.privateinternetaccess.com/helpdesk/kb/articles/can-i-use-port-forwarding-without-using-the-pia-client
+
+    * transmission family
+        * docker images with openvpn client
+            * docker bundle transmission with openvpn client, stop transmission when openvpn down, dinamucly configure remote port for pia (private internet access) and perfectprivacy vpn providers (see https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/start.sh)
+            https://github.com/haugene/docker-transmission-openvpn
+
+
+    * rtorrent family
+        * installation
+            * install on debian for rutorrent, rtorrent  with configuration detail https://terminal28.com/how-to-install-and-configure-rutorrent-rtorrent-debian-9-stretch/
+            * install ansible role for rutorrent, rtorrent with complete dynamic rtorrent configuration https://github.com/Cloudbox/Cloudbox/tree/master/roles/rutorrent
+
+        * samples
+            * docker-compose sample with transmission torrent client, traefik2 and dperson openvpn client
+            https://www.reddit.com/r/docker/comments/daahlq/anybody_have_openvpn_any_torrent_client_and/
+            * docker-compose sample with rutorrent and dperson openvpn client
+            https://community.containo.us/t/rutorrent-is-not-displaying-correctly-after-adding-path-rule/1987
+
+        * docker images
+            * docker bundle rtorrent, flood (web ui) - from code source
+            https://github.com/Wonderfall/docker-rtorrent-flood
+            https://hub.docker.com/r/wonderfall/rtorrent-flood/dockerfile
+            * docker bundle rtorrent, rutorrent (webui), flood (web ui), autodl-irssi - based on linuxserver distribution - plugins : logoff fileshare filemanager pausewebui mobile ratiocolor force_save_session showip
+            https://github.com/romancin/rutorrent-flood-docker
+            https://hub.docker.com/r/romancin/rutorrent-flood
+            * docker bundle rtorrent from package, rutorrent from source
+            https://github.com/linuxserver/docker-rutorrent
+        
+        * docker images with openvpn client
+            * docker bundle rTorrent-ps (bitorrent client : rtorrent extended distribution), ruTorrent (web front end), autodl-irssi (scan irc and download torrent), openvpn client, Privoxy (web proxy allow unfiltered access to index sites)
+            https://github.com/binhex/arch-rtorrentvpn
+            * docker bundle rtorrent, flood (web ui), openvpn client - with detailed rtorrent configuration
+            https://github.com/h1f0x/rtorrent-flood-openvpn
+
+
+
+## TODO
 
 * NVIDIA GPU    
     * NVIDIA GPU unlock non-pro cards : https://github.com/keylase/nvidia-patch

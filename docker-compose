@@ -1,9 +1,0 @@
-#!/bin/bash
-_CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-_CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
-. $_CURRENT_FILE_DIR/stella-link.sh include
-
-DOCKER_COMPOSE_FILE_GENERATED="${STELLA_APP_ROOT}/docker-compose-gen.yml"
-
-command docker-compose -f "${DOCKER_COMPOSE_FILE_GENERATED}" $@
-
