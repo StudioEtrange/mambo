@@ -1,0 +1,115 @@
+#!/bin/bash
+_CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+_CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
+
+# TANGO lookup order
+#       1. externaly defined TANGO_ROOT     ==> instance mode : isolated or shared
+#       2. "${_CURRENT_FILE_DIR}/../tango"  ==> instance mode : isolated or shared
+#       3. "mambo/tango"                    ==> instance mode : isolated only. shared instance is not compatible with this location
+INTERNAL_TANGO_ROOT="${_CURRENT_FILE_DIR}/tango"
+INSTANCE_MODE_SHARED_OK=
+if [ "${TANGO_ROOT}" = "" ]; then
+    if [ -d "${_CURRENT_FILE_DIR}/../tango" ]; then
+        TANGO_ROOT="${_CURRENT_FILE_DIR}/../tango"
+        INSTANCE_MODE_SHARED_OK=1
+    else
+        # use internal tango
+        TANGO_ROOT="${INTERNAL_TANGO_ROOT}"
+    fi
+else
+    TANGO_ROOT="$(cd "${TANGO_ROOT}" && pwd -P)"
+    [ ! "${TANGO_ROOT}" = "${INTERNAL_TANGO_ROOT}" ] && INSTANCE_MODE_SHARED_OK=1
+fi
+
+if [ ! -d "${TANGO_ROOT}" ]; then
+    echo "* ERROR tango not found, by default it is first lookup into ${_CURRENT_FILE_DIR}/../tango OR defined its path with TANGO_ROOT"
+    exit 1
+fi
+
+STELLA_LOG_STATE="OFF"
+. "${_CURRENT_FILE_DIR}/stella-link.sh" include
+
+
+. "${TANGO_ROOT}/src/tango-init.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+
+
+
+. "${TANGO_ROOT}/src/tango-set-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+PARAMETERS="
+ACTION=										'action' 			a				'init update info shell up down status install logs restart modules plugins cert' '1'
+TARGET=										'target' 			s				''	'0'
+ARGUMENT=									'argument' 			s				''	'0'
+"
+
+usage() {
+	echo "USAGE :"
+	echo "----------------"
+	echo "o-- commands :"
+	echo "L     install : deploy this app."
+	echo "L     init plex [--claim] : init plex services. Do it once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred (claim TODO NOT IMPLEMENTED)"
+	echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
+	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
+	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service."
+	echo "L     info [--freeport] : give info. Will generate conf files and print configuration used when launching any service."
+	echo "L     status [service] : see service status."
+	echo "L     logs [service] : see service logs."
+	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
+	echo "L     shell <service> : launch a shell into a running service."
+	echo "L     modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
+	echo "L     plugins <exec-service> <service>|<exec> <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached."
+	echo "o-- various commands :"
+	echo "L		cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder."
+}
+
+
+
+
+. "${TANGO_ROOT}/src/tango-parse-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+# default mambo env file is mambo.env in HOME
+[ "${ENV}" = "" ] && [ -f "${HOME}/mambo.env" ] && ENV="${HOME}/mambo.env"
+
+. "${TANGO_ROOT}/src/tango-prepare-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
+    if [ ! "${INSTANCE_MODE_SHARED_OK}" = "1" ]; then
+        echo "* ERROR cannot use TANGO from ${TANGO_ROOT} in instance mode ${TANGO_INSTANCE_MODE}"
+        exit 1
+    fi
+fi
+
+. "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+# specific mambo actions
+__action_done=""
+
+case ${ACTION} in
+    info )
+        if [ "${TARGET}" = "plex" ]; then
+            echo "---------==---- PLEX ----==---------"
+            [ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
+            [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
+            echo "L-- X-Plex-Token : $(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
+            __action_done="1"        
+        fi
+    ;;
+
+    init )
+        if [ "${TARGET}" = "plex" ]; then
+            echo "** Init service Plex"
+            __init_service_plex
+            __action_done="1"  
+        fi
+    ;;
+
+esac
+
+
+if [ "${__action_done}" = "" ]; then
+    . "${TANGO_ROOT}/src/tango-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+    . "${TANGO_ROOT}/src/tango-after-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+fi
+

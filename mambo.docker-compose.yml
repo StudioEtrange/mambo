@@ -1,0 +1,540 @@
+
+volumes:
+  download:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DOWNLOAD_PATH}
+    name: ${TANGO_APP_NAME}_download
+  scripts:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${SCRIPTS_PATH}
+    name: ${TANGO_APP_NAME}_scripts
+  vault:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULT_PATH}
+    name: ${TANGO_APP_NAME}_vault
+  web_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${WEB_PATH}
+    name: ${TANGO_APP_NAME}_web_data
+  newsletters_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TAUTULLI_NEWSLETTERS_PATH}
+    name: ${TANGO_APP_NAME}_newsletters_data
+  organizr2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${APP_DATA_PATH}/organizr2
+    name: ${TANGO_APP_NAME}_organizr2_data
+  plex_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${APP_DATA_PATH}/plex
+    name: ${TANGO_APP_NAME}_plex_data    
+  jdownloader2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${APP_DATA_PATH}/jdownloader2
+    name: ${TANGO_APP_NAME}_jdownloader2_data
+  jdownloader2_download:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DOWNLOAD_PATH}/jdownloader2
+    name: ${TANGO_APP_NAME}_jdownloader2_download
+  transmission_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${APP_DATA_PATH}/transmission
+    name: ${TANGO_APP_NAME}_transmission_data
+  transmission_download:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DOWNLOAD_PATH}/transmission
+    name: ${TANGO_APP_NAME}_transmission_download
+  transmission_watch:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULT_PATH}/torrent
+    name: ${TANGO_APP_NAME}_transmission_watch
+  # calibreweb_books_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${APP_DATA_PATH}/calibreweb_books
+  # calibreweb_books_media:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_books
+  # calibreweb_comics_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${APP_DATA_PATH}/calibreweb_comics
+  # calibreweb_comics_media:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
+
+
+
+# # NOTE : yaml do not support array merge, so we cannot factorize volume declaration here
+# # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
+# x-calibreweb: &default-calibreweb
+#   image: studioetrange/calibre-web:${CALIBRE_WEB_VERSION:-latest}
+#   depends_on: 
+#     - service_init
+#   restart: unless-stopped
+#   #volumes:
+#   environment:
+#     - PUID=${TANGO_USER_ID:-0}
+#     - PGID=${TANGO_GROUP_ID:-0}
+#     - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_VERSION:-latest}
+#   labels:
+#     - "${TANGO_APP_NAME}.managed=true"
+#     - "traefik.enable=true"
+#   networks:
+#     - default
+#   expose:
+#     - 8083
+#   build:
+#     context: https://github.com/linuxserver/docker-calibre-web.git#${CALIBRE_WEB_VERSION}
+#     args:
+#       - CALIBREWEB_RELEASE=${CALIBRE_WEB_VERSION}
+
+
+
+services:
+
+  # NOTE : this will be merged with service_init from tango compose file
+  service_init:
+    volumes:
+      - download:/download
+
+  # Main mambo portal
+  organizr2:
+    image: organizrtools/organizr-v2:${ORGANIZR2_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_organizr2
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # will contain organizr2 configuration
+      - organizr2_data:/config
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-organizr2}}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2.service=organizr2"
+      - "traefik.http.routers.organizr2.priority=${ORGANIZR2_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.organizr2-secure.entrypoints=${ORGANIZR2_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-organizr2}}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2-secure.service=organizr2"
+      - "traefik.http.routers.organizr2-secure.tls=true"
+      - "traefik.http.routers.organizr2-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN:-organizr2}.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.organizr2.loadbalancer.server.port=80"
+      - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
+      - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 80
+
+
+  # Manage movie/tv show requests
+  ombi:
+    image: studioetrange/docker-ombi:${OMBI_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_ombi
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/ombi will contain ombi configuration
+      - data:/data
+    environment:
+      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.ombi.entrypoints=${OMBI_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:ombi}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.ombi.service=ombi"
+      - "traefik.http.routers.ombi.priority=${OMBI_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.ombi-secure.entrypoints=${OMBI_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.ombi-secure.rule=HostRegexp(`{subdomain:ombi}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.ombi-secure.service=ombi"
+      - "traefik.http.routers.ombi-secure.tls=true"
+      - "traefik.http.routers.ombi-secure.tls.domains[0].main=ombi.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.ombi.loadbalancer.server.port=5000"
+      - "traefik.http.services.ombi.loadbalancer.server.scheme=http"
+      - "traefik.http.services.ombi.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 5000
+    build:
+      context: https://github.com/StudioEtrange/docker-ombi.git#:ver/${OMBI_VERSION:-latest}
+
+
+  # Newzgroup downloader
+  sabnzbd:
+    image: studioetrange/docker-sabnzbd:${SABNZBD_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_sabnzbd
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/sabnzbd will contain sabnzbd configuration
+      - data:/data
+      # different paths used by sabnzbd
+      - download:/download
+      - vault:/vault
+      - scripts:/scripts
+      - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
+    environment:
+      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
+      - 'HOST_WHITELIST_ENTRIES=sabnzbd,sabnzbd.${TANGO_DOMAIN},${TANGO_HOSTNAME},${TANGO_HOSTNAME}.${TANGO_DOMAIN},${SABNZBD_ADDITIONAL_DOMAIN}'
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.sabnzbd.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
+      - "traefik.http.routers.sabnzbd.priority=${SABNZBD_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.sabnzbd.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
+      - "traefik.http.routers.sabnzbd-secure.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd-secure.tls=true"
+      - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=sabnzbd.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
+      - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
+      - "traefik.http.middlewares.sabnzbd-stripprefix.stripprefix.prefixes=/sabnzbd, /sabnzbd/"
+      - "traefik.http.routers.sabnzbd.middlewares=sabnzbd-stripprefix"
+      - "traefik.http.routers.sabnzbd-secure.middlewares=sabnzbd-stripprefix"
+    networks:
+      - default
+    expose:
+      - 8080
+      # HTTPS port
+      - 8081
+    build:
+      context: https://github.com/StudioEtrange/docker-sabnzbd.git#:ver/${SABNZBD_VERSION:-latest}
+
+
+
+  # Media server
+  plex:
+    image: plexinc/pms-docker:${PLEX_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_plex
+    # add a DNS entry to the existing 'plex' entry only inside this container
+    # the default plex server name is defined by the hostname
+    hostname: mambo
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # will contain plex configuration
+      - plex_data:/config
+      - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
+      - ${PLEX_TRANSCODE_PATH}:/transcode
+    environment:
+      - PLEX_UID=${TANGO_USER_ID:-0}
+      - PLEX_GID=${TANGO_GROUP_ID:-0}
+      - CHANGE_CONFIG_DIR_OWNERSHIP=true
+      # if server have already be claimed, PLEX_CLAIM env var is ignored
+      - PLEX_CLAIM=${PLEX_CLAIM:-}
+      - 'ADVERTISE_IP=http://${TANGO_HOSTNAME}:${PLEX_DIRECT_ACCESS_PORT}/,https://${TANGO_HOSTNAME}:${PLEX_DIRECT_ACCESS_PORT}/,http://plex:${NETWORK_PORT_MAIN}/,https://plex:${NETWORK_PORT_MAIN_SECURE}/,http://plex:${NETWORK_PORT_SECONDARY}/,https://plex:${NETWORK_PORT_SECONDARY_SECURE}/,http://plex.${TANGO_DOMAIN}:${NETWORK_PORT_MAIN}/,https://plex.${TANGO_DOMAIN}:${NETWORK_PORT_MAIN_SECURE}/,http://plex.${TANGO_DOMAIN}:${NETWORK_PORT_SECONDARY}/,https://plex.${TANGO_DOMAIN}:${NETWORK_PORT_SECONDARY_SECURE}/,http://${TANGO_HOSTNAME}.${TANGO_DOMAIN}:${NETWORK_PORT_MAIN}/,https://${TANGO_HOSTNAME}.${TANGO_DOMAIN}:${NETWORK_PORT_MAIN_SECURE}/,http://${TANGO_HOSTNAME}.${TANGO_DOMAIN}:${NETWORK_PORT_SECONDARY}/,https://${TANGO_HOSTNAME}.${TANGO_DOMAIN}:${NETWORK_PORT_SECONDARY_SECURE}/,${PLEX_ADDITIONAL_DOMAIN}'
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.plex.entrypoints=${PLEX_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.plex.rule=HostRegexp(`{subdomain:plex}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.plex.priority=${PLEX_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.plex.service=plex"
+      - "traefik.http.routers.plex-secure.entrypoints=${PLEX_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.plex-secure.rule=HostRegexp(`{subdomain:plex}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.plex-secure.service=plex"
+      - "traefik.http.routers.plex-secure.tls=true"
+      - "traefik.http.routers.plex-secure.tls.domains[0].main=plex.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      - "traefik.http.services.plex.loadbalancer.server.scheme=http"
+      - "traefik.http.services.plex.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 32400/tcp
+      - 3005/tcp
+      - 8324/tcp
+      - 32469/tcp
+      - 1900/udp
+      - 32410/udp
+      - 32412/udp
+      - 32413/udp
+      - 32414/udp
+
+
+
+  # Tv show download manager
+  medusa:
+    image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_medusa
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/medusa will contain medusa configuration
+      - data:/data
+      # different paths used by medusa
+      - download:/download
+      - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
+    environment:
+      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.medusa.entrypoints=${MEDUSA_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.medusa.priority=${MEDUSA_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.medusa.service=medusa"
+      - "traefik.http.routers.medusa-secure.entrypoints=${MEDUSA_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.medusa-secure.rule=HostRegexp(`{subdomain:medusa}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.medusa-secure.service=medusa"
+      - "traefik.http.routers.medusa-secure.tls=true"
+      - "traefik.http.routers.medusa-secure.tls.domains[0].main=medusa.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.medusa.loadbalancer.server.port=8081"
+      - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
+      - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 8081
+    build:
+      context: https://github.com/StudioEtrange/docker-medusa.git#:ver/${MEDUSA_VERSION:-latest}
+
+
+  # Plex statistics and management tools
+  tautulli:
+    image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_tautulli
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/tautulli will contain tautulli configuration
+      - data:/data
+      # newsletters_data will be used for generated newsletter
+      - newsletters_data:/data/tautulli/newsletters
+    environment:
+      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.tautulli.entrypoints=${TAUTULLI_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:tautulli}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli.priority=${TAUTULLI_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.tautulli.service=tautulli"
+      - "traefik.http.routers.tautulli-secure.entrypoints=${TAUTULLI_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.tautulli-secure.rule=HostRegexp(`{subdomain:tautulli}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli-secure.service=tautulli"
+      - "traefik.http.routers.tautulli-secure.tls=true"
+      - "traefik.http.routers.tautulli-secure.tls.domains[0].main=tautulli.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
+      - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
+      - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
+    networks:
+      - default
+    expose:
+      - 8181
+    build:
+      context: https://github.com/StudioEtrange/docker-tautulli.git#:ver/${TAUTULLI_VERSION:-latest}
+
+  
+  # web area
+  web:
+    image: httpd:${WEB_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_web
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - web_data:/usr/local/apache2/htdocs
+      - newsletters_data:/usr/local/apache2/htdocs/newsletter
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.entrypoints=${WEB_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.web.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web.priority=${WEB_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.web.service=web"
+      - "traefik.http.routers.web-secure.entrypoints=${WEB_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.web-secure.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web-secure.service=web"
+      - "traefik.http.routers.web-secure.tls=true"
+      - "traefik.http.routers.web-secure.tls.domains[0].main=web.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.web.loadbalancer.server.port=80"
+      - "traefik.http.services.web.loadbalancer.server.scheme=http"
+      - "traefik.http.services.web.loadbalancer.passhostheader=true"
+      # sub service web_newsletter
+      - "traefik.http.routers.web_newsletter.entrypoints=${WEB_ENTRYPOINTS:-web_main}"
+      # NOTE : this rule have priority over router web because it is longer !
+      - "traefik.http.routers.web_newsletter.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
+      - "traefik.http.routers.web_newsletter.priority=${WEB_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.web_newsletter.service=tautulli"
+      - "traefik.http.routers.web_newsletter-secure.entrypoints=${WEB_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.web_newsletter-secure.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
+      - "traefik.http.routers.web_newsletter-secure.service=tautulli"
+      - "traefik.http.routers.web_newsletter-secure.tls=true"
+      - "traefik.http.routers.web_newsletter-secure.tls.domains[0].main=web.${TANGO_DOMAIN:-.*}"
+    networks:
+      - default
+    expose:
+      - 80
+
+
+  
+  # direct download manager
+  # https://github.com/PlusMinus0/headless-jd2-docker
+  jdownloader2:
+    image: plusminus/jdownloader2-headless:${JDOWNLOADER2_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_jdownloader2
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - jdownloader2_download:/opt/JDownloader/Downloads
+      - jdownloader2_data:/opt/JDownloader/cfg
+    environment:
+      - UID=${TANGO_USER_ID:-0}
+      - GID=${TANGO_GROUP_ID:-0}
+      - EMAIL=${JDOWNLOADER2_EMAIL:-}
+      - PASSWORD=${JDOWNLOADER2_PASSWORD:-}
+    labels:
+      - "${TANGO_APP_NAME}.managed=true"
+      - "traefik.enable=false"
+    networks:
+      - default
+   
+  # https://github.com/linuxserver/docker-transmission
+  transmission:
+    image: linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_transmission
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - transmission_data:/config
+      - transmission_download:/downloads
+      - transmission_watch:/watch
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - TRANSMISSION_WEB_HOME=${TRANSMISSION_UI}
+      - USER=${TRANSMISSION_USER}
+      - PASS=${TRANSMISSION_PASSWORD}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.transmission.entrypoints=${TRANSMISSION_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.transmission.rule=HostRegexp(`{subdomain:transmission}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission.priority=${TRANSMISSION_REDIRECT_HTTPS_PRIORITY:-200}"
+      - "traefik.http.routers.transmission.service=transmission"
+      - "traefik.http.routers.transmission-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.transmission-secure.rule=HostRegexp(`{subdomain:transmission}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission-secure.service=transmission"
+      - "traefik.http.routers.transmission-secure.tls=true"
+      - "traefik.http.routers.transmission-secure.tls.domains[0].main=transmission.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.transmission.loadbalancer.server.port=9091"
+      - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
+      - "traefik.http.services.transmission.loadbalancer.passhostheader=true"
+    networks:
+       - default
+    expose:
+      - 9091/tcp
+      - 51413/tcp
+      - 51413/udp
+    ports:
+      - ${TRANSMISSION_PORT}:51413/tcp
+      - ${TRANSMISSION_PORT}:51413/udp
+
+    
+
+  # calibreweb_books:
+  #   << : *default-calibreweb
+  #   container_name: ${TANGO_APP_NAME}_calibreweb_books
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_books_data:/config
+  #     # different paths used by calibreweb
+  #     - calibreweb_books_media:/books
+  #   labels:
+  #     - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBRE_ENTRYPOINTS:-web_main}"
+  #     - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
+  #     - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
+  #     - "traefik.http.routers.calibreweb_books.priority=${CALIBRE_ENTRYPOINTS:-200}"
+  #     - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBRE_ENTRYPOINTS_SECURE:-web_main_secure}"
+  #     - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
+  #     - "traefik.http.routers.calibreweb_books-secure.tls=true"
+  #     - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=calibreweb_books.${TANGO_DOMAIN:-.*}"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
+  #     - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix"
+  #     - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/calibreweb_books, /calibreweb_books/"
+
+  # calibreweb_comics:
+  #   << : *default-calibreweb
+  #   container_name: ${TANGO_APP_NAME}_calibreweb_comics
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_comics_data:/config
+  #     # different paths used by calibreweb
+  #     - calibreweb_comics_media:/books
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.calibreweb_comics.entrypoints=web_secondary"
+  #     - "traefik.http.routers.calibreweb_comics.rule=HostRegexp(`{subdomain:calibreweb_comics}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_comics`)"
+  #     - "traefik.http.routers.calibreweb_comics.service=calibreweb_comics"
+  #     - "traefik.http.services.calibreweb_comics.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_comics.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_comics.loadbalancer.passhostheader=true"
+  #     - "traefik.http.routers.calibreweb_comics.middlewares=calibreweb_comics-stripprefix"
+  #     - "traefik.http.middlewares.calibreweb_comics-stripprefix.stripprefix.prefixes=/calibreweb_comics, /calibreweb_comics/"
