@@ -1,5 +1,6 @@
 # MAMBO - A docker based media stack
 
+CONTINUE HERE : faire une tache crontab qui requete organizr2 et fais des put sur traefik sur le lien forwardAuth
 
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
@@ -80,15 +81,20 @@ NOTE : mambo will auto install other tools like docker-compose
 ## AVAILABLE COMMANDS
 
 ```
-L     install : deploy this app
-L     init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force to claim server even it is already registred
-L     up [service] : launch all mambo services or one service
-L     down [service] : down all mambo services or one service
-L     restart [service ] : restart all mambo services or one service
-L     info : give info on Mambo. Will generate conf files and print configuration used when launching any service.
-L     status [service] : see status
-L     logs [service] : see logs
-L     shell <service> : launch a shell into a running service
+    install : deploy this app.
+    init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force 	
+	up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service
+	down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service).
+	restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service.
+	info [--freeport] : give info. Will generate conf files and print configuration used when launching any service.
+	status [service] : see service status.
+	logs [service] : see service logs.
+	update <service> : get last version of docker image service. Will stop service if it was running.
+	shell <service> : launch a shell into a running service.
+	modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service.
+	plugins <exec-service> <service>|<exec> <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached.
+
+	cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder.
 ```
 
 
@@ -317,30 +323,31 @@ L     shell <service> : launch a shell into a running service
 
 * With organiz2, you could bring up a central portal for all your services
 
-* Setup
+* Initial Setup
     * License : personal
-    * User : plex admin username, email and some other password
+    * User : plex admin real username, plex admin email and a different password
     * Hash : choose a keyword
     * registration password : choose a password so that user can signup themselves
+    * api : do not change
     * db name : db
     * db path : /config/www/db
 
-* Setup Theme
-    * Settings / Customize / Appearance / Top bar : set title and description
-    * Settings / Customize / Appearance / Login Page : pick login logo, wallpaper and minimal login screen
-    * Settings / Customize / Marketplace : install plex theme
-    * Settings / Customize / Appearance / Colors & Themes : select theme plex
 
-* Add services - a sample for ombi service
-    * Tab editor
+* Add services - a sample for ombi service :
+    * Tab editor - add a tab
         * Tab name : Ombi
-        * Test tab : it will indicate if we can use this tab as iframe
         * Tab Url : http://ombi.mydomain.com
+        * Choose ombi-plex image
+        * Test tab : it will indicate if we can use this tab as iframe
+        * Add tab
+        * Refresh page
 
 * NOTE :
-    * `Local Tab URL` if not empty is used when organizr detect http request come from local network instead of value of `Tab URL` which is used when requesting from outside network (internet). But in **all cases** ORL in `Local Tab URL` or `Tab URL` must be reachable from the browser.
-    * You should write reverse proxy rules to 
-        * firstly reverse proxy the service because these URL which may not be reachable from outside network (internet)
+    * `Local Tab URL` if not empty is used when requesting service from inside network (local network)
+    * `Tab URL` is used when requesting service from outside network (internet). 
+    * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
+    * You may need to write reverse proxy rules to 
+        * firstly reverse proxy the service because `Tab URL` may not be reachable from outside network (internet)
         * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
         * lastly use organizr SSO by playing around http header with reverse proxy role [https://docs.organizr.app/books/setup-features/page/sso]
     * For writing specific reverse proxy rules for organizr nginx is more suitable than traefik2 because it can modify the response and inject some code like CSS for cutom thema with `sub_filter` instruction
@@ -363,23 +370,30 @@ L     shell <service> : launch a shell into a running service
             sub_filter_once on;
         }
         ```
-    
+    * api documentation : https://organizr2.mydomain.com/api/docs/
+
 * Organizr authentification with Plex configuration [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
     * Settings / System Settings / Main / Authentication
         * Type : Organizr DB + Backend
         * Backend : plex
         * Do get plex token / get plex machine
-        * Admin username : a plex user admin that will match admin organir admin account
+        * Admin username : a plex user admin that will match admin organizr admin account
         * Strict plex friends : enabled
         * Enable Plex oAuth : enabled (active plex login to log into organizr)
     * Settings / System Settings / Main / Login
         * Hide registration : enabled - if you wish to disable auto registration
 
-* NOTE : information on organizr Single Sign On integration with other services : https://docs.organizr.app/books/setup-features/page/sso
+
+* Setup Theme
+    * Settings / Customize / Appearance / Top bar : set title and description
+    * Settings / Customize / Appearance / Login Page : 
+        * use logo instead of Title on Login Page
+        * wallpaper 
+        * and minimal login screen
+    * Settings / Customize / Marketplace : install plex theme
+    * Settings / Customize / Appearance / Colors & Themes : select theme plex
 
 
-
-https://github.com/causefx/Organizr/issues/1240
 
 ## NETWORK CONFIGURATION
 
@@ -477,6 +491,20 @@ https://github.com/causefx/Organizr/issues/1240
 
 ## MAMBO PLUGINS
 
+### Transmission PIA port
+
+* Plugin name : transmission_pia_port
+
+* sample
+
+    ```
+    # must stop vpn and transmission to remove containers
+    ./mambo down <attached vpn>
+    ./mambo down transmission
+    ./mambo up transmission
+    # wait for <attached vpn> docker container to be healthy
+    ./mambo plugins exec-service transmission
+    ```
 
 
 ### nzbToMedia
@@ -484,11 +512,6 @@ https://github.com/causefx/Organizr/issues/1240
 * Use to connect medusa and sabnzbd
 * https://github.com/clinton-hall/nzbToMedia
 
-* sample
-
-    ```
-    MAMBO_ADDONS="nzbToMedia#12.1.04" ./mambo init addons
-    ```
 
 * configure sabnzbd
     * Folders/Scripts Folder : `/scripts/nzbToMedia`
@@ -559,6 +582,7 @@ https://github.com/causefx/Organizr/issues/1240
     * organizr2 and nginx : https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
     * organizr2 + nginx (using subdomains or subdirectories) + letsencrypt https://technicalramblings.com/blog/how-to-setup-organizr-with-letsencrypt-on-unraid/
     * organizr + nginx samples for several services https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
+    * automated organizr2 installation : https://github.com/causefx/Organizr/issues/1370
     * various 
         * https://docs.organizr.app/books/setup-features/page/serverauth
         * https://docs.organizr.app/books/setup-features/page/sso
@@ -567,6 +591,13 @@ https://github.com/causefx/Organizr/issues/1240
         * https://github.com/causefx/Organizr/issues/1116
         * https://www.reddit.com/r/organizr/comments/axbo3r/organizr_authenticate_other_services_radarr/
         * https://www.reddit.com/r/organizr/
+    CONTINUE HERE : * organizr2 and traefik auth : https://github.com/causefx/Organizr/issues/1240
+    https://docs.organizr.app/books/setup-features/page/serverauth
+    https://docs.organizr.app/books/setup-features/page/plex-authentication
+https://docs.organizr.app/books/setup-features/page/serverauth#bkmrk-method-2%3A-using-oaut
+https://media.chimere-harpie.org/api/?v1/user/list
+
+    * information on organizr Single Sign On integration with other services : https://docs.organizr.app/books/setup-features/page/sso
 
 
 

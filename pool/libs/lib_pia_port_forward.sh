@@ -28,11 +28,15 @@ pia_get_port() {
 
 
     # doc says : "Within two minutes of connecting the VPN"
+    # vpn docker container should have healthy status
     wait_time=30
     echo "  + Wait for tunnel to be fully initialized and PIA is ready to give us a port ($wait_time sec.)"
     sleep $wait_time
 
-    pia_client_id="$(cat ${pia_client_id_file} 2>/dev/null)"
+    # NOTE we should always generate a new id to try to force obtain a new port 
+    #       to really obtain a new port we must down the vpn connection first AND generate a new id 
+    #pia_client_id="$(cat ${pia_client_id_file} 2>/dev/null)"
+    pia_client_id=
 
     if [[ -z "${pia_client_id}" ]]; then
         echo -n "  + Generating new client id for PIA : "

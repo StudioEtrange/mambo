@@ -1,7 +1,4 @@
 .DS_Store
 cache/
 workspace/
-env.bash
-mambo.env
-.env
-docker-compose-gen.yml
+generated*

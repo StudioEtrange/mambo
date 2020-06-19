@@ -32,9 +32,6 @@ STELLA_LOG_STATE="OFF"
 
 . "${TANGO_ROOT}/src/tango-init.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
-
-
-
 . "${TANGO_ROOT}/src/tango-set-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 PARAMETERS="
@@ -79,6 +76,14 @@ if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
         exit 1
     fi
 fi
+
+# organizr2 logic
+__organizr2_api_url
+__organizr2_auth_group_by_service_all
+__organizr2_auth_group_name_by_id_all
+__organizr2_add_auth_service_all
+
+
 
 . "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 

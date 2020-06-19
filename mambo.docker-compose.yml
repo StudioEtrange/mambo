@@ -40,7 +40,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${APP_DATA_PATH}/organizr2
+      device: ${ORGANIZR2_DATA_PATH}
     name: ${TANGO_APP_NAME}_organizr2_data
   plex_data:
     driver: local
@@ -54,28 +54,28 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${APP_DATA_PATH}/jdownloader2
+      device: ${JDOWNLOADER2_DATA_PATH}
     name: ${TANGO_APP_NAME}_jdownloader2_data
   jdownloader2_download:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${DOWNLOAD_PATH}/jdownloader2
+      device: ${JDOWNLOADER2_DOWNLOAD_PATH}
     name: ${TANGO_APP_NAME}_jdownloader2_download
   transmission_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${APP_DATA_PATH}/transmission
+      device: ${TRANSMISSION_DATA_PATH}
     name: ${TANGO_APP_NAME}_transmission_data
   transmission_download:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${DOWNLOAD_PATH}/transmission
+      device: ${TRANSMISSION_DOWNLOAD_PATH}
     name: ${TANGO_APP_NAME}_transmission_download
   transmission_watch:
     driver: local
@@ -161,14 +161,14 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-organizr2}}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.organizr2.service=organizr2"
       - "traefik.http.routers.organizr2.priority=${ORGANIZR2_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.organizr2-secure.entrypoints=${ORGANIZR2_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-organizr2}}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.organizr2-secure.service=organizr2"
       - "traefik.http.routers.organizr2-secure.tls=true"
-      - "traefik.http.routers.organizr2-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN:-organizr2}.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.organizr2-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.organizr2.loadbalancer.server.port=80"
       - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
       - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
@@ -194,14 +194,14 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.ombi.entrypoints=${OMBI_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:ombi}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:${OMBI_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.ombi.service=ombi"
       - "traefik.http.routers.ombi.priority=${OMBI_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.ombi-secure.entrypoints=${OMBI_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.ombi-secure.rule=HostRegexp(`{subdomain:ombi}.{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.ombi-secure.rule=HostRegexp(`{subdomain:${OMBI_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.ombi-secure.service=ombi"
       - "traefik.http.routers.ombi-secure.tls=true"
-      - "traefik.http.routers.ombi-secure.tls.domains[0].main=ombi.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.ombi-secure.tls.domains[0].main=${OMBI_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.ombi.loadbalancer.server.port=5000"
       - "traefik.http.services.ombi.loadbalancer.server.scheme=http"
       - "traefik.http.services.ombi.loadbalancer.passhostheader=true"
@@ -230,19 +230,19 @@ services:
       - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
     environment:
       - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
-      - 'HOST_WHITELIST_ENTRIES=sabnzbd,sabnzbd.${TANGO_DOMAIN},${TANGO_HOSTNAME},${TANGO_HOSTNAME}.${TANGO_DOMAIN},${SABNZBD_ADDITIONAL_DOMAIN}'
+      - 'HOST_WHITELIST_ENTRIES=sabnzbd,${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN},${TANGO_HOSTNAME},${TANGO_HOSTNAME}.${TANGO_DOMAIN},${SABNZBD_ADDITIONAL_DOMAIN}'
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.sabnzbd.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
+      - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
       - "traefik.http.routers.sabnzbd.priority=${SABNZBD_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.sabnzbd.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:sabnzbd}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
+      - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
       - "traefik.http.routers.sabnzbd-secure.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.tls=true"
-      - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=sabnzbd.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
       - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
       - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
@@ -286,14 +286,14 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.plex.entrypoints=${PLEX_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.plex.rule=HostRegexp(`{subdomain:plex}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.plex.rule=HostRegexp(`{subdomain:${PLEX_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.plex.priority=${PLEX_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.plex.service=plex"
       - "traefik.http.routers.plex-secure.entrypoints=${PLEX_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.plex-secure.rule=HostRegexp(`{subdomain:plex}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.plex-secure.rule=HostRegexp(`{subdomain:${PLEX_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.plex-secure.service=plex"
       - "traefik.http.routers.plex-secure.tls=true"
-      - "traefik.http.routers.plex-secure.tls.domains[0].main=plex.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.plex-secure.tls.domains[0].main=${PLEX_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.plex.loadbalancer.server.port=32400"
       - "traefik.http.services.plex.loadbalancer.server.scheme=http"
       - "traefik.http.services.plex.loadbalancer.passhostheader=true"
@@ -331,14 +331,14 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.medusa.entrypoints=${MEDUSA_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:medusa}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:${MEDUSA_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.medusa.priority=${MEDUSA_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.medusa.service=medusa"
       - "traefik.http.routers.medusa-secure.entrypoints=${MEDUSA_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.medusa-secure.rule=HostRegexp(`{subdomain:medusa}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.medusa-secure.rule=HostRegexp(`{subdomain:${MEDUSA_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.medusa-secure.service=medusa"
       - "traefik.http.routers.medusa-secure.tls=true"
-      - "traefik.http.routers.medusa-secure.tls.domains[0].main=medusa.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.medusa-secure.tls.domains[0].main=${MEDUSA_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.medusa.loadbalancer.server.port=8081"
       - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
       - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
@@ -368,14 +368,14 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.tautulli.entrypoints=${TAUTULLI_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:tautulli}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:${TAUTULLI_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.tautulli.priority=${TAUTULLI_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.tautulli.service=tautulli"
       - "traefik.http.routers.tautulli-secure.entrypoints=${TAUTULLI_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.tautulli-secure.rule=HostRegexp(`{subdomain:tautulli}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli-secure.rule=HostRegexp(`{subdomain:${TAUTULLI_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.tautulli-secure.service=tautulli"
       - "traefik.http.routers.tautulli-secure.tls=true"
-      - "traefik.http.routers.tautulli-secure.tls.domains[0].main=tautulli.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.tautulli-secure.tls.domains[0].main=${TAUTULLI_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
       - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
       - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
@@ -401,28 +401,28 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.web.entrypoints=${WEB_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.web.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web.rule=HostRegexp(`{subdomain:${WEB_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.web.priority=${WEB_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.web.service=web"
       - "traefik.http.routers.web-secure.entrypoints=${WEB_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.web-secure.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web-secure.rule=HostRegexp(`{subdomain:${WEB_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.web-secure.service=web"
       - "traefik.http.routers.web-secure.tls=true"
-      - "traefik.http.routers.web-secure.tls.domains[0].main=web.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.web-secure.tls.domains[0].main=${WEB_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.web.loadbalancer.server.port=80"
       - "traefik.http.services.web.loadbalancer.server.scheme=http"
       - "traefik.http.services.web.loadbalancer.passhostheader=true"
       # sub service web_newsletter
       - "traefik.http.routers.web_newsletter.entrypoints=${WEB_ENTRYPOINTS:-web_main}"
       # NOTE : this rule have priority over router web because it is longer !
-      - "traefik.http.routers.web_newsletter.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
+      - "traefik.http.routers.web_newsletter.rule=HostRegexp(`{subdomain:${WEB_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
       - "traefik.http.routers.web_newsletter.priority=${WEB_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.web_newsletter.service=tautulli"
       - "traefik.http.routers.web_newsletter-secure.entrypoints=${WEB_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.web_newsletter-secure.rule=HostRegexp(`{subdomain:web}.{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
+      - "traefik.http.routers.web_newsletter-secure.rule=HostRegexp(`{subdomain:${WEB_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/image`) || PathPrefix(`/newsletter`))"
       - "traefik.http.routers.web_newsletter-secure.service=tautulli"
       - "traefik.http.routers.web_newsletter-secure.tls=true"
-      - "traefik.http.routers.web_newsletter-secure.tls.domains[0].main=web.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.web_newsletter-secure.tls.domains[0].main=${WEB_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
     networks:
       - default
     expose:
@@ -473,14 +473,14 @@ services:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       - "traefik.http.routers.transmission.entrypoints=${TRANSMISSION_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.transmission.rule=HostRegexp(`{subdomain:transmission}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.transmission.priority=${TRANSMISSION_REDIRECT_HTTPS_PRIORITY:-200}"
       - "traefik.http.routers.transmission.service=transmission"
       - "traefik.http.routers.transmission-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.transmission-secure.rule=HostRegexp(`{subdomain:transmission}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission-secure.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.transmission-secure.service=transmission"
       - "traefik.http.routers.transmission-secure.tls=true"
-      - "traefik.http.routers.transmission-secure.tls.domains[0].main=transmission.${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.transmission-secure.tls.domains[0].main=${TRANSMISSION_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       - "traefik.http.services.transmission.loadbalancer.server.port=9091"
       - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
       - "traefik.http.services.transmission.loadbalancer.passhostheader=true"

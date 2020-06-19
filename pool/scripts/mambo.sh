@@ -19,10 +19,6 @@ if [ "${MODE}" = "init" ]; then
         [[ " ${TANGO_SERVICES_DISABLED} " =~ .*\ ${service,,}\ .* ]] && continue
         echo "* ${service}"
         case ${service} in
-            ORGANIZR2 )
-                echo L-- create [$APP_DATA_PATH/organizr2] {/data/organizr2}
-                mkdir -p /data/organizr2
-                ;;
             PLEX )
                 echo L-- create [$APP_DATA_PATH/plex] {/data/plex}
                 mkdir -p '/data/plex'
@@ -30,19 +26,13 @@ if [ "${MODE}" = "init" ]; then
                 # so we create Library/Application Support with right owner from here
                 mkdir -p '/data/plex/Library/Application Support'       
                 ;;
-            JDOWNLOADER2 )
-                echo L-- create [$APP_DATA_PATH/jdownloader2] {/data/jdownloader2}
-                mkdir -p '/data/jdownloader2'
-                echo L-- create [$DOWNLOAD_PATH/jdownloader2] {/download/jdownloader2}
-                mkdir -p '/download/jdownloader2'
-                ;;
-            TRANSMISSION )
-                echo L-- create [$APP_DATA_PATH/transmission] {/data/transmission}
-                mkdir -p '/data/transmission'
-                echo L-- create [$DOWNLOAD_PATH/transmission] {/download/transmission}
-                mkdir -p '/download/transmission'
-                ;;
         esac
     done
-
 fi
+
+echo "---------==---- AUTH SERVICES ----==---------"
+echo " * ORGANIZR2 API"
+echo L-- API documentation : ${ORGANIZR2_HTTP_URL_DEFAULT}/api/docs
+echo " * ORGANIZR2 AUTH"
+echo L-- manage service authorization : $([ "${ORGANIZR2_AUTHORIZATION}" = "ON" ] && echo "ON" || echo "OFF")
+
