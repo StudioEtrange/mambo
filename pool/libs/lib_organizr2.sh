@@ -223,7 +223,7 @@ __organizr2_api_request() {
     docker run --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_API_URL}/?v1/${__request}"
 }
 
-
+# hash table : give group id access for each service
 declare -A ORGANIZR2_AUTH_GROUP_BY_SERVICE
 # http://organizr2.mydomain.com/api/?v1/tab/list
 __organizr2_auth_group_by_service_all() {
@@ -240,6 +240,7 @@ __organizr2_auth_group_by_service_all() {
 
 }
 
+# hash table : give group name for each group id
 declare -A ORGANIZR2_AUTH_GROUP_NAME_BY_ID
 __organizr2_auth_group_name_by_id_all() {
 
