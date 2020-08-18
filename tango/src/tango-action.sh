@@ -51,9 +51,8 @@ case ${ACTION} in
 		else
 
 			echo "** Will get last docker image version of ${TARGET}"
-
 			docker-compose pull ${TARGET}
-			echo "** NOTE : you should restart ${TARGET} service to run the updated version"
+			echo "** NOTE : you have to restart ${TARGET} service to run the updated version"
 		fi
 	;;
 
@@ -144,6 +143,13 @@ case ${ACTION} in
 	logs )
 		docker-compose logs -t ${TARGET}
 	;;
+
+	letsencrypt )
+		if [ "${TARGET}" = "rm" ]; then
+			rm -f "${TANGO_DATA_PATH/letsencrypt/acme.json}"
+		fi
+		;;
+
 
 	cert )
 		TARGET="$($STELLA_API rel_to_abs_path "${TARGET}" "${TANGO_CURRENT_RUNNING_DIR}")"

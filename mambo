@@ -35,7 +35,7 @@ STELLA_LOG_STATE="OFF"
 . "${TANGO_ROOT}/src/tango-set-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 PARAMETERS="
-ACTION=										'action' 			a				'init update info shell up down status install logs restart modules plugins cert' '1'
+ACTION=										'action' 			a				'init update info shell up down status install logs restart modules plugins cert letsencrypt' '1'
 TARGET=										'target' 			s				''	'0'
 ARGUMENT=									'argument' 			s				''	'0'
 "
@@ -58,6 +58,7 @@ usage() {
 	echo "L     plugins <exec-service> <service>|<exec> <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached."
 	echo "o-- various commands :"
 	echo "L		cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder."
+    echo "L		letsencrypt rm : delete generated letsencrypt cert"
 }
 
 
