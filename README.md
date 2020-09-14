@@ -17,7 +17,7 @@ If you want to use hardware transcode on nvidia gpu :
 
 * nvidia-docker
 
-NOTE : mambo will auto install other tools like docker-compose
+NOTE : mambo will auto install all other required tools like docker-compose
 
 ## SERVICES INCLUDED
 
@@ -29,6 +29,9 @@ NOTE : mambo will auto install other tools like docker-compose
 * JDownloader2 - direct download manager
 * Tranmission - torrent downloader
 * Organizr2
+* Handbrake - Video Conversion (Transcoding and compression)
+* MKVToolNix - Matroska tools with WebGUI - Video Editing (Remuxing - changing media container while keeping original source quality)
+
 
 
 ## USAGE
@@ -234,6 +237,91 @@ NOTE : mambo will auto install other tools like docker-compose
 
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
 
+
+### Organizr2
+
+* With organiz2, you could bring up a central portal for all your services
+
+* github project https://github.com/causefx/Organizr/
+* docker github project https://github.com/Organizr/docker-organizr
+* a guide https://smarthomepursuits.com/install-organizr-v2-windows/
+* api documentation : https://organizr2.mydomain.com/api/docs/
+
+* Initial Setup
+    * License : personal
+    * User : plex admin real username, plex admin email and a different password
+    * Hash : choose a keyword
+    * registration password : choose a password so that user can signup themselves
+    * api : do not change
+    * db name : db
+    * db path : /config/www/db
+    * In system settings, main, API : get API key and set `ORGANIZR2_API_TOKEN_PASSWORD` value in a mambo.env file
+
+
+* Organizr authentification with Plex configuration [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
+    * Settings / System Settings / Main / Authentication
+        * Type : Organizr DB + Backend
+        * Backend : plex
+        * Do get plex token / get plex machine
+        * Admin username : a plex user admin that will match admin organizr admin account
+        * Strict plex friends : enabled (only plex friends are registered)
+        * Enable Plex oAuth : enabled (active plex login to log into organizr)
+
+    * Settings / System Settings / Main / Login
+        * Hide registration : enabled - if you wish to disable auto registration
+
+    * Settings / System Settings / Main / Security
+        * Enable Traefik Auth Redirect - When accessing directly to a service and using forwardAuth to test user access, will redirect on organizr login page if user is not logged. (Will throw HTTP 401 if this option is disabled)
+
+    * Tab Editor / Tabs list 
+        * Homepage : active
+        * Homepage : Default tab
+
+
+    * Setup Theme
+        * Settings / Customize / Appearance / Top bar : set title and description
+        * Settings / Customize / Appearance / Login Page : 
+            * use logo instead of Title on Login Page : disabled
+            * minimal login screen : enable
+        * Settings / Customize / Marketplace : install plex theme
+        * Settings / Customize / Appearance / Colors & Themes : select theme plex, style dark
+            (Theme URL is https://github.com/Burry/Organizr-Plex-Theme)
+
+
+#### Organizr2 : Adding new tabs
+
+    * By default to use this new tab from within organizr, you need to have Co-Admin level. This can be changed in Tab Editor
+    * `Local Tab URL` if not empty is used when requesting service from inside network (local network)
+    * `Tab URL` is used when requesting service from outside network (internet) (and inside network too, if `Local Tab URL` is empty)
+    * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable directly from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
+    * For information : You may need to write reverse proxy rules to 
+        * firstly reverse proxy the service because `Tab URL` may not be reachable from outside network (internet)
+        * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
+        * lastly use organizr SSO by playing around http header with reverse proxy role [https://docs.organizr.app/books/setup-features/page/sso] [reverse proxy rule sample : https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php]
+    * writing specific reverse proxy rules for organizr nginx is more suitable than traefik2 because it can modify the response and inject some code like CSS for cutom thema with `sub_filter` instruction
+        ```
+        location /sonarr {
+            proxy_pass http://192.168.1.34:8990/sonarr;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_redirect off;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_no_cache $cookie_session;
+            # modify CSS part
+            proxy_set_header Accept-Encoding "";
+            sub_filter
+            '</head>'
+            '<link rel="stylesheet" type="text/css" href="https://gilbn.github.io/theme.park/CSS/themes/sonarr/plex.css">
+            </head>';
+            sub_filter_once on;
+        }
+        ```
+
+
+
+
 ### Tautulli
 
 * access to tautulli - setup wizard will be launched
@@ -254,6 +342,36 @@ NOTE : mambo will auto install other tools like docker-compose
     ```
     Newsletter url : {newsletter_url} 
     ```
+
+
+
+#### Tautulli and Organizr2 
+
+    Into Organizr2
+
+    * Add an Tautulli tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://tautulli.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : tautulli
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list
+            * Group : User - Level of authorization needed to allow access from inside organizr. It block to direct access by adding a forwardAuth instruction to traefik dynamicly each time this setting is changed
+            
+    * SSO : Allow to login only to organizr2, tautulli login is automatic
+        * System Settings - Single Sign-On
+            * Tautulli Url : `http://tautulli:5000` (DO NOT CHANGE THIS : it is the local docker network url)
+            * `Enable` SSO
+    
+    * Integration to Homepage :
+        * Tab Editor / Homepage Items / Taututlli
+            * Enable, Minimum Authentication : User
+            * Connection / Url : http://tautulli:8181
+            * Connection / API : get api key from tautulli
+            * Personalize all viewing options
 
 ### Sabnzbd
 
@@ -277,9 +395,8 @@ NOTE : mambo will auto install other tools like docker-compose
     * Search settings/NZB Search
         * Enable nzb search providers
         * Send .nzb files : `SABnzbd`
-        * SABnzbd server url : http://sabnzbd:8080
+        * SABnzbd server url : `http://sabnzbd:8080`
         * Set sabnzbd user/password and api key
-
 
 * Plex configuration:
     * Notifications/Plex Media Server
@@ -287,6 +404,38 @@ NOTE : mambo will auto install other tools like docker-compose
         * set plex media server ip:port : `plex:32400`
         * HTTPS : `enabled`
 
+
+#### Medusa and Organizr2 
+
+    Into Organizr2
+
+
+    * Add a Medusa tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : Medusa - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://medusa.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : medusa
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list
+            * Group : Co-Admin - Level of authorization needed to allow access from inside organizr. It block to direct access by adding a forwardAuth instruction to traefik dynamicly each time this setting is changed
+
+
+    * Integration to Homepage :
+        * Tab Editor / Homepage Items / Sickrage
+            * Enable, Minimum Authentication : User
+            * Connection / Url : http://medusa:8081
+            * Connection / API : get api key from medusa
+            * Personalize all viewing options - recommended : 
+                *  Misc Options / Default view : week
+                *  Misc Options / Items by day : 7
+
+
+    Into Medusa, deactivate login because access is protected with organizr2
+        * General / Interface / Web Interface / HTTP username : blank
+        * General / Interface / Web Interface / HTTP password : blank
 
 ### Ombi
 
@@ -299,7 +448,7 @@ NOTE : mambo will auto install other tools like docker-compose
         * Import Plex Admin : `enabled`
         * Default Roles : Request Movie/TV
     * Configuration / Authentification
-        * Enable plex OAuth : `enabled`
+        * Enable plex OAuth : `enabled` (Allow to use Plex credentials to login Ombi)
     * Media Server / Plex configuration / Add server
         * Server Name : free text
         * Hostname : `plex`
@@ -309,89 +458,43 @@ NOTE : mambo will auto install other tools like docker-compose
         * Click on Test Connectivity
         * Click on Load Libraries and select libraries in which content will look for user request
 
+
+#### Ombi and Organizr2 
+
+    Into Organizr2
+
+    * Add an Ombi tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : Ombi - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://ombi.mydomain.com/auth/cookie`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : `ombi-plex`
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list 
+            * Group : User - Level of authorization needed to allow access from inside organizr. It block to direct access by adding a forwardAuth instruction to traefik dynamicly each time this setting is changed
+
+    * SSO : Allow to login only to organizr2, ombi login is automatic
+        * System Settings - Single Sign-On
+            * Ombi Url : `http://ombi:5000` (DO NOT CHANGE THIS : it is the local docker network url)
+            * Token : get API Key from Ombi settings / Ombi / Ombi Configuration
+
+    * Integration to Homepage : TODO
+
+
 ### JDownloader2
 
-* create an account on https://my.jdownloader.org/ and install a browser extension
-* set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
-* you can see your instance at https://my.jdownloader.org/
+    * create an account on https://my.jdownloader.org/ and install a browser extension
+    * set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
+    * you can see your instance at https://my.jdownloader.org/
 
 ### transmission
 
-* NOTE : settings are saved only when transmission is stopped
-
-### organizr2
-
-* With organiz2, you could bring up a central portal for all your services
-
-* Initial Setup
-    * License : personal
-    * User : plex admin real username, plex admin email and a different password
-    * Hash : choose a keyword
-    * registration password : choose a password so that user can signup themselves
-    * api : do not change
-    * db name : db
-    * db path : /config/www/db
+    * NOTE : settings are saved only when transmission is stopped
 
 
-* Add services - a sample for ombi service :
-    * Tab editor - add a tab
-        * Tab name : Ombi
-        * Tab Url : http://ombi.mydomain.com
-        * Choose ombi-plex image
-        * Test tab : it will indicate if we can use this tab as iframe
-        * Add tab
-        * Refresh page
 
-* NOTE :
-    * `Local Tab URL` if not empty is used when requesting service from inside network (local network)
-    * `Tab URL` is used when requesting service from outside network (internet). 
-    * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
-    * You may need to write reverse proxy rules to 
-        * firstly reverse proxy the service because `Tab URL` may not be reachable from outside network (internet)
-        * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
-        * lastly use organizr SSO by playing around http header with reverse proxy role [https://docs.organizr.app/books/setup-features/page/sso]
-    * For writing specific reverse proxy rules for organizr nginx is more suitable than traefik2 because it can modify the response and inject some code like CSS for cutom thema with `sub_filter` instruction
-        ```
-        location /sonarr {
-            proxy_pass http://192.168.1.34:8990/sonarr;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_redirect off;
-            proxy_buffering off;
-            proxy_http_version 1.1;
-            proxy_no_cache $cookie_session;
-            # modify CSS part
-            proxy_set_header Accept-Encoding "";
-            sub_filter
-            '</head>'
-            '<link rel="stylesheet" type="text/css" href="https://gilbn.github.io/theme.park/CSS/themes/sonarr/plex.css">
-            </head>';
-            sub_filter_once on;
-        }
-        ```
-    * api documentation : https://organizr2.mydomain.com/api/docs/
-
-* Organizr authentification with Plex configuration [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
-    * Settings / System Settings / Main / Authentication
-        * Type : Organizr DB + Backend
-        * Backend : plex
-        * Do get plex token / get plex machine
-        * Admin username : a plex user admin that will match admin organizr admin account
-        * Strict plex friends : enabled
-        * Enable Plex oAuth : enabled (active plex login to log into organizr)
-    * Settings / System Settings / Main / Login
-        * Hide registration : enabled - if you wish to disable auto registration
-
-
-* Setup Theme
-    * Settings / Customize / Appearance / Top bar : set title and description
-    * Settings / Customize / Appearance / Login Page : 
-        * use logo instead of Title on Login Page
-        * wallpaper 
-        * and minimal login screen
-    * Settings / Customize / Marketplace : install plex theme
-    * Settings / Customize / Appearance / Colors & Themes : select theme plex
 
 
 
@@ -404,7 +507,7 @@ NOTE : mambo will auto install other tools like docker-compose
 
 * By default
     * all services are on `main` area, so accessible throuh ports 80/443 (ie: http://ombi.mydomain.com)
-    * traefik admin services are on `main` area, so accessible throuh ports 30443 (only, no HTTP for traefik admin) (ie: http://traefik.mydomain.com)
+    * traefik admin services are on `admin` area, so accessible throuh ports 9000/9443 (ie: http://traefik.mydomain.com)
 
 * A service can be declared into several logical area
 
@@ -414,10 +517,10 @@ NOTE : mambo will auto install other tools like docker-compose
 |-|-|-|-|-|
 |main|web_main|HTTP|80|NETWORK_PORT_MAIN|
 |main|web_main_secure|HTTPS|443|NETWORK_PORT_MAIN_SECURE|
-|secondary|web_secondary|HTTP|20000|NETWORK_PORT_SECONDARY|
-|secondary|web_secondary_secure|HTTPS|20443|NETWORK_PORT_SECONDARY_SECURE|
-|admin|web_admin|HTTP|30000|NETWORK_PORT_ADMIN|
-|admin|web_admin_secure|HTTPS|30443|NETWORK_PORT_ADMIN_SECURE|
+|secondary|web_secondary|HTTP|8000|NETWORK_PORT_SECONDARY|
+|secondary|web_secondary_secure|HTTPS|8443|NETWORK_PORT_SECONDARY_SECURE|
+|admin|web_admin|HTTP|9000|NETWORK_PORT_ADMIN|
+|admin|web_admin_secure|HTTPS|9443|NETWORK_PORT_ADMIN_SECURE|
 
 ### Sample usage
 
@@ -444,6 +547,7 @@ NOTE : mambo will auto install other tools like docker-compose
 
 ### HTTPS redirection
 
+* By default HTTP to HTTPS auto redirection is active
 * To enable/disable HTTPS only access to each service, declare them in `NETWORK_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
     * NOTE : some old plex client do not support HTTPS (like playstation 3) so plex might be exclude from this variable
 
@@ -576,28 +680,20 @@ NOTE : mambo will auto install other tools like docker-compose
     * openflixr https://www.openflixr.com/ - full VM
     * autopirate - https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik1 + oauth2 proxy
     * a media stack on docker with traefik1 https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
-
+    * another media stack : https://gitlab.com/guillaumedsde/docker-media-stack/-/tree/master
 
 * Organizr2
     * organizr2 and nginx : https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
     * organizr2 + nginx (using subdomains or subdirectories) + letsencrypt https://technicalramblings.com/blog/how-to-setup-organizr-with-letsencrypt-on-unraid/
     * organizr + nginx samples for several services https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
     * automated organizr2 installation : https://github.com/causefx/Organizr/issues/1370
-    * various 
-        * https://docs.organizr.app/books/setup-features/page/serverauth
-        * https://docs.organizr.app/books/setup-features/page/sso
+    * various
         * https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
-        * https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
-        * https://github.com/causefx/Organizr/issues/1116
         * https://www.reddit.com/r/organizr/comments/axbo3r/organizr_authenticate_other_services_radarr/
-        * https://www.reddit.com/r/organizr/
-    CONTINUE HERE : * organizr2 and traefik auth : https://github.com/causefx/Organizr/issues/1240
-    https://docs.organizr.app/books/setup-features/page/serverauth
-    https://docs.organizr.app/books/setup-features/page/plex-authentication
-https://docs.organizr.app/books/setup-features/page/serverauth#bkmrk-method-2%3A-using-oaut
-https://media.chimere-harpie.org/api/?v1/user/list
-
-    * information on organizr Single Sign On integration with other services : https://docs.organizr.app/books/setup-features/page/sso
+    * STILL NOT FULLY WORK organizr2 and traefik2 auth : 
+        https://github.com/causefx/Organizr/issues/1240
+        https://docs.organizr.app/books/setup-features/page/serverauth
+    * Plex Auth https://github.com/hjone72/PlexAuth
 
 
 
@@ -629,6 +725,8 @@ https://media.chimere-harpie.org/api/?v1/user/list
         https://github.com/gilbN/theme.park
 
 * Unmanic - Video files converter with web ui and scheduler https://github.com/Josh5/unmanic
+
+* Komga - comics server
 
 * Torrent
 

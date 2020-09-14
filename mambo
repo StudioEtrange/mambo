@@ -29,13 +29,12 @@ fi
 STELLA_LOG_STATE="OFF"
 . "${_CURRENT_FILE_DIR}/stella-link.sh" include
 
-
 . "${TANGO_ROOT}/src/tango-init.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 . "${TANGO_ROOT}/src/tango-set-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 PARAMETERS="
-ACTION=										'action' 			a				'init update info shell up down status install logs restart modules plugins cert letsencrypt' '1'
+ACTION=										'action' 			a				'init update info shell up down status install logs restart services modules plugins cert letsencrypt' '1'
 TARGET=										'target' 			s				''	'0'
 ARGUMENT=									'argument' 			s				''	'0'
 "
@@ -49,12 +48,12 @@ usage() {
 	echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
 	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service."
-	echo "L     info [--freeport] : give info. Will generate conf files and print configuration used when launching any service."
+	echo "L     info [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see service status."
 	echo "L     logs [service] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
 	echo "L     shell <service> : launch a shell into a running service."
-	echo "L     modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
+	echo "L     services|modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
 	echo "L     plugins <exec-service> <service>|<exec> <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached."
 	echo "o-- various commands :"
 	echo "L		cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder."
@@ -78,14 +77,9 @@ if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
     fi
 fi
 
-# organizr2 logic
-__organizr2_api_url
-__organizr2_auth_group_by_service_all
-__organizr2_auth_group_name_by_id_all
-__organizr2_add_auth_service_all
+__organizr2_init
 
-
-
+__update_env_files "ingest mambo specific values (organizr2,...)"
 . "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 # specific mambo actions
@@ -118,4 +112,3 @@ if [ "${__action_done}" = "" ]; then
 
     . "${TANGO_ROOT}/src/tango-after-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 fi
-
