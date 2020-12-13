@@ -73,8 +73,8 @@ usage() {
 [ "${ENV}" = "" ] && [ -f "${HOME}/mambo.env" ] && ENV="${HOME}/mambo.env"
 
 
-__action_done_by_mambo=""
 
+__action_done_by_mambo=""
 
 # organizr2 actions
 case ${ACTION} in
@@ -96,6 +96,7 @@ case ${ACTION} in
         esac
     ;;
 esac
+
 # generate files, variables, folders and everything for the framework to work
 . "${TANGO_ROOT}/src/tango-prepare-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 

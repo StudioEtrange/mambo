@@ -1,7 +1,5 @@
 # MAMBO - A docker based media stack
 
-TODO CONTINUE HERE : faire une tache crontab qui requete organizr2 et fais des put sur traefik sur le lien forwardAuth
-
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
 * Configurable through env variables or env file
@@ -50,7 +48,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * First initialization
 
     ```
-    PLEX_USER="no@no.com" PLEX_PASSWORD="****" ./mambo init
+    PLEX_USER="no@no.com" PLEX_PASSWORD="****" ./mambo init plex
     ```
 
 
@@ -76,7 +74,6 @@ NOTE : mambo will auto install all other required tools like docker-compose
     ./mambo up -f mambo.env
     ```
 
-
 * Stop all
     ```
     ./mambo down
@@ -86,33 +83,36 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
 ```
     install : deploy this app.
-    init [--claim] : init services. Do it once before launch. - will stop plex --claim : will force 	
-	up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service
+	init plex [--claim] : init plex services. Do it once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred (claim TODO NOT IMPLEMENTED).
+	up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service.
 	down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service).
-	restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service.
-	info [--freeport] : give info. Will generate conf files and print configuration used when launching any service.
+	restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
+	info [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service.
 	status [service] : see service status.
-	logs [service] : see service logs.
+	logs [service] [-f] : see service logs.
 	update <service> : get last version of docker image service. Will stop service if it was running.
 	shell <service> : launch a shell into a running service.
-	modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service.
-	plugins exec-service <service>|exec <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached.
-
+	services|modules|plugins|scripts list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service.
+	plugins exec-service <service>|exec <plugin> : exec all plugin attached to a service OR exec a plugin into all serviced attached.
+	scripts exec <script> : exec a script.
+	o-- various commands :"
 	cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder.
     letsencrypt rm : delete generated letsencrypt cert.
-    auth sync : force sync authorization information between organizr2 and traefik - this task is scheduled.
+    auth sync : sync authorization information between organizr2 and traefik.
+    auth enable|disable : temporary enable|disable organizr2 until next up/down. To be permanent use ORGANIZR2_AUTHORIZATION variable"
+
 ```
 
 
 
 
-
-## MAMBO CONFIGURATION
+----
+## CONFIGURATION
 
 * You could set every mambo variables through a user environment file, shell environment variables and some from command line. 
 
 
-* All existing variables are listed in `tango.default.env`
+* All existing variables are listed in mambo root folder `mambo.env`
 
 * Resolution priority order :
     * Command line variables
@@ -140,14 +140,14 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
 ### Advanced variables
 
-* see `tango.default.env` for detail
+* see `mambo.env` for detail
 
 * TODO TO BE COMPLETED
 
 
 ### Using a user environment file
 
-* You could create a user environment file (default name : `mambo.env`) to set any available variables and put it everywhere. By default it will be looked for from your home directory
+* You could create a user environment file (default name : `mambo.env`) to set any available variables and put it in your `$HOME` or elsewhere. By default it will be looked for from your home directory
 
     ```
     ./mambo -f mambo.env up
@@ -174,36 +174,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
     TANGO_DOMAIN="mydomain.com" APP_DATA_PATH="/home/$USER/mambo-data" ./mambo up
     ```
 
-
-### For Your Information about env files - internal mechanisms
-
-
-* At each launch mambo use `tango.default.env` file and your conf file (`mambo.env`) files to generate
-    * `.env` file used by docker-compose
-    * `bash.env` file used by mambo shell scripts
-
-
-* You may know that a `.env` file is read by docker-compose by default to replace any variable present in docker-compose file anywhere in the file but NOT for define shell environment variable inside running container ! 
-
-
-    ```
-    test:
-        image: bash:4.4.23
-        command: >
-            bash -c "echo from docker compose : $NETWORK_PORT_MAIN from running container env variable : $$NETWORK_PORT_MAIN"
-    ```
-
-    * This above only show NETWORK_PORT_MAIN value but $$NETWORK_PORT_MAIN (with double dollar to not have docker-compose replace the value) is empty unless you add this :
-
-    ```
-    test:
-        image: bash:4.4.23
-        env_file:
-            - .env
-        command: >
-            bash -c "echo from docker compose : $NETWORK_PORT_MAIN from running container env variable : $$NETWORK_PORT_MAIN"
-    ```
-
+----
 ## SERVICES ADMINISTRATION
 
 ### Enable/disable
@@ -223,7 +194,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * Launch a specific service
 
     ```
-    ./mambo up <service> [-d]
+    ./mambo up <service>
     ```
 
 * Stop a service
@@ -232,16 +203,19 @@ NOTE : mambo will auto install all other required tools like docker-compose
     ./mambo down <service>
     ```
 
+
 ## SERVICES CONFIGURATION
 
 * You need to configure yourself each service. Mambo do only a few configurations on some services. 
-* Keep in mind that each service is reached from other one with url like `http://<service>:<default service port>` (ie `http://ombi:5000`)
+* Keep in mind that each service reached other services with url like `http://<service>:<default service port>` (ie `http://ombi:5000`)
 
+----
 ### Plex
 
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
 
-
+* TODO continue
+----
 ### Organizr2
 
 * With organiz2, you could bring up a central portal for all your services
@@ -310,8 +284,8 @@ NOTE : mambo will auto install all other required tools like docker-compose
             * service name : `ombi` organizr2 tab name : `ombi
             * service name : `calibreweb_books` organizr2 tab name : `books`
 
-----
-    * For information : You may need to write reverse proxy rules to 
+
+#### Organizr2 : Info about reverse proxy -- You may want to write reverse proxy rules to 
         * firstly reverse proxy the service because `Tab URL` may not be reachable from outside network (internet)
         * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
         * lastly use organizr SSO by playing around http header with reverse proxy role [https://docs.organizr.app/books/setup-features/page/sso] [reverse proxy rule sample : https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php]
@@ -341,6 +315,21 @@ NOTE : mambo will auto install all other required tools like docker-compose
     * access to Booksonic - a getting starded page will appear
     * change default login password
 
+#### Booksonic and Organizr2 
+
+    Into Organizr2
+
+    * Add a Booksonic tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://booksonic.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : booksonic
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list
+            * Group : User
 
 ----
 
@@ -395,6 +384,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
             * Connection / API : get api key from tautulli
             * Personalize all viewing options
 
+----
 ### Sabnzbd
 
 * Folders 
@@ -406,7 +396,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * Categories
     * Create a categorie for each kind of media and store media files in folder/path `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
 
-
+----
 ### Medusa
 
 * Medusa configuration :
@@ -459,6 +449,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
         * General / Interface / Web Interface / HTTP username : blank
         * General / Interface / Web Interface / HTTP password : blank
 
+----
 ### Ombi
 
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Ombi
@@ -480,7 +471,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
         * Click on Test Connectivity
         * Click on Load Libraries and select libraries in which content will look for user request
 
-
+----
 #### Ombi and Organizr2 
 
     Into Organizr2
@@ -504,13 +495,14 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
     * Integration to Homepage : TODO
 
-
+----
 ### JDownloader2
 
     * create an account on https://my.jdownloader.org/ and install a browser extension
     * set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
     * you can see your instance at https://my.jdownloader.org/
 
+----
 ### transmission
 
     * NOTE : settings are saved only when transmission is stopped
@@ -518,7 +510,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
 
 
-
+----
 ### Calibre Web
 
     * Location of Calibre database : /books
@@ -555,7 +547,10 @@ NOTE : mambo will auto install all other required tools like docker-compose
         * Allow Reverse Proxy Authentication : enable
         * Reverse Proxy Header Name :  -->
 
+----
 ## NETWORK CONFIGURATION
+
+* for more information see https://github.com/StudioEtrange/tango/blob/master/README.md
 
 ### Logical area
 
@@ -580,7 +575,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
 |admin|web_admin_secure|HTTPS|9443|NETWORK_PORT_ADMIN_SECURE|
 
 
-
+----
 ## HTTP/HTTPS CONFIGURATION
 
 ### HTTPS redirection
@@ -594,8 +589,10 @@ NOTE : mambo will auto install all other required tools like docker-compose
     NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
     ```
 
-
+----
 ## MAMBO PLUGINS
+
+List of available plugins
 
 ### Transmission PIA port
 
@@ -651,29 +648,27 @@ NOTE : mambo will auto install all other required tools like docker-compose
         default_downloadDirectory = /download/complete
     ```
 
-
+----
 ## ADDING A SERVICE
 
 * Steps for adding a `foo` service
     * in `docker-compose.yml` 
         * add a `foo` service
         * add a dependency on this service into `mambo` service
-    * in `tango.default.env`
+    * in `mambo.env`
         * add a variable `FOO_VERSION=latest`
         * add a variable `SERVICE_FOO=foo`
         * if this service needs to access all media folders, add it to `TANGO_ARTEFACT_SERVICES`
-        * choose to which logical areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
+        * choose to which logical network areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
         * if this service has subservices, declare subservices into `TANGO_SUBSERVICES`
         * add a `FOO_DIRECT_ACCESS_PORT` empty variable
     * in `mambo`
         * add time management in `__set_time_all`
-        * add `foo` in command line argument in `TARGET` choices
+        * add `foo` in command line argument definition of `TARGET` choices
+    * in README.md
+        * add a section to describe its configuration
 
-## SIDE NOTES
-
-* I tried my best to stick to docker-compose file features and write less bash code. But very quickly I gave up, docker-compose files is very bad when dealing with conf and env var.
-* I cannot use 3.x docker compose version, while `--runtime` or `--gpus` are not supported in docker compose format (https://github.com/docker/compose/issues/6691)
-
+----
 ## LINKS
 
 * Media distribution
