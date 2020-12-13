@@ -62,6 +62,7 @@ usage() {
 	echo "L		cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder."
     echo "L		letsencrypt rm : delete generated letsencrypt cert."
     echo "L		auth sync : sync authorization information between organizr2 and traefik."
+    echo "L		auth enable|disable : temporary enable|disable organizr2 until next up/down. To be permanent use ORGANIZR2_AUTHORIZATION variable"
 
 }
 
@@ -71,19 +72,30 @@ usage() {
 # default mambo env file is mambo.env in HOME
 [ "${ENV}" = "" ] && [ -f "${HOME}/mambo.env" ] && ENV="${HOME}/mambo.env"
 
-# organizr2 actions
-case ${ACTION} in
-    auth )
-        if [ "${TARGET}" = "sync" ]; then
-            # disable generated files modification, we just want to load var and sync api
-            TANGO_ALTER_GENERATED_FILES="OFF"
-        fi
-    ;;
-esac
-
 
 __action_done_by_mambo=""
 
+
+# organizr2 actions
+case ${ACTION} in
+    auth )
+        case ${TARGET} in
+            sync )
+                # disable generated files modification, we just want to load var and sync api
+                export TANGO_ALTER_GENERATED_FILES="OFF"
+            ;;
+            disable )
+                export ORGANIZR2_AUTHORIZATION="ON"
+                export ORGANIZR2_AUTHORIZATION="OFF"
+            ;;
+            enable )
+                export ORGANIZR2_AUTHORIZATION="ON"
+                export ORGANIZR2_AUTHORIZATION="ON"
+            ;;
+
+        esac
+    ;;
+esac
 # generate files, variables, folders and everything for the framework to work
 . "${TANGO_ROOT}/src/tango-prepare-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
@@ -97,11 +109,25 @@ fi
 # organizr2 actions
 case ${ACTION} in
     auth )
-        if [ "${TARGET}" = "sync" ]; then
-            __tango_log "INFO" "Sync authorization between traefik and organizr2"
-            __organizr2_auth "SYNC"
-            __action_done_by_mambo="1"
-        fi
+        case ${TARGET} in
+            sync )
+                __tango_log "INFO" "Sync authorization between traefik and organizr2"
+                __organizr2_auth "SYNC"
+                __action_done_by_mambo="1"
+            ;;
+            disable )
+                __tango_log "INFO" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
+                __organizr2_scheduler_shutdown
+                __organizr2_auth "SYNC"
+                __action_done_by_mambo="1"
+            ;;
+            enable )
+                __tango_log "INFO" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
+                __organizr2_scheduler_set
+                __organizr2_auth "SYNC"
+                __action_done_by_mambo="1"
+            ;;
+        esac
     ;;
     * )
         __organizr2_auth "INIT"
