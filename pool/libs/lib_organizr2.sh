@@ -213,35 +213,90 @@ __organizr2_api_url() {
 }
 __organizr2_api_url
 
-__organizr2_init() {
-    if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "organizr2"; then
-        if $(__container_is_healthy "${TANGO_APP_NAME}_organizr2"); then
-            # init ORGANIZR2_AUTH_GROUP_BY_SERVICE
-            __organizr2_auth_group_by_service_all
-            # init ORGANIZR2_AUTH_GROUP_NAME_BY_ID
-            __organizr2_auth_group_name_by_id_all
-            __organizr2_set_auth
+# manage crontab job
+# launched each 30 seconds
+__organizr2_scheduler_set() {
+    if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
+        $STELLA_API crontab_add "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_add "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    else
+        $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    fi
+}
+__organizr2_scheduler_shutdown() {
+    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+}
+
+
+# MAIN FUNCTION
+# actions : 
+#   1.init auth group by requesting organizr2 and load current permissions and purge docker compose file
+#   2.set permission on each service by syncing traefik and organizr2 api
+# in SYNC mode (default mode) both actions are made, in INIT mode only action 1 is made
+__organizr2_auth() {
+    local __mode="$1"
+
+    [ "${__mode}" = "" ] && __mode="SYNC"
+
+    if [ "${ORGANIZR2_AUTHORIZATION}" = "OFF" ]; then
+        __tango_log "DEBUG" "Organizr2 authorization system is disabled"
+        # for already running service with an attached auth@rest middleware, disable any restriction
+        # use Guest group (999) with empty global array variable
+        declare -A ORGANIZR2_AUTH_GROUP_BY_SERVICE=
+        declare -A ORGANIZR2_AUTH_GROUP_NAME_BY_ID=
+
+
+        # remove any useless service-auth@rest middleware from compose file
+        # for service not running, or for next launch of service
+        # NOTE we do this in INIT mode, because we need at least a case where useless middleware are purged
+        [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && sed -i 's/[^,=]*-auth\@rest[,]\?//g' "${GENERATED_DOCKER_COMPOSE_FILE}"
+
+        if [ "${__mode}" = "SYNC" ]; then
+            # if organizr2 is not active nor healthy the middleware will be ignored which is perfect here
+            __organizr2_set_auth_service_all "999"
+
+        fi
+    fi
+
+    if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
+        __tango_log "DEBUG" "Organizr2 authorization is enabled"
+        if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "organizr2"; then
+            if __is_docker_client_available; then
+                if $(__container_is_healthy "${TANGO_APP_NAME}_organizr2"); then
+                    # init ORGANIZR2_AUTH_GROUP_BY_SERVICE
+                    __organizr2_auth_group_by_service_all
+                    # init ORGANIZR2_AUTH_GROUP_NAME_BY_ID
+                    __organizr2_auth_group_name_by_id_all
+                    # by default authorize service not defined as an organizr tab to everybody - use Guest group (999)
+                    [ "${__mode}" = "SYNC" ] && __organizr2_set_auth_service_all "999"
+                else
+                    # organizr2 is not yet healthy, so global array variable (ORGANIZR2_AUTH_GROUP_BY_SERVICE and ORGANIZR2_AUTH_GROUP_NAME_BY_ID) might not yet setted
+                    # so block everybody not admin - use Admin group (0)
+                    [ "${__mode}" = "SYNC" ] && __organizr2_set_auth_service_all "0"
+                fi
+            fi
+            # else
+            #     NOTE : we suppose here to be launched from within organizr2 container itself. which is healthy
+            #     # init ORGANIZR2_AUTH_GROUP_BY_SERVICE
+            #     __organizr2_auth_group_by_service_all
+            #     # init ORGANIZR2_AUTH_GROUP_NAME_BY_ID
+            #     __organizr2_auth_group_name_by_id_all
+            #     # by default authorize service not defined as an organizr tab to everybody - use Guest group (999)
+            #     [ "${__mode}" = "SYNC" ] && __organizr2_set_auth_service_all "999"
+            # fi
+        else
+            # no middleware will be created and all service will be accessible
+            __tango_log "WARN" "Organizr2 is not declared as an active service in TANGO_SERVICES_ACTIVE dispite the fact that ORGANIZR2_AUTHORIZATION is ON"
         fi
     fi
 }
 
 
-__organizr2_set_auth() {
-    if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
-        # add traefik authentification system for all services to compose file
-        __organizr2_set_auth_service_all
-    fi
-}
-
-
 # TODO : migration to organizr2 api v2 https://docs.organizr.app/books/setup-features/page/api-v2-webserver-changes-needed
-
-
-
-
-
-#       __organizr2_api_request "GET" "tab/list"
-# NOTE : API respond error if organizr2 not yet setted
+# __organizr2_api_request "GET" "tab/list"
+# NOTE : API respond error if organizr2 not yet setted in configuration panel
 __organizr2_api_request() {
     __organizr2_api_url
     local __result="$(__organizr2_apiv1_request "$1" "$2")"
@@ -263,12 +318,16 @@ __organizr2_apiv1_request() {
     local __request="$2"
     
     [ "${__http_command}" = "" ] && __http_command="GET"
-    docker run --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+    #docker run --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+    __tango_curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
 }
 
 # hash table : give group id access for each service
 declare -A ORGANIZR2_AUTH_GROUP_BY_SERVICE
 __add_declared_associative_array "ORGANIZR2_AUTH_GROUP_BY_SERVICE"
+# tabs name from organizr will be matched with docker compose service names. Ignoring case.
+# If a docker compose service name contains a "_", only the part after "_" will be used for a match
+#           'Books' (organizr tab name) will match 'calibreweb_boobs' (docker compose service name)
 # http://organizr2.mydomain.com/api/?v1/tab/list
 __organizr2_auth_group_by_service_all() {
     
@@ -283,7 +342,30 @@ __organizr2_auth_group_by_service_all() {
                 for i in $(echo "$__tab_list" | jq -r '.data.tabs[] | .name + "#" + (.group_id|tostring)'); do
                     __group_id="${i//*#}"
                     __service="${i//#*}"
-                    ORGANIZR2_AUTH_GROUP_BY_SERVICE["${__service,,}"]="${__group_id}"
+                    __service="${__service,,}"
+                    # check matching docker compose service name with a "_"
+                    __found=0
+                    for s in ${TANGO_SERVICES_ACTIVE}; do
+                        case $s in
+                            ${__service} ) 
+                                __tango_log "DEBUG" "Matching organizr tab name : ${__service} with service : ${s}"
+                                __found=1
+                                ;;
+                        esac
+                        [ "$__found" = "1" ] && break;
+                        if $STELLA_API string_contains "${s}" "_"; then
+                            case $s in
+                                *_${__service} ) 
+                                    __tango_log "DEBUG" "Matching organizr tab name : ${__service} with service : ${s}"
+                                    __service="${s}"
+                                    __found=1
+                                    ;;
+                            esac
+                        fi
+                        [ "$__found" = "1" ] && break;
+                    done
+                
+                    ORGANIZR2_AUTH_GROUP_BY_SERVICE["${__service}"]="${__group_id}"
                 done
             ;;
         esac
@@ -312,36 +394,23 @@ __organizr2_auth_group_name_by_id_all() {
 
 # add traefik authentification system for all services
 __organizr2_set_auth_service_all() {
+    local __default_group="${1}"
+
+   
+    [ "${__default_group}" == "" ] && __default_group="999"
     local __group_id=
     for s in ${TANGO_SERVICES_ACTIVE}; do
         __group_id="${ORGANIZR2_AUTH_GROUP_BY_SERVICE[${s}]}"
-        [ ! "${__group_id}" = "" ] && __organizr2_set_auth_service "${s}" "${__group_id}"
+        if [ "${__group_id}" = "" ]; then 
+            # this service have not any authorised group to protect it - so use default
+            # even if the service will not used this created forwardauth middleware (ie : a useless traefik-auth@rest middleware will be created)
+            __organizr2_traefik_api_set_auth_service "${s}" "${__default_group}"
+        else
+            __organizr2_traefik_api_set_auth_service "${s}" "${__group_id}"
+        fi
     done
 }
 
-# add traefik authentification system for a service to compose file and to traefik API
-__organizr2_set_auth_service() {
-    local __service="$1"
-    local __group_id="$2"
-
-    # NOTE : dont need to update compose file
-    #__organizr2_compose_add_auth_service "${__service}" "${__group_id}"
-    __organizr2_traefik_api_set_auth_service "${__service}" "${__group_id}"
-}
-
-
-# add traefik authentification system for a service to compose file
-# NOTE : NOT used, we do not set label into docker compose at each authorization change because we had to restart each updated services
-__organizr2_compose_add_auth_service() {
-    local __service="$1"
-    local __group_id="$2"
-
-    __organizr2_api_url
-
-    yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service}.labels[+]" "traefik.http.middlewares.${__service}-auth.forwardauth.address=${ORGANIZR2_API_URL}/auth&group=${__group_id}"
-    yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service}.labels[+]" "traefik.http.middlewares.${__service}-auth.forwardauth.tls.insecureSkipVerify=true"
-    yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service}.labels[+]" "traefik.http.middlewares.${__service}-auth.forwardauth.trustforwardheader=true"
-}
 
 
 
@@ -368,3 +437,5 @@ __organizr2_traefik_api_set_auth_service() {
 
     
 }
+
+

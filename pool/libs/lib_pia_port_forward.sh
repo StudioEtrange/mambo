@@ -50,11 +50,13 @@ pia_get_port() {
     port_assignment_url="http://209.222.18.222:2000/?client_id=$pia_client_id"
 
     echo "  + Requesting a port"
-    if type curl 1>/dev/null 2>&1; then
-        pia_response=$(curl -s -f "$port_assignment_url")
-    else
-        pia_response=$(wget -q -O - "$port_assignment_url")
-    fi
+    # if type curl 1>/dev/null 2>&1; then
+    #     pia_response=$(curl -s -f "$port_assignment_url")
+    # else
+    #     pia_response=$(wget -q -O - "$port_assignment_url")
+    # fi
+    pia_response=$(__tango_curl -s -f "$port_assignment_url")
+
     pia_curl_exit_code=$?
     echo "  + Raw response : ${pia_response}"
 

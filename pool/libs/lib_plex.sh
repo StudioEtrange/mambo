@@ -47,7 +47,13 @@ __get_plex_x_plex_auth_token() {
 	local __login="$1"
 	local __password="$2"
 
-	__auth_token="$(curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
+	# __auth_token="$(curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
+	# -H "X-Plex-Version: 1.0.0" \
+	# -H "X-Plex-Product: Mambo" \
+	# -H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
+	# -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .user.authentication_token)"
+
+	__auth_token="$(__tango_curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
 	-H "X-Plex-Version: 1.0.0" \
 	-H "X-Plex-Product: Mambo" \
 	-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
@@ -60,7 +66,14 @@ __get_plex_x_plex_auth_token() {
 __get_plex_claim_token() {
 	local __x_plex_token="$1"
 
-	__clam_token="$(curl -kLs -X GET "https://plex.tv/api/claim/token.json" \
+	# __clam_token="$(curl -kLs -X GET "https://plex.tv/api/claim/token.json" \
+	# 	-H "X-Plex-Version: 1.0.0" \
+	# 	-H "X-Plex-Product: Mambo" \
+	# 	-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
+	# 	-H "X-Plex-Token: ${__x_plex_token}" \
+	# 	-H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .token)"
+
+	__clam_token="$(__tango_curl -kLs -X GET "https://plex.tv/api/claim/token.json" \
 		-H "X-Plex-Version: 1.0.0" \
 		-H "X-Plex-Product: Mambo" \
 		-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \

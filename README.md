@@ -1,6 +1,6 @@
 # MAMBO - A docker based media stack
 
-CONTINUE HERE : faire une tache crontab qui requete organizr2 et fais des put sur traefik sur le lien forwardAuth
+TODO CONTINUE HERE : faire une tache crontab qui requete organizr2 et fais des put sur traefik sur le lien forwardAuth
 
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
@@ -22,6 +22,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
 ## SERVICES INCLUDED
 
 * Plex - media center
+* Booksonic - audio book streamer
 * Ombi - user request content  
 * Sabnzbd - newzgroup download
 * Medusa - tv episodes search and subtitles management
@@ -95,10 +96,13 @@ NOTE : mambo will auto install all other required tools like docker-compose
 	update <service> : get last version of docker image service. Will stop service if it was running.
 	shell <service> : launch a shell into a running service.
 	modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service.
-	plugins <exec-service> <service>|<exec> <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached.
+	plugins exec-service <service>|exec <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached.
 
 	cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder.
+    letsencrypt rm : delete generated letsencrypt cert.
+    auth sync : force sync authorization information between organizr2 and traefik - this task is scheduled.
 ```
+
 
 
 
@@ -200,7 +204,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
             bash -c "echo from docker compose : $NETWORK_PORT_MAIN from running container env variable : $$NETWORK_PORT_MAIN"
     ```
 
-## SERVICE ADMINISTRATION
+## SERVICES ADMINISTRATION
 
 ### Enable/disable
 
@@ -247,6 +251,8 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * a guide https://smarthomepursuits.com/install-organizr-v2-windows/
 * api documentation : https://organizr2.mydomain.com/api/docs/
 
+#### Organizr2 configuration
+
 * Initial Setup
     * License : personal
     * User : plex admin real username, plex admin email and a different password
@@ -258,7 +264,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
     * In system settings, main, API : get API key and set `ORGANIZR2_API_TOKEN_PASSWORD` value in a mambo.env file
 
 
-* Organizr authentification with Plex configuration [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
+* Use plex authentification with organizr2 [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
     * Settings / System Settings / Main / Authentication
         * Type : Organizr DB + Backend
         * Backend : plex
@@ -288,12 +294,23 @@ NOTE : mambo will auto install all other required tools like docker-compose
             (Theme URL is https://github.com/Burry/Organizr-Plex-Theme)
 
 
-#### Organizr2 : Adding new tabs
+#### Organizr2 : Adding a service
 
-    * By default to use this new tab from within organizr, you need to have Co-Admin level. This can be changed in Tab Editor
-    * `Local Tab URL` if not empty is used when requesting service from inside network (local network)
-    * `Tab URL` is used when requesting service from outside network (internet) (and inside network too, if `Local Tab URL` is empty)
-    * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable directly from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
+    * To add a service into organizr2 add a new tab
+        * `Local Tab URL`, if not empty, is used when requesting service from inside network (local network)
+        * `Tab URL` is used when requesting service from outside network (internet) (and inside network too, if `Local Tab URL` is empty)
+        * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable directly from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
+
+#### Organizr2 : authentification/authorization system
+
+    * When enabled (`ORGANIZR2_AUTHORIZATION=ON`) access to a service depends on group access level. By default the access level is for a new tab `Co-Admin`
+        * This allow to access to the service through Organizr2 UI
+        * This allow to direct access to the service url is  blocked by adding a forwardAuth middleware (`service-auth@rest`) to traefik dynamicly.
+        * There is a mapping between the organizr2 tab name and the service name. Tab name and service name (after `_` character if there is any) must be the same
+            * service name : `ombi` organizr2 tab name : `ombi
+            * service name : `calibreweb_books` organizr2 tab name : `books`
+
+----
     * For information : You may need to write reverse proxy rules to 
         * firstly reverse proxy the service because `Tab URL` may not be reachable from outside network (internet)
         * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
@@ -318,30 +335,35 @@ NOTE : mambo will auto install all other required tools like docker-compose
             sub_filter_once on;
         }
         ```
+----
+### Booksonic
+
+    * access to Booksonic - a getting starded page will appear
+    * change default login password
 
 
-
+----
 
 ### Tautulli
 
-* access to tautulli - setup wizard will be launched
-* create an admin account
-* signin with your plex account
-* For Plex Media Server :
-    * Plex IP or Hostname : `plex`
-    * Port Number : `32400`
-    * Use SSL : `disabled`
-    * Remote Server : `disabled`
-    * Click Verify
-* Then after setup finished, in settings
-    * Web interface / advanced settings / Enable HTTP Proxy : `enabled`
-    * Web interface / advanced settings / Enable HTTPS" : `disabled`
-    * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletter and image - newsletter are exposed through mambo service `web`)
+    * access to tautulli - setup wizard will be launched
+    * create an admin account
+    * signin with your plex account
+    * For Plex Media Server :
+        * Plex IP or Hostname : `plex`
+        * Port Number : `32400`
+        * Use SSL : `disabled`
+        * Remote Server : `disabled`
+        * Click Verify
+    * Then after setup finished, in settings
+        * Web interface / advanced settings / Enable HTTP Proxy : `enabled`
+        * Web interface / advanced settings / Enable HTTPS" : `disabled`
+        * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletter and image - newsletter are exposed through mambo service `web`)
 
-* NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
-    ```
-    Newsletter url : {newsletter_url} 
-    ```
+    * NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
+        ```
+        Newsletter url : {newsletter_url} 
+        ```
 
 
 
@@ -359,7 +381,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
             * Press 'Add tab'
             * Refresh your browser page
         * Tab editor / Tabs list
-            * Group : User - Level of authorization needed to allow access from inside organizr. It block to direct access by adding a forwardAuth instruction to traefik dynamicly each time this setting is changed
+            * Group : User
             
     * SSO : Allow to login only to organizr2, tautulli login is automatic
         * System Settings - Single Sign-On
@@ -420,7 +442,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
             * Press 'Add tab'
             * Refresh your browser page
         * Tab editor / Tabs list
-            * Group : Co-Admin - Level of authorization needed to allow access from inside organizr. It block to direct access by adding a forwardAuth instruction to traefik dynamicly each time this setting is changed
+            * Group : Co-Admin
 
 
     * Integration to Homepage :
@@ -473,7 +495,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
             * Press 'Add tab'
             * Refresh your browser page
         * Tab editor / Tabs list 
-            * Group : User - Level of authorization needed to allow access from inside organizr. It block to direct access by adding a forwardAuth instruction to traefik dynamicly each time this setting is changed
+            * Group : User
 
     * SSO : Allow to login only to organizr2, ombi login is automatic
         * System Settings - Single Sign-On
@@ -497,6 +519,41 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
 
 
+### Calibre Web
+
+    * Location of Calibre database : /books
+
+    * Admin / Configuration / Edit UI Configuration
+        * View Configuration / Theme : caliblur
+    * Admin / Configuration / Edit Basic Configuration
+        * Feature Configuration : Enable Uploads
+        * External binaries
+            * Path to Calibre E-Book Converter : /usr/bin/ebook-convert
+            * Path to Kepubify E-Book Converter : /usr/bin/kepubify
+            * Location of Unrar binary : /usr/bin/unrar
+
+#### Calibre Web and Organizr2 
+    Into Organizr2
+
+    * Add an Ombi tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : books - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://books.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : `calibre-web`
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list 
+            * Group : User
+            * Type : New window
+
+
+    Into Calibre web
+
+    <!-- * Admin / Configuration / Edit Basic Configuration / Feature Configuration
+        * Allow Reverse Proxy Authentication : enable
+        * Reverse Proxy Header Name :  -->
 
 ## NETWORK CONFIGURATION
 
@@ -522,25 +579,6 @@ NOTE : mambo will auto install all other required tools like docker-compose
 |admin|web_admin|HTTP|9000|NETWORK_PORT_ADMIN|
 |admin|web_admin_secure|HTTPS|9443|NETWORK_PORT_ADMIN_SECURE|
 
-### Sample usage
-
-* With these logical areas, you could setup different topology.
-
-* Example : if `ombi` and `medusa` must be access only through `organirz2` split services on different logical area and open your router port only for `main` area (HTTP/HTTPS port)
-    ```
-    MAMBO_SERVICES_ENTRYPOINT_MAIN=organizr2
-    MAMBO_SERVICES_ENTRYPOINT_SECONDARY=ombi medusa sabnzbd
-    ```
-
-### Direct access port for debugging purpose
-
-
-* For debugging, you can declare a direct access HTTP port to the service without using traefik with variables `*_DIRECT_ACCESS_PORT`. The first port declared as exposed in docker-compose file is mapped to its value.
-
-    * access directly throuh http://host:7777
-    ```
-    OMBI_DIRECT_ACCESS_PORT=7777
-    ```
 
 
 ## HTTP/HTTPS CONFIGURATION
@@ -549,49 +587,13 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
 * By default HTTP to HTTPS auto redirection is active
 * To enable/disable HTTPS only access to each service, declare them in `NETWORK_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
-    * NOTE : some old plex client do not support HTTPS (like playstation 3) so plex might be exclude from this variable
+    * NOTE : some old plex client do not support HTTPS (like playstation 3) so plex might be excluded from this variable
 
 * ie in user env file : 
     ```
     NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
     ```
 
-### Certificate with Let's encrypt
-
-* Variable LETS_ENCRYPT control if let's encrypt (https://letsencrypt.org/) is enabled or disabled for certificate generation
-    * `LETS_ENCRYPT=disable` (default value) will disable auto generation
-    * `LETS_ENCRYPT=enable` will auto generate a certificate for each services declared in `LETS_ENCRYPT_SERVICES`. (All services by default)
-    * `LETS_ENCRYPT=debug` will use the test server of letsencrypt to not reach rate limit (https://letsencrypt.org/fr/docs/rate-limits/)
-    
-### Let's encrypt and non default port for main area
-
-* If you change the network ports of main area to other ports than 80/443, you have to use change the letsencrypt method from `HTTP Challenge` to `DNS Challenge`
-    * By default Mambo uses the `HTTP Challenge` which *requires* port 80/443 to be opened (https://docs.traefik.io/user-guides/docker-compose/acme-http/). 
-    * Otherwise you need to configure API to access to your DNS provider to set the `DNS Challenge` (https://docs.traefik.io/user-guides/docker-compose/acme-dns/)
-
-* How-to : in your user conf file
-    * Set `LETS_ENCRYPT_CHALLENGE` to `DNS`
-    * Set `LETS_ENCRYPT_CHALLENGE_DNS_PROVIDER` with your provider name 
-    * Add needed variables for your providers. Consult https://docs.traefik.io/https/acme/#providers for details
-
-    ```
-        LETS_ENCRYPT_CHALLENGE=DNS
-        LETS_ENCRYPT_CHALLENGE_DNS_PROVIDER=ovh
-        OVH_ENDPOINT=xxx
-        OVH_APPLICATION_KEY=xxx
-        OVH_APPLICATION_SECRET=xxx
-        OVH_CONSUMER_KEY=xxx
-    ```
-
-
-## GPU
-
-
-### Information
-
-* To confirm your host kernel supports the Intel Quick Sync feature, the following command can be executed on the host `lspci -v -s $(lspci | grep VGA | cut -d" " -f 1)` which should output `Kernel driver in use: i915` 
-* If your Docker host also has a dedicated graphics card, the video encoding acceleration of Intel Quick Sync Video may become unavailable when the GPU is in use. 
-* If your computer has an NVIDIA GPU, please install the latest Latest NVIDIA drivers for Linux to make sure that Plex can use your NVIDIA graphics card for video encoding (only) when Intel Quick Sync Video becomes unavailable.
 
 ## MAMBO PLUGINS
 
@@ -775,36 +777,3 @@ NOTE : mambo will auto install all other required tools like docker-compose
             https://github.com/h1f0x/rtorrent-flood-openvpn
 
 
-
-## TODO
-
-* NVIDIA GPU    
-    * NVIDIA GPU unlock non-pro cards : https://github.com/keylase/nvidia-patch
-
-    * show gpu usage stat
-        ```
-        /usr/lib/plexmediaserver/Plex\ Transcoder -codecs
-        /usr/lib/plexmediaserver/Plex\ Transcoder -encoders
-        nvidia-smi -q -g 0 -d UTILIZATION -l
-        ```
-    * show plex transcode custom ffmpeg
-
-        ```
-        /usr/lib/plexmediaserver/Plex\ Transcoder 
-        -formats            show available formats
-        -muxers             show available muxers
-        -demuxers           show available demuxers
-        -devices            show available devices
-        -codecs             show available codecs
-        -decoders           show available decoders
-        -encoders           show available encoders
-        -bsfs               show available bit stream filters
-        -protocols          show available protocols
-        -filters            show available filters
-        -pix_fmts           show available pixel formats
-        -layouts            show standard channel layouts
-        -sample_fmts        show available audio sample formats
-        -colors             show available color names
-        -hwaccels           show available HW acceleration methods
-
-        ```

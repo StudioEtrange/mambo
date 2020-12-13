@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-# NOTE : will set remote transmission port
+# FEATURES : will set remote transmission port
 
 
 # NEED transmission volumes

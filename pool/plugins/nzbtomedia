@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 
+# FEATURES : it is a script used to  postprocess download between sabnzbd and indexer like sickbeard
+
 # NOTE :
 # Error AttributeError 'module' object has no attribute 'InitialSchema'
 # https://github.com/clinton-hall/nzbToMedia/issues/1614
@@ -36,6 +38,7 @@ else
 
     cd "${DATA}"
     tar xzf "/tmp/${PLUGIN}-${VERSION}.tar.gz" --strip-components=1
+    # TODO : generate autoProcessMedia.cf
     cp "${DATA}/autoProcessMedia.cfg.spec" "${DATA}/autoProcessMedia.cfg"
 
     # add a sh launcher to force use of python3

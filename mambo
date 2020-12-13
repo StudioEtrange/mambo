@@ -29,12 +29,14 @@ fi
 STELLA_LOG_STATE="OFF"
 . "${_CURRENT_FILE_DIR}/stella-link.sh" include
 
+# init tango framework
 . "${TANGO_ROOT}/src/tango-init.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
+# set command line
 . "${TANGO_ROOT}/src/tango-set-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 PARAMETERS="
-ACTION=										'action' 			a				'init update info shell up down status install logs restart services modules plugins cert letsencrypt' '1'
+ACTION=										'action' 			a				'init update info shell up down status install logs restart services modules scripts plugins cert letsencrypt auth' '1'
 TARGET=										'target' 			s				''	'0'
 ARGUMENT=									'argument' 			s				''	'0'
 "
@@ -47,27 +49,42 @@ usage() {
 	echo "L     init plex [--claim] : init plex services. Do it once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred (claim TODO NOT IMPLEMENTED)"
 	echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
-	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service."
+	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
 	echo "L     info [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see service status."
-	echo "L     logs [service] : see service logs."
+	echo "L     logs [service] [-f] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
 	echo "L     shell <service> : launch a shell into a running service."
-	echo "L     services|modules|plugins list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
-	echo "L     plugins <exec-service> <service>|<exec> <plugin>: exec all plugin attached to a service OR exec a plugin into all serviced attached."
+	echo "L     services|modules|plugins|scripts list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
+	echo "L     plugins exec-service <service>|exec <plugin> : exec all plugin attached to a service OR exec a plugin into all serviced attached."
+	echo "L     scripts exec <script> : exec a script."
 	echo "o-- various commands :"
 	echo "L		cert <path> --domain=<domain> : generate self signed certificate for a domain into a current host folder."
-    echo "L		letsencrypt rm : delete generated letsencrypt cert"
+    echo "L		letsencrypt rm : delete generated letsencrypt cert."
+    echo "L		auth sync : sync authorization information between organizr2 and traefik."
+
 }
 
-
-
-
+# parse command line
 . "${TANGO_ROOT}/src/tango-parse-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 # default mambo env file is mambo.env in HOME
 [ "${ENV}" = "" ] && [ -f "${HOME}/mambo.env" ] && ENV="${HOME}/mambo.env"
 
+# organizr2 actions
+case ${ACTION} in
+    auth )
+        if [ "${TARGET}" = "sync" ]; then
+            # disable generated files modification, we just want to load var and sync api
+            TANGO_ALTER_GENERATED_FILES="OFF"
+        fi
+    ;;
+esac
+
+
+__action_done_by_mambo=""
+
+# generate files, variables, folders and everything for the framework to work
 . "${TANGO_ROOT}/src/tango-prepare-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
 if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
@@ -77,38 +94,74 @@ if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
     fi
 fi
 
-__organizr2_init
-
-__update_env_files "ingest mambo specific values (organizr2,...)"
-. "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
-
-# specific mambo actions
-__action_done=""
-
+# organizr2 actions
 case ${ACTION} in
-    info )
-        if [ "${TARGET}" = "plex" ]; then
-            echo "---------==---- PLEX ----==---------"
-            [ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
-            [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
-            echo "L-- X-Plex-Token : $(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
-            __action_done="1"        
+    auth )
+        if [ "${TARGET}" = "sync" ]; then
+            __tango_log "INFO" "Sync authorization between traefik and organizr2"
+            __organizr2_auth "SYNC"
+            __action_done_by_mambo="1"
         fi
     ;;
-
-    init )
-        if [ "${TARGET}" = "plex" ]; then
-            echo "** Init service Plex"
-            __init_service_plex
-            __action_done="1"  
-        fi
+    * )
+        __organizr2_auth "INIT"
     ;;
-
 esac
 
 
-if [ "${__action_done}" = "" ]; then
+
+if [ "${__action_done_by_mambo}" = "" ]; then
+    
+    # ingest specific mambo values
+    [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __update_env_files "ingest mambo specific values (organizr2,...)"
+    
+    # before action hook
+    . "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+
+    case ${ACTION} in
+        info )
+            if [ "${TARGET}" = "plex" ]; then
+                echo "---------==---- PLEX ----==---------"
+                [ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- please set PLEX_USER" && exit 1
+                [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- please set PLEX_PASSWORD" && exit 1
+                echo "L-- X-Plex-Token : $(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
+                __action_done_by_mambo="1"        
+            fi
+        ;;
+
+        init )
+            case ${TARGET} in
+                plex )
+                    __tango_log "INFO" "Init service Plex"
+                    __init_service_plex
+                    __action_done_by_mambo="1"  
+                ;;
+            
+            esac
+        ;;
+    esac
+
+    # execute requested action
     . "${TANGO_ROOT}/src/tango-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
+    # organizr2 - manage scheduler task
+    case ${ACTION} in 
+        up|restart )
+            case ${TARGET} in
+                ""|tango|organizr2 )
+                    __organizr2_scheduler_set
+                    ;;
+            esac
+        ;;
+        down )
+            case ${TARGET} in
+                ""|tango|organizr2 )
+                    __organizr2_scheduler_shutdown
+                    ;;
+            esac
+        ;;
+    esac
+
+    # after action hook
     . "${TANGO_ROOT}/src/tango-after-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 fi

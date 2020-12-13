@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+
+echo "---------==---- ${TANGO_APP_NAME_CAPS} INIT SPECIFIC PATHS ----==---------"
+mkdir -p /download/vault/nzb
+mkdir -p /download/vault/torrent
+
+
+
+echo "---------==---- $TANGO_APP_NAME_CAPS INIT SPECIFIC SERVICES ----==---------"
+for service in ${TANGO_SERVICES_AVAILABLE}; do
+    service=${service^^}
+    [[ " ${TANGO_SERVICES_DISABLED} " =~ .*\ ${service,,}\ .* ]] && continue
+    echo "* ${service}"
+    case ${service} in
+        PLEX )
+            echo L-- create [$APP_DATA_PATH/plex] {/data/plex}
+            mkdir -p '/data/plex'
+            # plex image have a bug and create Library/Application Support owner is root instead of PLEX_UID when launching the docker image 
+            # so we create Library/Application Support with right owner with this script execution owner
+            mkdir -p '/data/plex/Library/Application Support'       
+            ;;
+    esac
+done

@@ -1,12 +1,3 @@
-if [ "$TANGO_ROOT" = "" ]; then
-    if [ -d "${_STELLA_LINK_CURRENT_FILE_DIR}/../tango" ]; then
-        TANGO_ROOT="${_STELLA_LINK_CURRENT_FILE_DIR}/../tango"
-        export STELLA_ROOT="$TANGO_ROOT/pool/stella"
-    else
-        export STELLA_ROOT="$_STELLA_LINK_CURRENT_FILE_DIR/tango/pool/stella"
-    fi
-else
-    export STELLA_ROOT="$TANGO_ROOT/pool/stella"
-fi
+export STELLA_ROOT=$_STELLA_LINK_CURRENT_FILE_DIR/tango/pool/stella
 STELLA_DEP_FLAVOUR=VENDOR
 STELLA_DEP_VERSION=

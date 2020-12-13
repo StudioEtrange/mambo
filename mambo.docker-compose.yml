@@ -7,13 +7,6 @@ volumes:
       o: bind
       device: ${DOWNLOAD_PATH}
     name: ${TANGO_APP_NAME}_download
-  scripts:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${SCRIPTS_PATH}
-    name: ${TANGO_APP_NAME}_scripts
   vault:
     driver: local
     driver_opts:
@@ -47,6 +40,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
+      # cannot use PLEX_DATA_PATH because plex folder have to be created elsewhere (see scripts/mambo.sh)
       device: ${APP_DATA_PATH}/plex
     name: ${TANGO_APP_NAME}_plex_data
   mkvtoolnix_data:
@@ -56,13 +50,6 @@ volumes:
       o: bind
       device: ${MKVTOOLNIX_DATA_PATH}
     name: ${TANGO_APP_NAME}_mkvtoolnix_data
-  makemkv_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${MAKEMKV_DATA_PATH}
-    name: ${TANGO_APP_NAME}_makemkv_data
   jdownloader2_data:
     driver: local
     driver_opts:
@@ -96,20 +83,30 @@ volumes:
     driver_opts:
       type: none
       o: bind
+      # path created from within scripts/mambo.sh
       device: ${VAULT_PATH}/torrent
     name: ${TANGO_APP_NAME}_transmission_watch
-  # calibreweb_books_data:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     o: bind
-  #     device: ${APP_DATA_PATH}/calibreweb_books
-  # calibreweb_books_media:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     o: bind
-  #     device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_books
+  booksonic_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${BOOKSONIC_DATA_PATH}
+    name: ${TANGO_APP_NAME}_booksonic_data
+  calibreweb_books_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREWEB_BOOKS_DATA_PATH}
+    name: ${TANGO_APP_NAME}_calibreweb_books_data
+  calibreweb_books_media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREWEB_BOOKS_MEDIA_PATH}
+    name: ${TANGO_APP_NAME}_calibreweb_books_media
   # calibreweb_comics_data:
   #   driver: local
   #   driver_opts:
@@ -125,35 +122,37 @@ volumes:
 
 
 
-# # NOTE : yaml do not support array merge, so we cannot factorize volume declaration here
-# # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
-# x-calibreweb: &default-calibreweb
-#   image: studioetrange/calibre-web:${CALIBRE_WEB_VERSION:-latest}
-#   depends_on: 
-#     - service_init
-#   restart: unless-stopped
-#   #volumes:
-#   environment:
-#     - PUID=${TANGO_USER_ID:-0}
-#     - PGID=${TANGO_GROUP_ID:-0}
-#     - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_VERSION:-latest}
-#   labels:
-#     - "${TANGO_APP_NAME}.managed=true"
-#     - "traefik.enable=true"
-#   networks:
-#     - default
-#   expose:
-#     - 8083
-#   build:
-#     context: https://github.com/linuxserver/docker-calibre-web.git#${CALIBRE_WEB_VERSION}
-#     args:
-#       - CALIBREWEB_RELEASE=${CALIBRE_WEB_VERSION}
+# NOTE : yaml do not support array merge, so we cannot factorize volume or labels declaration here
+# https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
+x-calibreweb: &default-calibreweb
+  image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
+  depends_on: 
+    - service_init
+    #- calibre_mod
+  restart: unless-stopped
+  environment:
+    - PUID=${TANGO_USER_ID:-0}
+    - PGID=${TANGO_GROUP_ID:-0}
+    # NOTE : you can choose a calibre binary version to inject with CALIBRE_MOD_VERSION or just use a latest version available
+    #       a linuxserver.io module must be used from docker hub repository only,
+    #       it cannot be used from a local build
+    #       https://github.com/StudioEtrange/docker-calibre-mod
+    #       https://hub.docker.com/repository/docker/studioetrange/calibre-mod
+    - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+  networks:
+    - default
+  expose:
+    - 8083
+  build:
+    context: https://github.com/linuxserver/docker-calibre-web.git
+    args:
+      - CALIBREWEB_RELEASE=${CALIBREWEB_VERSION}
 
 
 
 services:
 
-  # NOTE : this will be merged with service_init from tango compose file
+  # NOTE : service_init will be merged with service_init from tango compose file
   service_init:
     volumes:
       - download:/download
@@ -172,7 +171,9 @@ services:
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
+      # use 'manual' as branch value to disable code update installed into /config folder
       - branch=${ORGANIZR2_VERSION:-v2-master}
+      - fpm=true
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
@@ -195,8 +196,6 @@ services:
       - default
     expose:
       - 80
-
-
 
   # Plex statistics and management tools
   tautulli:
@@ -290,7 +289,6 @@ services:
       # different paths used by sabnzbd
       - download:/download
       - vault:/vault
-      - scripts:/scripts
       - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
     environment:
       - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
@@ -369,6 +367,7 @@ services:
     networks:
       - default
     expose:
+      - 33400/tcp
       - 32400/tcp
       - 3005/tcp
       - 8324/tcp
@@ -420,7 +419,7 @@ services:
       context: https://github.com/StudioEtrange/docker-medusa.git#:ver/${MEDUSA_VERSION:-latest}
 
   # MKVToolNix is a set of tools to create, alter and inspect mkv files.
-  # NOTE : VNC not open
+  # NOTE : VNC port is not open here
   # https://hub.docker.com/r/jlesage/mkvtoolnix
   # https://github.com/jlesage/docker-mkvtoolnix
   mkvtoolnix:
@@ -466,51 +465,55 @@ services:
     expose:
       - 5800/tcp
   
-  https://github.com/jlesage/docker-makemkv
-  # NOTE : VNC not open
-  makemkv:
-    image: jlesage/makemkv:${MAKEMKV_VERSION:-latest}
-    container_name: ${TANGO_APP_NAME}_makemkv
-    depends_on:
-      - service_init
-    restart: unless-stopped
-    volumes:
-      # will contain makemkv configuration
-      - makemkv_data:/config
-      # different paths used by makemkv
-      - download:/download
-      - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
-      - /dev/shm:/dev/shm
-    environment:
-      - USER_ID=${TANGO_USER_ID:-0}
-      - GROUP_ID=${TANGO_GROUP_ID:-0}
-      - KEEP_APP_RUNNING=1
-      - DISPLAY_WIDTH=${MAKEMKV_WIDTH:-1280}
-      - DISPLAY_HEIGHT=${MAKEMKV_HEIGHT-:768}
-      - SECURE_CONNECTION=0
-      - CLEAN_TMP_DIR=1
-    labels:
-      - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.makemkv.entrypoints=${MAKEMKV_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.makemkv.rule=HostRegexp(`{subdomain:${MAKEMKV_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.makemkv.priority=${MAKEMKV_PRIORITY}"
-      - "traefik.http.routers.makemkv.service=makemkv"
-      - "traefik.http.routers.makemkv-secure.entrypoints=${MAKEMKV_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.makemkv-secure.rule=HostRegexp(`{subdomain:${MAKEMKV_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.makemkv-secure.priority=${MAKEMKV_PRIORITY}"
-      - "traefik.http.routers.makemkv-secure.service=makemkv"
-      - "traefik.http.routers.makemkv-secure.tls=true"
-      - "traefik.http.routers.makemkv-secure.tls.domains[0].main=${MAKEMKV_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.makemkv.loadbalancer.server.port=5800"
-      - "traefik.http.services.makemkv.loadbalancer.server.scheme=http"
-      - "traefik.http.services.makemkv.loadbalancer.passhostheader=true"
-      - "traefik.http.routers.makemkv.middlewares=makemkv-auth@rest,error-middleware"
-      - "traefik.http.routers.makemkv-secure.middlewares=makemkv-auth@rest,error-middleware"
-    networks:
-      - default
-    expose:
-      - 5800/tcp
+
+
+
+
+  # https://github.com/jlesage/docker-makemkv
+  # # NOTE : VNC not open
+  # makemkv:
+  #   image: jlesage/makemkv:${MAKEMKV_VERSION:-latest}
+  #   container_name: ${TANGO_APP_NAME}_makemkv
+  #   depends_on:
+  #     - service_init
+  #   restart: unless-stopped
+  #   volumes:
+  #     # will contain makemkv configuration
+  #     - makemkv_data:/config
+  #     # different paths used by makemkv
+  #     - download:/download
+  #     - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
+  #     - /dev/shm:/dev/shm
+  #   environment:
+  #     - USER_ID=${TANGO_USER_ID:-0}
+  #     - GROUP_ID=${TANGO_GROUP_ID:-0}
+  #     - KEEP_APP_RUNNING=1
+  #     - DISPLAY_WIDTH=${MAKEMKV_WIDTH:-1280}
+  #     - DISPLAY_HEIGHT=${MAKEMKV_HEIGHT-:768}
+  #     - SECURE_CONNECTION=0
+  #     - CLEAN_TMP_DIR=1
+  #   labels:
+  #     - "${TANGO_INSTANCE_NAME}.managed=true"
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.makemkv.entrypoints=${MAKEMKV_ENTRYPOINTS:-web_main}"
+  #     - "traefik.http.routers.makemkv.rule=HostRegexp(`{subdomain:${MAKEMKV_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.makemkv.priority=${MAKEMKV_PRIORITY}"
+  #     - "traefik.http.routers.makemkv.service=makemkv"
+  #     - "traefik.http.routers.makemkv-secure.entrypoints=${MAKEMKV_ENTRYPOINTS_SECURE:-web_main_secure}"
+  #     - "traefik.http.routers.makemkv-secure.rule=HostRegexp(`{subdomain:${MAKEMKV_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.makemkv-secure.priority=${MAKEMKV_PRIORITY}"
+  #     - "traefik.http.routers.makemkv-secure.service=makemkv"
+  #     - "traefik.http.routers.makemkv-secure.tls=true"
+  #     - "traefik.http.routers.makemkv-secure.tls.domains[0].main=${MAKEMKV_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+  #     - "traefik.http.services.makemkv.loadbalancer.server.port=5800"
+  #     - "traefik.http.services.makemkv.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.makemkv.loadbalancer.passhostheader=true"
+  #     - "traefik.http.routers.makemkv.middlewares=makemkv-auth@rest,error-middleware"
+  #     - "traefik.http.routers.makemkv-secure.middlewares=makemkv-auth@rest,error-middleware"
+  #   networks:
+  #     - default
+  #   expose:
+  #     - 5800/tcp
 
   # web area
   web:
@@ -560,7 +563,52 @@ services:
     expose:
       - 80
 
-
+   
+  # Audiobook and podcast streamer
+  # https://booksonic.org/
+  # https://github.com/popeen/Booksonic-Air
+  # https://hub.docker.com/r/linuxserver/booksonic-air
+  # https://github.com/linuxserver/docker-booksonic-air
+  booksonic:
+    image: linuxserver/booksonic-air:${BOOKSONIC_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_booksonic
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - booksonic_data:/config
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - CONTEXT_PATH=/
+      # FIX https/http mixed content error into web browser
+      # https://github.com/popeen/Booksonic-Air/issues/23
+      - "JAVA_OPTS=-Dserver.use-forward-headers=true"
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.booksonic.entrypoints=${BOOKSONIC_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.booksonic.rule=HostRegexp(`{subdomain:${BOOKSONIC_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.booksonic.priority=${BOOKSONIC_PRIORITY}"
+      - "traefik.http.routers.booksonic.service=booksonic"
+      - "traefik.http.routers.booksonic-secure.entrypoints=${BOOKSONIC_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.booksonic-secure.rule=HostRegexp(`{subdomain:${BOOKSONIC_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.booksonic-secure.priority=${BOOKSONIC_PRIORITY}"
+      - "traefik.http.routers.booksonic-secure.service=booksonic"
+      - "traefik.http.routers.booksonic-secure.tls=true"
+      - "traefik.http.routers.booksonic-secure.tls.domains[0].main=${BOOKSONIC_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.booksonic.loadbalancer.server.port=4040"
+      - "traefik.http.services.booksonic.loadbalancer.server.scheme=http"
+      - "traefik.http.services.booksonic.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.booksonic.middlewares=booksonic-auth@rest,error-middleware"
+      #- "traefik.http.routers.booksonic-secure.middlewares=booksonic-auth@rest,error-middleware"
+      #- "traefik.http.routers.booksonic-secure.middlewares=secure-headers"
+      #- "traefik.http.middlewares.secure-headers.headers.SSLProxyHeaders[0]=X-Forwarded-Proto: https"
+      #- "traefik.http.middlewares.secure-headers.headers.SSLRedirect=true"
+    networks:
+       - default
+    expose:
+      - 4040/tcp
   
   # direct download manager
   # https://github.com/PlusMinus0/headless-jd2-docker
@@ -631,30 +679,50 @@ services:
 
 
 
-  # calibreweb_books:
-  #   << : *default-calibreweb
-  #   container_name: ${TANGO_APP_NAME}_calibreweb_books
-  #   volumes:
-  #     # will contain calibre-web configuration
-  #     - calibreweb_books_data:/config
-  #     # different paths used by calibreweb
-  #     - calibreweb_books_media:/books
-  #   labels:
-  #     - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBRE_ENTRYPOINTS:-web_main}"
-  #     - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_books`)"
-  #     - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
-  #     - "traefik.http.routers.calibreweb_books.priority=${CALIBRE_ENTRYPOINTS:-200}"
-  #     - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBRE_ENTRYPOINTS_SECURE:-web_main_secure}"
-  #     - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:calibreweb_books}.{domain:${TANGO_DOMAIN:-.*}}`)"
-  #     - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
-  #     - "traefik.http.routers.calibreweb_books-secure.tls=true"
-  #     - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=calibreweb_books.${TANGO_DOMAIN:-.*}"
-  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
-  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
-  #     - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
-  #     - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix"
-  #     - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/calibreweb_books, /calibreweb_books/"
 
+
+
+# TODO ?
+# do we need to do this at first run init :  https://github.com/cgspeck/docker-rdp-calibre/blob/master/firstrun.sh
+
+
+# TODO ?
+# # taken from https://github.com/Thraxis/docker-lazylibrarian-calibre/blob/22db28939571b6a1b3416e3774b7c93807175976/Dockerfile#L10
+# ENV CALIBRE_CONFIG_DIRECTORY="/config/calibre/"
+# ENV CALIBRE_TEMP_DIR="/config/calibre/tmp/"
+# ENV CALIBRE_CACHE_DIRECTORY="/config/cache/calibre/"
+
+  calibreweb_books:
+    << : *default-calibreweb
+    container_name: ${TANGO_APP_NAME}_calibreweb_books
+    volumes:
+      # will contain calibre-web configuration
+      - calibreweb_books_data:/config
+      # different paths used by calibreweb
+      - calibreweb_books_media:/books
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
+      - "traefik.http.routers.calibreweb_books.priority=${CALIBREWEB_BOOKS_PRIORITY}"
+      - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
+
+      - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
+      - "traefik.http.routers.calibreweb_books-secure.priority=${CALIBREWEB_BOOKS_PRIORITY}"
+      - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
+      - "traefik.http.routers.calibreweb_books-secure.tls=true"
+      - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=${CALIBREWEB_BOOKS_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
+      - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
+      - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
+
+      - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,error-middleware"
+      - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,error-middleware"
+
+      - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/${CALIBREWEB_BOOKS_SUBPATH}, /${CALIBREWEB_BOOKS_SUBPATH}/"
+  
   # calibreweb_comics:
   #   << : *default-calibreweb
   #   container_name: ${TANGO_APP_NAME}_calibreweb_comics
