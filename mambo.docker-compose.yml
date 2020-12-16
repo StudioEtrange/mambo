@@ -601,12 +601,15 @@ services:
       - "traefik.http.services.booksonic.loadbalancer.server.scheme=http"
       - "traefik.http.services.booksonic.loadbalancer.passhostheader=true"
       - "traefik.http.routers.booksonic.middlewares=booksonic-auth@rest,error-middleware"
-      #- "traefik.http.routers.booksonic-secure.middlewares=booksonic-auth@rest,error-middleware"
-      #- "traefik.http.routers.booksonic-secure.middlewares=secure-headers"
-      #- "traefik.http.middlewares.secure-headers.headers.SSLProxyHeaders[0]=X-Forwarded-Proto: https"
-      #- "traefik.http.middlewares.secure-headers.headers.SSLRedirect=true"
+      - "traefik.http.routers.booksonic-secure.middlewares=booksonic-auth@rest,error-middleware"
+      # airsonic (and booksonic) cannot be correctly print into an iframe
+      #     https://github.com/airsonic/airsonic/issues/583
+      #     airsonic fix an X-Frame-Options to SAMEORIGIN to not allow be print into an iframe
+      #     we can override this with a middleware
+      # - 'traefik.http.middlewares.booksonic-iframe.headers.customFrameOptionsValue=allow-from *'
+      #     but it do not really work well
     networks:
-       - default
+      - default
     expose:
       - 4040/tcp
   

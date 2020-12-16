@@ -50,7 +50,7 @@ usage() {
 	echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
 	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
-	echo "L     info [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
+	echo "L     info [plex] [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see service status."
 	echo "L     logs [service] [-f] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
@@ -130,6 +130,18 @@ case ${ACTION} in
             ;;
         esac
     ;;
+    info )
+        if [ "${TARGET}" = "plex" ]; then
+            echo "---------==---- PLEX ----==---------"
+            [ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- please set PLEX_USER" && exit 1
+            [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- please set PLEX_PASSWORD" && exit 1
+            __token="$(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
+            echo "L-- X-Plex-Token : ${__token}"
+            echo "L-- Owned server"
+            __print_plex_server_registered "${__token}" "OWN"
+            __action_done_by_mambo="1"        
+        fi
+    ;;
     * )
         __organizr2_auth "INIT"
     ;;
@@ -146,15 +158,7 @@ if [ "${__action_done_by_mambo}" = "" ]; then
     . "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
     case ${ACTION} in
-        info )
-            if [ "${TARGET}" = "plex" ]; then
-                echo "---------==---- PLEX ----==---------"
-                [ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- please set PLEX_USER" && exit 1
-                [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- please set PLEX_PASSWORD" && exit 1
-                echo "L-- X-Plex-Token : $(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
-                __action_done_by_mambo="1"        
-            fi
-        ;;
+      
 
         init )
             case ${TARGET} in

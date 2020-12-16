@@ -4,7 +4,8 @@
 
 __init_service_plex() {
 	# get claim token
-	__claim_token=
+	local __claim_token=
+	local __auth_token=
 	if [ "$(__is_plex_registered)" = "0" ]; then
 		[ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
 		[ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
@@ -53,7 +54,7 @@ __get_plex_x_plex_auth_token() {
 	# -H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
 	# -H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .user.authentication_token)"
 
-	__auth_token="$(__tango_curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
+	local __auth_token="$(__tango_curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
 	-H "X-Plex-Version: 1.0.0" \
 	-H "X-Plex-Product: Mambo" \
 	-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
@@ -85,6 +86,44 @@ __get_plex_claim_token() {
 
 }
 
+
+# OWN : print only server own by plex token
+__print_plex_server_registered() {
+	local __x_plex_token="$1"
+	local __OPT="$2"
+
+	local __own=
+	for o in ${__OPT}; do
+		[ "$o" = "OWN" ] && __own="1"
+	done
+
+	local __response="$(__tango_curl -kLs -X GET "https://plex.tv/api/servers?X-Plex-Token=${__x_plex_token}")"
+	
+	# eval will declare an array called result
+	if [ "${__own}" = "1" ]; then
+		eval $(echo "${__response}" | xidel -s -e '//Server[@accessToken="'${__x_plex_token}'"]/(@name|@machineIdentifier|@scheme|@address|@port)' --output-format=bash -)
+	else
+		eval $(echo "${__response}" | xidel -s -e '//Server/(@name|@machineIdentifier|@scheme|@address|@port)' --output-format=bash -)
+	fi
+
+
+	local __table="NAME|URL|MACHINE IDENTIFIER"
+	for (( i=0; i<${#result[@]}; i+=5 )); do
+		__table="${__table}\n${result[$i]}|${result[$i + 3]}://${result[$i + 1]}:${result[$i + 2]}|${result[$i + 4]}"
+	done
+
+	printf "${__table}" | $STELLA_API format_table "SEPARATOR |"
+}
+
+# return server identifier known by an account
+__get_plex_server_identifier() {
+	local __x_plex_token="$1"
+
+	# There is json API for this request, only XML
+	# https://forums.plex.tv/t/api-is-there-a-way-to-use-pms-servers-and-get-a-json-response/281134
+
+	__tango_curl -kLs -X GET https://plex.tv/api/servers?X-Plex-Token="${__x_plex_token}"
+}
 
 __set_plex_defaults() {
 	PLEX_PREFERENCES_PATH="${APP_DATA_PATH}/plex/Library/Application Support/Plex Media Server/Preferences.xml"

@@ -20,7 +20,6 @@ NOTE : mambo will auto install all other required tools like docker-compose
 ## SERVICES INCLUDED
 
 * Plex - media center
-* Booksonic - audio book streamer
 * Ombi - user request content  
 * Sabnzbd - newzgroup download
 * Medusa - tv episodes search and subtitles management
@@ -31,6 +30,10 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * Handbrake - Video Conversion (Transcoding and compression)
 * MKVToolNix - Matroska tools with WebGUI - Video Editing (Remuxing - changing media container while keeping original source quality)
 
+
+Non functionnal
+
+* Booksonic - audio book streamer : problem with Single Sign On
 
 
 ## USAGE
@@ -179,14 +182,13 @@ NOTE : mambo will auto install all other required tools like docker-compose
 
 ### Enable/disable
 
-* To enable/disable a service, use variable `SERVICE_*`
-    * to enable use the service name as value 
-    * to disable add `_disable` to service name
+* To declare a service use list `TANGO_SERVICES_AVAILABLE`
+* To disable a service, use variable list `TANGO_SERVICES_DISABLED`
 
 * ie in user env file : 
     ```
-    SERVICE_OMBI=ombi
-    SERVICE_SABNZBD=sabnzbd_disable
+    TANGO_SERVICES_AVAILABLE=website database
+    TANGO_SERVICES_DISABLED=database
     ```
 
 ### Start/stop a service
@@ -215,6 +217,40 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
 
 * TODO continue
+
+
+#### Plex and Organizr2 
+
+    Into Organizr2
+
+    * Add a Plex tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : Plex - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://plex.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : `ombi-plex`
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list 
+            * Group : User
+
+    * SSO : Allow to login only to organizr2, plex login is automatic
+        * See Organizr2 settings
+
+    * Integration to Homepage :
+        * Tab Editor / Homepage Items / Plex
+            * Enable, Minimum Authentication : User
+            * Connection / Url : http://plex:32400
+            * Connection / Token : get token with command `./mambo info plex`
+            * Connection / Machine : get machine identifier with command `./mambo info plex`
+            * Personalize all viewing options - recommended : 
+                * Active Streams / Enable, Minimum Authentication : User
+                * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
+                * Misc Options / Name : Plex
+                * Misc Options / Url : `https://plex.mydomain.com`
+
+
 ----
 ### Organizr2
 
@@ -242,7 +278,7 @@ NOTE : mambo will auto install all other required tools like docker-compose
     * Settings / System Settings / Main / Authentication
         * Type : Organizr DB + Backend
         * Backend : plex
-        * Do get plex token / get plex machine
+        * Do get plex token / get plex machine (you can use command `./mambo info plex` to check plex server info)
         * Admin username : a plex user admin that will match admin organizr admin account
         * Strict plex friends : enabled (only plex friends are registered)
         * Enable Plex oAuth : enabled (active plex login to log into organizr)
@@ -312,8 +348,15 @@ NOTE : mambo will auto install all other required tools like docker-compose
 ----
 ### Booksonic
 
-    * access to Booksonic - a getting starded page will appear
+* Initial Configuration
+    * access to Booksonic - a 'getting started' page will appear
     * change default login password
+    * Setup Media Folder : add a media folder. Shoud be one from `TANGO_ARTEFACT_FOLDERS` list, mounted under `/media/`
+
+* Booksonic-App android reader
+    * build from source 
+        * https://amp.reddit.com/r/Booksonic/comments/hboaua/building_from_source/
+        * instructions : https://github.com/mmguero-android/Booksonic-Android
 
 #### Booksonic and Organizr2 
 
@@ -330,9 +373,18 @@ NOTE : mambo will auto install all other required tools like docker-compose
             * Refresh your browser page
         * Tab editor / Tabs list
             * Group : User
+            * Type : New Window
+
+    * SSO : impossible to make it work
+        * booksonic implement a version of subsonic API for HTTP request with password https://booksonic.chimere-harpie.org/rest/getStarred.view?u=USER&p=PASSWORD&v=1.14.0&c=CLIENTNAME and after this request it create a cookie and the user is authentificated. https://www.reddit.com/r/Booksonic/comments/emkizu/question_about_accessing_the_booksonic_api/?utm_source=share&utm_medium=web2x&context=3
+        * can not find a way to auto login from orginzr2
+        * There is also the problem to give access to the Booksonic-App android reader
+        * sync plex authent by using ldap to plex
+            * https://github.com/hjone72/LDAP-for-Plex
+            * https://github.com/Starbix/docker-plex-ldap
+
 
 ----
-
 ### Tautulli
 
     * access to tautulli - setup wizard will be launched
@@ -653,17 +705,18 @@ List of available plugins
 
 * Steps for adding a `foo` service
     * in `docker-compose.yml` 
-        * add a `foo` service
+        * add a `foo` service block
         * add a dependency on this service into `mambo` service
     * in `mambo.env`
         * add a variable `FOO_VERSION=latest`
-        * add a variable `SERVICE_FOO=foo`
+        * add service to `TANGO_SERVICES_AVAILABLE` list
+        * if this service has subservices, declare subservices into `TANGO_SUBSERVICES_ROUTER`
         * if this service needs to access all media folders, add it to `TANGO_ARTEFACT_SERVICES`
         * choose to which logical network areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
-        * if this service has subservices, declare subservices into `TANGO_SUBSERVICES`
-        * add a `FOO_DIRECT_ACCESS_PORT` empty variable
+        * to generate an HTTPS certificate add service to `LETS_ENCRYPT_SERVICES`
+        * if HTTPS redirection add service to `NETWORK_SERVICES_REDIRECT_HTTPS`
+        * for time setting add service to TANGO_TIME_VOLUME_SERVICES or `TANGO_TIME_VAR_TZ_SERVICES`
     * in `mambo`
-        * add time management in `__set_time_all`
         * add `foo` in command line argument definition of `TARGET` choices
     * in README.md
         * add a section to describe its configuration
