@@ -85,11 +85,11 @@ case ${ACTION} in
                 export TANGO_ALTER_GENERATED_FILES="OFF"
             ;;
             disable )
-                export ORGANIZR2_AUTHORIZATION="ON"
+                export TANGO_ALTER_GENERATED_FILES="ON"
                 export ORGANIZR2_AUTHORIZATION="OFF"
             ;;
             enable )
-                export ORGANIZR2_AUTHORIZATION="ON"
+                export TANGO_ALTER_GENERATED_FILES="ON"
                 export ORGANIZR2_AUTHORIZATION="ON"
             ;;
 
@@ -119,13 +119,13 @@ case ${ACTION} in
             disable )
                 __tango_log "INFO" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
                 __organizr2_scheduler_shutdown
-                __organizr2_auth "SYNC"
+                #__organizr2_auth "SYNC"
                 __action_done_by_mambo="1"
             ;;
             enable )
                 __tango_log "INFO" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
                 __organizr2_scheduler_set
-                __organizr2_auth "SYNC"
+                #__organizr2_auth "SYNC"
                 __action_done_by_mambo="1"
             ;;
         esac
@@ -140,6 +140,9 @@ case ${ACTION} in
             echo "L-- Owned server"
             __print_plex_server_registered "${__token}" "OWN"
             __action_done_by_mambo="1"        
+        else
+            # we need to refresh generated files with values from organizr2 API because info command use these files to print value
+            __organizr2_auth "INIT"
         fi
     ;;
     * )
@@ -147,12 +150,11 @@ case ${ACTION} in
     ;;
 esac
 
-
+  
+# ingest specific mambo values
+[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __update_env_files "ingest mambo specific values (organizr2,...)"
 
 if [ "${__action_done_by_mambo}" = "" ]; then
-    
-    # ingest specific mambo values
-    [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __update_env_files "ingest mambo specific values (organizr2,...)"
     
     # before action hook
     . "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
@@ -191,6 +193,7 @@ if [ "${__action_done_by_mambo}" = "" ]; then
                     ;;
             esac
         ;;
+
     esac
 
     # after action hook
