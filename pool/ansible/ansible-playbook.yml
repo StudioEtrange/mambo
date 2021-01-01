@@ -1,0 +1,7 @@
+---
+- hosts: localhost
+  vars_files:
+    - ['defaults.yml']
+  roles:
+    - { role: sabnzbd, tags: ['sabnzbd'] }
+    - { role: nzbtomedia, tags: ['nzbtomedia'] }

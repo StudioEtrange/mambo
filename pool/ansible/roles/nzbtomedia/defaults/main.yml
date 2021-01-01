@@ -1,0 +1,3 @@
+---
+sabnzbd:
+  api_key: "{{ lookup('env','SABNZBD_API_KEY') | default('', true) }}"

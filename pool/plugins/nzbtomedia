@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 
-# FEATURES : it is a script used to  postprocess download between sabnzbd and indexer like sickbeard
+# FEATURES : nzbToMedia is a script used to postprocess download between sabnzbd and indexer like sickbeard
+#            this plugin install nzbToMedia in /data/nzbtomedia
 
 # NOTE :
 # Error AttributeError 'module' object has no attribute 'InitialSchema'
@@ -20,8 +21,8 @@ done
 
 
 PLUGIN="nzbtomedia"
-[ "$1" = "" ] && VERSION="12.1.04" || VERSION="$1"
-DATA="/plugins_data/${PLUGIN}/${VERSION}"
+[ "$NZBTOMEDIA_VERSION" = "" ] && VERSION="12.1.04" || VERSION="$1"
+DATA="/data/${PLUGIN}/${VERSION}"
 
 echo "* Plugin : ${PLUGIN} ${VERSION}"
 
@@ -52,7 +53,7 @@ END
 
 fi
 echo "L-- STEP : setup plugin"
-echo "  + Configuration file in : ${DATA}/autoProcessMedia.cfg"
+echo "  -"
 
 echo "L-- STEP : run plugin"
 echo "  -"

@@ -64,8 +64,18 @@ case ${ACTION} in
 	;;
 
 	install )
-		echo "** Install requirements"
-		$STELLA_API get_features
+		if [ "$TANGO_NOT_IN_APP" = "1" ]; then
+			# standalone tango
+			__tango_log "INFO" "tango" "Install tango requirements : $STELLA_APP_FEATURE_LIST"
+			$STELLA_API get_features
+		else
+			STELLA_APP_FEATURE_LIST="$(__get_all_properties $(__select_app $TANGO_ROOT); echo $STELLA_APP_FEATURE_LIST) $STELLA_APP_FEATURE_LIST"
+			__tango_log "INFO" "tango" "Install tango and $TANGO_APP_NAME requirements : $STELLA_APP_FEATURE_LIST"
+			$STELLA_API get_features
+		fi
+		
+		
+		
 	;;
 
 	update )

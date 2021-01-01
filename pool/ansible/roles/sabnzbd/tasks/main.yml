@@ -1,0 +1,34 @@
+#########################################################################
+# Title:         Cloudbox: SABnzbd Role                                 #
+# Author(s):     desimaniac                                             #
+# Modified by :  StudioEtrange
+# URL:           https://github.com/cloudbox/cloudbox                   #
+# Docker Image:  hotio/sabnzbd                                          #
+# --                                                                    #
+#         Part of the Cloudbox project: https://cloudbox.works          #
+#########################################################################
+#                   GNU General Public License v3.0                     #
+#########################################################################
+---
+- debug: 
+    msg: "SABNZBD_DATA_PATH: {{ lookup('env','SABNZBD_DATA_PATH') }}"
+
+# - name: Create sabnzbd directories
+#   file: "path={{ item }} state=directory mode=0775 owner={{ user.name }} group={{ user.name }} recurse=yes"
+#   with_items:
+#     - /opt/sabnzbd
+#     - "{{ downloads.nzbs }}"
+#     - "{{ downloads.nzbs }}/sabnzbd"
+#     - "{{ downloads.nzbs }}/sabnzbd/complete"
+#     - "{{ downloads.nzbs }}/sabnzbd/incomplete"
+#     - "{{ downloads.nzbs }}/sabnzbd/watched"
+#     - "{{ downloads.nzbs }}/sabnzbd/logs"
+
+- name: Check sabnzbd.ini exists
+  stat:
+    path: "{{ lookup('env','SABNZBD_DATA_PATH') }}/sabnzbd.ini"
+  register: sabnzbd_ini
+
+- name: Settings Tweaks
+  include_tasks: "subtasks/sabnzbd_settings.yml"
+  when: sabnzbd_ini.stat.exists

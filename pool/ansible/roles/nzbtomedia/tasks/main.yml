@@ -1,0 +1,17 @@
+---
+- debug: 
+    msg: "NZBTOMEDIA_DATA_PATH: {{ lookup('env','NZBTOMEDIA_DATA_PATH') }}"
+
+- name: Check autoProcessMedia.cfg exists
+  stat:
+    path: "{{ lookup('env','NZBTOMEDIA_DATA_PATH') }}/autoProcessMedia.cfg"
+  register: nzbtomedia_cfg
+
+- name: Check sabnzbd.ini exists
+  stat:
+    path: "{{ lookup('env','SABNZBD_DATA_PATH') }}/sabnzbd.ini"
+  register: sabnzbd_ini
+
+- name: Settings sabznbd Tweaks
+  include_tasks: "subtasks/nzbtomedia_sabnzbd_settings.yml"
+  when: nzbtomedia_cfg.stat.exists and sabnzbd_ini.stat.exists

@@ -2,6 +2,10 @@
 
 * [X] add forward auth to compose file static at each launch AND dynamic at each change ? use organizr2 api and traefik rest api provider
 
+* [ ] lib transmission : generate encoded password for use in Authentification header
+
+* [ ] allow api access to service without organizr auth https://github.com/htpcBeginner/docker-traefik/issues/27#issuecomment-743916338
+
 * each plugin can work 
     * only on some specific services
     * may require app lib
@@ -38,4 +42,7 @@
     USERNAME='admin'
     PASSWORD='yourpasswordhere'
     curl "${SERVER}/rest/startScan?u=${USERNAME}&p=${PASSWORD}&v=1.15.0&c=${CLIENT}"
-** metadata management guide : https://github.com/seanap/Plex-Audiobook-Guide/blob/master/README.md
+
+
+
+* emulator games web : webtropie with html&emularity OR retrojolt ?

@@ -2,42 +2,77 @@
 
 # PLEX -----------------
 
-__init_service_plex() {
-	# get claim token
+
+__plex_set_context() {
+	export PLEX_PREFERENCES_PATH="${PLEX_DATA_PATH}/Library/Application Support/Plex Media Server/Preferences.xml"
+	__add_declared_variables "PLEX_PREFERENCES_PATH"
+}
+
+__plex_init() {
+	[ "${PLEX_USER}" = "" ] && __tango_log "ERROR" "plex" "Error missing plex user -- set PLEX_USER" && exit 1
+	[ "${PLEX_PASSWORD}" = "" ] && __tango_log "ERROR" "plex" "Error missing plex password -- set PLEX_PASSWORD" && exit 1
+
+	__plex_create_tree
+	__plex_claim
+	__plex_first_launch
+	__plex_settings
+}
+
+__plex_create_tree() {
+	# plex image have a bug and create Library/Application Support owner is root instead of PLEX_UID when launching the docker image 
+	# so we create 'Library/Application Support' with right owner before its launch
+	__create_path "${PLEX_DATA_PATH}" 'Library/Application Support'
+}
+
+
+__plex_claim() {
 	local __claim_token=
 	local __auth_token=
-	if [ "$(__is_plex_registered)" = "0" ]; then
-		[ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- set PLEX_USER" && exit 1
-		[ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- set PLEX_PASSWORD" && exit 1
+
+	local __do_claim=
+	if [ ! "${CLAIM}" = "" ]; then
+		__do_claim="1"
+	else
+		[ "$(__is_plex_registered)" = "0" ] && __do_claim="1"
+	fi
+
+	if [ "$__do_claim" = "1" ]; then
+		[ "${PLEX_USER}" = "" ] && __tango_log "ERROR" "plex" "Error missing plex user -- set PLEX_USER" && exit 1
+		[ "${PLEX_PASSWORD}" = "" ] && __tango_log "ERROR" "plex" "Error missing plex password -- set PLEX_PASSWORD" && exit 1
 		__auth_token="$(__get_plex_x_plex_auth_token ${PLEX_USER} ${PLEX_PASSWORD})"
-		echo " ** From plex.tv -- get auth token : ${__auth_token}"
+		__tango_log "INFO" "plex" "From plex.tv -- get auth token : ${__auth_token}"
 		__claim_token="$(__get_plex_claim_token "${__auth_token}")"
-		echo " ** From plex.tv -- get claim token : ${__claim_token}"
+		__tango_log "INFO" "plex" "From plex.tv -- get claim token : ${__claim_token}"
 		if [ "${__claim_token}" = "" ]; then
-			echo "** Error while getting claim token"
+			__tango_log "ERROR" "plex" "plex" "Error while getting claim token"
 			exit 1
 		fi
 	else
-		echo "** Plex service is already registred"
+		__tango_log "INFO" "plex" "Plex service is already registred"
 	fi
-	# if plex was already be claimed, PLEX_CLAIM env var passed to plex is ignored
-	export PLEX_CLAIM="${__claim_token}"
-	__add_variables "PLEX_CLAIM"
 
-	# stop plex if it was already running
-	docker-compose -f "${GENERATED_DOCKER_COMPOSE_FILE}" --project-name ${TANGO_APP_NAME} --project-directory "${TANGO_APP_ROOT}" stop plex
-	# init plex
-	docker-compose -f "${GENERATED_DOCKER_COMPOSE_FILE}" --project-name ${TANGO_APP_NAME} --project-directory "${TANGO_APP_ROOT}" up -d plex
-	# wait for conf and db files created
-	sleep 4
-	docker-compose -f "${GENERATED_DOCKER_COMPOSE_FILE}" --project-name ${TANGO_APP_NAME} --project-directory "${TANGO_APP_ROOT}" stop plex
-	sleep 4
-	__set_plex_defaults
+	# if plex was already be claimed, PLEX_CLAIM env var passed to plex container is ignored
+	export PLEX_CLAIM="${__claim_token}"
+	__add_declared_variables "PLEX_CLAIM"
+
 }
+
+__plex_first_launch() {
+	if [ ! -f "${PLEX_PREFERENCES_PATH}" ]; then
+		__tango_log "DEBUG" "plex" "Creating settings file"
+
+		__service_down "plex" "NO_DELETE"
+		__service_up "plex"
+		# wait for conf and db files created
+		sleep 4
+		__service_down "plex" "NO_DELETE"
+		sleep 4
+	fi
+}
+
 
 # test if plex was already claimed
 __is_plex_registered() {
-	PLEX_PREFERENCES_PATH="${APP_DATA_PATH}/plex/Library/Application Support/Plex Media Server/Preferences.xml"
 	[ -f "${PLEX_PREFERENCES_PATH}" ] && __online_token="$(__xml_get_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences/@PlexOnlineToken")"
 
 	[ ${#__online_token} -gt 0 ] && echo "1" || echo "0"
@@ -57,7 +92,7 @@ __get_plex_x_plex_auth_token() {
 	local __auth_token="$(__tango_curl -kLsu "${__login}":"${__password}" -X POST "https://plex.tv/users/sign_in.json" \
 	-H "X-Plex-Version: 1.0.0" \
 	-H "X-Plex-Product: Mambo" \
-	-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
+	-H "X-Plex-Client-Identifier: Mambo-$($STELLA_API generate_machine_id)" \
 	-H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .user.authentication_token)"
 
 	[ "${__auth_token}" = "null" ] && echo "" || echo "${__auth_token}"
@@ -77,7 +112,7 @@ __get_plex_claim_token() {
 	__clam_token="$(__tango_curl -kLs -X GET "https://plex.tv/api/claim/token.json" \
 		-H "X-Plex-Version: 1.0.0" \
 		-H "X-Plex-Product: Mambo" \
-		-H "X-Plex-Client-Identifier: Mambo-$(__generate_machine_id)" \
+		-H "X-Plex-Client-Identifier: Mambo-$($STELLA_API generate_machine_id)" \
 		-H "X-Plex-Token: ${__x_plex_token}" \
 		-H "Content-Type: application/x-www-form-urlencoded; charset=utf-8" | jq -r .token)"
 
@@ -115,7 +150,7 @@ __print_plex_server_registered() {
 	printf "${__table}" | $STELLA_API format_table "SEPARATOR |"
 }
 
-# return server identifier known by an account
+# return servers identifiers known by an account
 __get_plex_server_identifier() {
 	local __x_plex_token="$1"
 
@@ -125,9 +160,8 @@ __get_plex_server_identifier() {
 	__tango_curl -kLs -X GET https://plex.tv/api/servers?X-Plex-Token="${__x_plex_token}"
 }
 
-__set_plex_defaults() {
-	PLEX_PREFERENCES_PATH="${APP_DATA_PATH}/plex/Library/Application Support/Plex Media Server/Preferences.xml"
-	
+# configure plex
+__plex_settings() {
 	
 	if [ -f "${PLEX_PREFERENCES_PATH}" ]; then 
 		# transcode folder to store temp files
@@ -164,7 +198,7 @@ __set_plex_defaults() {
 
 		#  TODO custom certificate support
 		#		 plex conf extract :
-		#		 secureConnections="1" customCertificateDomain="https://iron.studio-etrange.podzone.net:32400" customCertificateKey="mambo" customCertificatePath=" /var/lib/plexmediaserver/certificate.pfx"
+		#		 secureConnections="1" customCertificateDomain="https://host:32400" customCertificateKey="mambo" customCertificatePath=" /var/lib/plexmediaserver/certificate.pfx"
 
 
 		# 'DlnaEnabled' in Preferences.xml
@@ -189,7 +223,7 @@ __set_plex_defaults() {
 	fi
 
 	# optimize plex db
-	[ ! "${PLEX_DB_CACHE_SIZE}" = "" ] && __set_plex_db_cache_size "${PLEX_DB_CACHE_SIZE}"
+	[ ! "${PLEX_DB_CACHE_SIZE}" = "" ] && __plex_set_db_cache_size "${PLEX_DB_CACHE_SIZE}"
 
 }
 
@@ -199,23 +233,24 @@ __set_plex_defaults() {
 # could ameliorate some result
 # https://github.com/Cloudbox/Cloudbox/blob/master/roles/plex/tasks/subtasks/settings/db_cache_size.yml
 # https://forums.plex.tv/t/plex-library-performance-tip/176195/10
-__set_plex_db_cache_size() {
+__plex_set_db_cache_size() {
 	if [ ! "$1" = "" ]; then
 		PLEX_DATABASE_SUBPATH="Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
 		# set default_cache_size
-		if [ -f "${APP_DATA_PATH}/plex/${PLEX_DATABASE_SUBPATH}" ]; then
+		if [ -f "${PLEX_DATA_PATH}/${PLEX_DATABASE_SUBPATH}" ]; then
 
+			# TODO use service_down ?
 			docker-compose -f "${GENERATED_DOCKER_COMPOSE_FILE}" stop plex
 
-			echo "** Actual plex db default_cache_size :"
+			__tango_log "INFO" "plex" "Actual plex db default_cache_size :"
 			docker run --rm -v "${APP_DATA_PATH}/plex:/data" nouchka/sqlite3 "/data/${PLEX_DATABASE_SUBPATH}" "PRAGMA default_cache_size;"
-			echo "** Set plex db default_cache_size to $1"
+			__tango_log "INFO" "plex" "Set plex db default_cache_size to $1"
 			docker run --rm -v "${APP_DATA_PATH}/plex:/data" nouchka/sqlite3 "/data/${PLEX_DATABASE_SUBPATH}" "PRAGMA default_cache_size=$1;"
-			echo "** Actual plex db default_cache_size :"
+			__tango_log "INFO" "plex" "Actual plex db default_cache_size :"
 			docker run --rm -v "${APP_DATA_PATH}/plex:/data" nouchka/sqlite3 "/data/${PLEX_DATABASE_SUBPATH}" "PRAGMA default_cache_size;"
 		else
-			echo "[${APP_DATA_PATH}/plex/${PLEX_DATABASE_SUBPATH}] do not exist"
-			echo "Plex database do not exist yet, launch at least once plex."
+			__tango_log "WARN" "plex" "[${APP_DATA_PATH}/plex/${PLEX_DATABASE_SUBPATH}] do not exist"
+			__tango_log "WARN" "plex" "Plex database do not exist yet, launch at least once plex."
 		fi
 	fi
 }

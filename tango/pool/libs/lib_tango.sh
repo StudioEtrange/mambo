@@ -43,8 +43,12 @@ __update_env_files() {
 }
 
 # extract declared variable names from various env files (tango, app and user env files)
-__get_declared_variable_names() {
+__init_declared_variable_names() {
+	# reset global variables values
 	VARIABLES_LIST=""
+	ASSOCIATIVE_ARRAY_LIST=""
+
+	# init VARIABLES_LIST values
 	[ -f "${TANGO_ENV_FILE}" ] && VARIABLES_LIST="$(sed -e '/^[[:space:]]*$/d' -e '/^[#]\+.*$/d' -e 's/^\([^=+]*\)+\?=\(.*\)$/\1/g' "${TANGO_ENV_FILE}")"
 	[ -f "${TANGO_APP_ENV_FILE}" ] && VARIABLES_LIST="${VARIABLES_LIST} $(sed -e '/^[[:space:]]*$/d' -e '/^[#]\+.*$/d' -e 's/^\([^=+]*\)+\?=\(.*\)$/\1/g' "${TANGO_APP_ENV_FILE}")"
 	[ -f "${TANGO_USER_ENV_FILE}" ] && VARIABLES_LIST="${VARIABLES_LIST} $(sed -e '/^[[:space:]]*$/d' -e '/^[#]\+.*$/d' -e 's/^\([^=+]*\)+\?=\(.*\)$/\1/g' "${TANGO_USER_ENV_FILE}")"
@@ -73,11 +77,15 @@ __add_modules_declared_variable_names() {
 # add variables to variables list to be stored in env files
 __add_declared_variables() {
 	VARIABLES_LIST="${VARIABLES_LIST} $1"
+
+	VARIABLES_LIST="$($STELLA_API list_filter_duplicate "${VARIABLES_LIST}")"
 }
 
 # add associative array to arrays list to be stored in env files
 __add_declared_associative_array() {
 	ASSOCIATIVE_ARRAY_LIST="${ASSOCIATIVE_ARRAY_LIST} ${1}"
+
+	ASSOCIATIVE_ARRAY_LIST="$($STELLA_API list_filter_duplicate "${ASSOCIATIVE_ARRAY_LIST}")"
 }
 
 
@@ -330,9 +338,9 @@ __add_volume_artefact_all() {
 		f="$($STELLA_API rel_to_abs_path "${f}" "${TANGO_APP_ROOT}")"
 		target="$(basename "${f}")"
 		if [ -f "${f}" ]; then 
-			__tango_log "WARN" "[${f}] is a file, not mounted inside folder {${TANGO_ARTEFACT_MOUNT_POINT}}"
+			__tango_log "WARN" "tango" "[${f}] is a file, not mounted inside folder {${TANGO_ARTEFACT_MOUNT_POINT}}"
 		else
-			[ ! -d "${f}" ] && __tango_log "INFO" "[${f}] is not an existing directory and will be auto created."
+			[ ! -d "${f}" ] && __tango_log "INFO" "tango" "[${f}] is not an existing directory and will be auto created."
 			__name="$($STELLA_API md5 "${f}")"
 			__add_volume_local_definition "artefact_${__name}" "${f}"
 			for s in $TANGO_ARTEFACT_SERVICES; do
@@ -341,7 +349,7 @@ __add_volume_artefact_all() {
 				#	|| echo "** WARN : unknow ${s} service declared in TANGO_ARTEFACT_SERVICES"
 				
 			done
-			[ "${VERBOSE}" = "1" ] && __tango_log "DEBUG" "[${f}] will be mapped to {${TANGO_ARTEFACT_MOUNT_POINT}/${target}}"			
+			[ "${VERBOSE}" = "1" ] && __tango_log "DEBUG" "tango" "[${f}] will be mapped to {${TANGO_ARTEFACT_MOUNT_POINT}/${target}}"			
 		fi
 	done
 }
@@ -626,13 +634,13 @@ __add_service_direct_port_access_all() {
 			if __check_docker_compose_service_exist "${service}"; then
 				port_inside="$(yq r "${GENERATED_DOCKER_COMPOSE_FILE}" services.$service.expose[0])"
 				if [ ! "${port_inside}" = "" ]; then
-					[ "${VERBOSE}" = "1" ] && __tango_log "DEBUG" "Activate direct access to $service : mapping $port to $port_inside"
+					[ "${VERBOSE}" = "1" ] && __tango_log "DEBUG" "tango" "Activate direct access to $service : mapping $port to $port_inside"
 					yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.$service.ports[+]" "$port:$port_inside"
 				else
-					__tango_log "WARN" "cannot activate direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
+					__tango_log "WARN" "tango" "cannot activate direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
 				fi
 			else
-				__tango_log "WARN" "unknow ${service} service declared in ${s}"
+				__tango_log "WARN" "tango" "unknow ${service} service declared in ${s}"
 			fi
 		fi
 	done
@@ -1032,10 +1040,10 @@ __set_error_engine() {
 		enable|debug )
 			case ${LETS_ENCRYPT_CHALLENGE} in
 				HTTP )
-					__tango_log "DEBUG" "do not generate a *.domain.com certificate because we use HTTP challenge"
+					__tango_log "DEBUG" "tango" "do not generate a *.domain.com certificate because we use HTTP challenge"
 				;;
 				DNS )
-					__tango_log "DEBUG" "generate a *.domain.com certificate because we use DNS challenge"
+					__tango_log "DEBUG" "tango" "generate a *.domain.com certificate because we use DNS challenge"
 					__add_letsencrypt_service "error"
 				;;
 			esac
@@ -1352,11 +1360,11 @@ docker-compose() {
 	# NOTE we need to specify project directory because when launching from an other directory, docker compose seems to NOT auto load .env file
 	case ${TANGO_INSTANCE_MODE} in
 		shared ) 
-			__tango_log "DEBUG" "COMPOSE_IGNORE_ORPHANS=1 docker-compose ${DOCKER_COMPOSE_LOG} -f "${GENERATED_DOCKER_COMPOSE_FILE}" --env-file "${GENERATED_ENV_FILE_FOR_COMPOSE}" --project-name "${TANGO_INSTANCE_NAME}" --project-directory "${TANGO_APP_ROOT}" "$@""
+			__tango_log "DEBUG" "tango" "COMPOSE_IGNORE_ORPHANS=1 docker-compose ${DOCKER_COMPOSE_LOG} -f "${GENERATED_DOCKER_COMPOSE_FILE}" --env-file "${GENERATED_ENV_FILE_FOR_COMPOSE}" --project-name "${TANGO_INSTANCE_NAME}" --project-directory "${TANGO_APP_ROOT}" "$@""
 			COMPOSE_IGNORE_ORPHANS=1 command docker-compose ${DOCKER_COMPOSE_LOG} -f "${GENERATED_DOCKER_COMPOSE_FILE}" --env-file "${GENERATED_ENV_FILE_FOR_COMPOSE}" --project-name "${TANGO_INSTANCE_NAME}" --project-directory "${TANGO_APP_ROOT}" "$@"
 			;;
 		* ) 
-			__tango_log "DEBUG" "COMPOSE_IGNORE_ORPHANS=1 docker-compose ${DOCKER_COMPOSE_LOG} -f "${GENERATED_DOCKER_COMPOSE_FILE}" --env-file "${GENERATED_ENV_FILE_FOR_COMPOSE}" --project-name "${TANGO_APP_NAME}" --project-directory "${TANGO_APP_ROOT}" "$@""
+			__tango_log "DEBUG" "tango" "COMPOSE_IGNORE_ORPHANS=1 docker-compose ${DOCKER_COMPOSE_LOG} -f "${GENERATED_DOCKER_COMPOSE_FILE}" --env-file "${GENERATED_ENV_FILE_FOR_COMPOSE}" --project-name "${TANGO_APP_NAME}" --project-directory "${TANGO_APP_ROOT}" "$@""
 			COMPOSE_IGNORE_ORPHANS=1 command docker-compose ${DOCKER_COMPOSE_LOG} -f "${GENERATED_DOCKER_COMPOSE_FILE}" --env-file "${GENERATED_ENV_FILE_FOR_COMPOSE}" --project-name "${TANGO_APP_NAME}" --project-directory "${TANGO_APP_ROOT}" "$@"
 			;;
 	esac
@@ -1364,6 +1372,14 @@ docker-compose() {
 }
 
 # VARIOUS -----------------
+
+# generate a string to be used as header Authentification: Basic
+__base64_basic_authentification() {
+	local __user="$1"
+	local __password="$2"
+
+	python -c 'import base64;print(base64.b64encode(b"'$__user':'$__password'").decode("ascii"))'
+}
 
 # launch a curl command from a docker image if docker is available or from curl from host if not
 __tango_curl() {
@@ -1393,6 +1409,8 @@ __xml_set_attribute_value() {
 	mv "${__file}.new" "${__file}"
 }
 
+# get an attribute value 
+#		__xml_get_attribute_value "Preferences.xml" "/Preferences/@PlexOnlineToken"
 __xml_get_attribute_value() {
 	local __file="$1"
 	local __xpath_selector="$2"
@@ -1436,11 +1454,11 @@ __create_path() {
 	local __file=
 
 	if [ ! -d "${__root}" ]; then
-		__tango_log "ERROR" "root path ${__root} do not exist"
+		__tango_log "ERROR" "tango" "root path ${__root} do not exist"
 		return
 	fi
 
-	__tango_log "DEBUG" "__create_path root : ${__root} folders : ${__list}"
+	__tango_log "DEBUG" "tango" "__create_path root : ${__root} folders : ${__list}"
 	for p in ${__list}; do
 		[ "${p}" = "FOLDER" ] && __folder=1 && __file= && continue
 		[ "${p}" = "FILE" ] && __folder= && __file=1 && continue
@@ -1449,13 +1467,13 @@ __create_path() {
 		if [ "${__folder}" = "1" ]; then
 			if [ ! -d "${__path}" ]; then
 				__msg=$(docker run -it --rm --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} --network ${TANGO_APP_NETWORK_NAME} -v "${__root}":"/foo" ${TANGO_SHELL_IMAGE} bash -c "mkdir -p /foo/${p} && chown ${TANGO_USER_ID}:${TANGO_GROUP_ID} /foo/${p}")
-				__tango_log "DEBUG" "__create_path msg : ${__msg}"
+				__tango_log "DEBUG" "tango" "__create_path msg : ${__msg}"
 			fi
 		fi
 		if [ "${__file}" = "1" ]; then
 			if [ ! -f "${__path}" ]; then
 				__msg=$(docker run -it --rm --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} --network ${TANGO_APP_NETWORK_NAME} -v "${__root}":"/foo" ${TANGO_SHELL_IMAGE} bash -c "touch /foo/${p} && chown ${TANGO_USER_ID}:${TANGO_GROUP_ID} /foo/${p}")
-				__tango_log "DEBUG" "__create_path msg : ${__msg}"
+				__tango_log "DEBUG" "tango" "__create_path msg : ${__msg}"
 			fi
 		fi
 	done
@@ -1472,12 +1490,12 @@ __check_mandatory_path() {
 	local __mode="$1"
 
 	for p in ${TANGO_PATH_LIST}; do
-		[ ! -d "${!p}" ] && echo "* ERROR : Mandatory root path ${p} [${!p}] do not exist" && [ ! "${__mode}" = "warn" ] && exit 1
+		[ ! -d "${!p}" ] && echo "* ERROR : Mandatory root path ${p} [${!p}] do not exist" && [ ! "${__mode}" = "WARN" ] && exit 1
 	done 
 
 	if [ ! "${TANGO_ARTEFACT_FOLDERS}" = "" ]; then
 		for f in ${TANGO_ARTEFACT_FOLDERS}; do
-			[ ! -d "${f}" ] && echo "* ERROR : Mandatory declared artefact folder [${f}] do not exist" && [ ! "${__mode}" = "warn" ] && exit 1
+			[ ! -d "${f}" ] && echo "* ERROR : Mandatory declared artefact folder [${f}] do not exist" && [ ! "${__mode}" = "WARN" ] && exit 1
 		done
 	fi
 }
@@ -1501,11 +1519,10 @@ __check_lets_encrypt_settings() {
 }
 
 
-
-
 __tango_log() {
 	local __level="$1"
-	shift 1
+	local __domain="$2"
+	shift 2
 	local __msg="$@"
 
 	if [ "$TANGO_LOG_STATE" = "ON" ]; then
@@ -1566,25 +1583,26 @@ __tango_log() {
 				ASK ) __level="${__level}  ";;
 			esac
 			if [ "${_color}" = "" ]; then
-				echo "${__level}> ${__msg}"
+				echo "${__level}@${__domain}> ${__msg}"
 			else
 				if [ "${_reset_color_for_msg}" = "1" ]; then
-					${_color} -n "${__level}> "; clr_reset "${__msg}"
+					${_color} -n "${__level}@${__domain}> "; clr_reset "${__msg}"
 				else
-					${_color} "${__level}> ${__msg}"
+					${_color} "${__level}@${__domain}> ${__msg}"
 				fi
 			fi
 		fi
 	fi
 }
 
-
 # trash any output
 __tango_log_run_without_output() {
+	local __domain="$1"
+	shift 1
 	if [ "${TANGO_LOG_STATE}" = "ON" ]; then
 		if [ "${TANGO_LOG_LEVEL}" = "DEBUG" ]; then
 			#echo "DEBUG>" $@
-			__tango_log "DEBUG" "$@"
+			__tango_log "DEBUG" "$__domain" "$@"
 		fi
 	fi
 
@@ -1597,10 +1615,12 @@ __tango_log_run_without_output() {
 
 # usefull when attachin tty (1>/dev/null make terminal disappear)
 __tango_log_run_with_output() {
+	local __domain="$1"
+	shift 1
 	if [ "${TANGO_LOG_STATE}" = "ON" ]; then
 		if [ "${TANGO_LOG_LEVEL}" = "DEBUG" ]; then
 			#echo "DEBUG>" $@
-			__tango_log "DEBUG" "$@"
+			__tango_log "DEBUG" "$__domain" "$@"
 		fi
 	fi
 	"$@"

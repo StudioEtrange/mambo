@@ -1,0 +1,30 @@
+---
+# TODO MEDUSA
+- name: Set sabznbd host
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^sabnzbd_host\s?=.*'
+    line: "sabnzbd_host = http://sabnzbd"
+    state: present
+
+- name: Set sabznbd port
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^sabnzbd_port\s?=.*'
+    line: "sabnzbd_port = 8080"
+    state: present
+
+- name: Set sabznbd api key
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^sabnzbd_apikey\s?=.*'
+    line: "sabnzbd_apikey = 8080"
+    state: present
+
+# - name: Set sabznbd default_downloadDirectory
+#   lineinfile:
+#     path: "{{ sabnzbd_ini.stat.path }}"
+#     insertafter: '^warn_dupl_jobs\s?=.*'
+#     regexp: '^username\s?=.*'
+#     line: "username = {{ sabnzbd.user }}"
+#     state: present

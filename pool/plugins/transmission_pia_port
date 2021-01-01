@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-# FEATURES : will set remote transmission port
+# FEATURES : this plugun set remote transmission port according to PIA vpn provider
 
 
 # NEED transmission volumes
@@ -32,7 +32,7 @@ pia_get_port "${DATA}"
 if [ $? -eq 0 ]; then
 	echo "  - we use port $PIA_FORWARD_PORT, setting transmission with it"
 	# set transmission with this port
- 	transmission_set_port "$PIA_FORWARD_PORT"
+ 	__transmission_set_port "$PIA_FORWARD_PORT"
 else
 	echo "  - ERROR while getting PIA port"
 fi

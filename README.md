@@ -39,7 +39,8 @@ Non functionnal
 ## USAGE
 
 
-### First steps
+### Quick usage
+
 * Install
 
     ```
@@ -48,33 +49,26 @@ Non functionnal
     ./mambo install
     ```
 
-* First initialization
-
-    ```
-    PLEX_USER="no@no.com" PLEX_PASSWORD="****" ./mambo init plex
-    ```
-
-
-### Minimal configuration
-
-* Create a `mambo.env` file with
+* Create a `mambo.env` file in your $HOME with
     ```
     PLEX_USER=no@no.com
     PLEX_PASSWORD=****
     TANGO_DOMAIN=mydomain.com
     ```
 
-* For HTTPS only access, add 
+* For HTTPS access
     ```
-    LETS_ENCRYPT=enable
     LETS_ENCRYPT_MAIL=no@no.com
+    ```
 
-    NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi sabnzbd tautulli medusa
+* Init
+    ```
+    ./mambo init 
     ```
 
 * Launch
     ```
-    ./mambo up -f mambo.env
+    ./mambo up
     ```
 
 * Stop all
@@ -223,7 +217,7 @@ Non functionnal
 
     Into Organizr2
 
-    * Add a Plex tab in Organizr2 menu
+    * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
             * Tab name : Plex - MUST be same name as listed in `mambo services list` - ignore case
             * Tab Url : `https://plex.mydomain.com`
@@ -321,30 +315,6 @@ Non functionnal
             * service name : `calibreweb_books` organizr2 tab name : `books`
 
 
-#### Organizr2 : Info about reverse proxy -- You may want to write reverse proxy rules to 
-        * firstly reverse proxy the service because `Tab URL` may not be reachable from outside network (internet)
-        * secondly use organizr authorization API [https://docs.organizr.app/books/setup-features/page/serverauth]
-        * lastly use organizr SSO by playing around http header with reverse proxy role [https://docs.organizr.app/books/setup-features/page/sso] [reverse proxy rule sample : https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php]
-    * writing specific reverse proxy rules for organizr nginx is more suitable than traefik2 because it can modify the response and inject some code like CSS for cutom thema with `sub_filter` instruction
-        ```
-        location /sonarr {
-            proxy_pass http://192.168.1.34:8990/sonarr;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_redirect off;
-            proxy_buffering off;
-            proxy_http_version 1.1;
-            proxy_no_cache $cookie_session;
-            # modify CSS part
-            proxy_set_header Accept-Encoding "";
-            sub_filter
-            '</head>'
-            '<link rel="stylesheet" type="text/css" href="https://gilbn.github.io/theme.park/CSS/themes/sonarr/plex.css">
-            </head>';
-            sub_filter_once on;
-        }
-        ```
 ----
 ### Booksonic
 
@@ -362,7 +332,7 @@ Non functionnal
 
     Into Organizr2
 
-    * Add a Booksonic tab in Organizr2 menu
+    * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
             * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
             * Tab Url : `https://booksonic.mydomain.com`
@@ -412,7 +382,7 @@ Non functionnal
 
     Into Organizr2
 
-    * Add an Tautulli tab in Organizr2 menu
+    * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
             * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
             * Tab Url : `https://tautulli.mydomain.com`
@@ -451,6 +421,8 @@ Non functionnal
 ----
 ### Medusa
 
+Into Medusa
+
 * Medusa configuration :
     * General / Misc
         * Show root directories : add each tv media folders from `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
@@ -474,7 +446,7 @@ Non functionnal
     Into Organizr2
 
 
-    * Add a Medusa tab in Organizr2 menu
+    * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
             * Tab name : Medusa - MUST be same name as listed in `mambo services list` - ignore case
             * Tab Url : `https://medusa.mydomain.com`
@@ -528,7 +500,7 @@ Non functionnal
 
     Into Organizr2
 
-    * Add an Ombi tab in Organizr2 menu
+    * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
             * Tab name : Ombi - MUST be same name as listed in `mambo services list` - ignore case
             * Tab Url : `https://ombi.mydomain.com/auth/cookie`
@@ -546,6 +518,28 @@ Non functionnal
             * Token : get API Key from Ombi settings / Ombi / Ombi Configuration
 
     * Integration to Homepage : TODO
+---
+### MKVToolNix
+
+    * Check it works at `https://mkvtoolnix.domain.com`
+
+#### MKVToolNix and Organizr2 
+
+    Into Organizr2
+
+    * Add a tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : MKVToolNix - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://mkvtoolnix.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Image url : `https://img2.freepng.fr/20180609/ij/kisspng-matroska-mkvtoolnix-computer-software-5b1b5f16f14ec2.9703737815285204709884.jpg`
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list
+            * Group : Co-Admin
+
+
 
 ----
 ### JDownloader2
@@ -557,15 +551,45 @@ Non functionnal
 ----
 ### transmission
 
-    * NOTE : settings are saved only when transmission is stopped
+    * UI Access through https://media.mydomain.com 
+    * Direct UI Access through https://internal-transmission.mydomain.com
+    * Third tools access through https://transmission.mydomain.com
+    * NOTE : when modify settings from webui, they are saved only when transmission is stopped
 
+#### Transmission and Organizr2 
 
+    Into mambo.env 
+       
+    * set TRANSMISSION_USER and TRANSMISSION_PASSWORD
 
+    Into Organizr2
+        
+    * Add a tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : Transmission - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://internal-transmission.mydomain.com`
+            * Local Url : not needed (or same as Tab Url)
+            * Choose image : `transmission`
+            * Press 'Test tab' : it will indicate if we can use this tab as iframe
+            * Press 'Add tab'
+            * Refresh your browser page
+        * Tab editor / Tabs list
+            * Group : Co-Admin
+
+    * Integration to Homepage :
+        * Tab Editor / Homepage Items / Transmission
+            * Enable, Minimum Authentication : Co-Admin
+            * Connection / Url : http://transmission:9091
+            * Connection / User and password : fill with correct values
 
 ----
 ### Calibre Web
-
-    * Location of Calibre database : /books
+    
+    Into Calibre web `https://books.mydomain.com`
+    
+    * First access :
+        * Location of Calibre database : /books
+        * Connection : admin/admin123
 
     * Admin / Configuration / Edit UI Configuration
         * View Configuration / Theme : caliblur
@@ -576,10 +600,11 @@ Non functionnal
             * Path to Kepubify E-Book Converter : /usr/bin/kepubify
             * Location of Unrar binary : /usr/bin/unrar
 
-#### Calibre Web and Organizr2 
+#### Calibre Web and Organizr2
+
     Into Organizr2
 
-    * Add an Ombi tab in Organizr2 menu
+    * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
             * Tab name : books - MUST be same name as listed in `mambo services list` - ignore case
             * Tab Url : `https://books.mydomain.com`
@@ -592,12 +617,16 @@ Non functionnal
             * Group : User
             * Type : New window
 
+    * Settings / System Settings / Main / Auth Proxy
+        * Auth Proxy : enable
+        * Auth Proxy Header Name : X-WEBAUTH-USER (this is the default value)
+
 
     Into Calibre web
 
-    <!-- * Admin / Configuration / Edit Basic Configuration / Feature Configuration
+    * Admin / Configuration / Edit Basic Configuration / Feature Configuration
         * Allow Reverse Proxy Authentication : enable
-        * Reverse Proxy Header Name :  -->
+        * Reverse Proxy Header Name :  X-WEBAUTH-USER
 
 ----
 ## NETWORK CONFIGURATION
@@ -724,45 +753,13 @@ List of available plugins
 ----
 ## LINKS
 
-* Media distribution
-    * cloudbox https://github.com/Cloudbox/Cloudbox - docker based - ansible config script for service and install guide for each service
-    * cloudbox addon https://github.com/Cloudbox/Community
-    * openflixr https://www.openflixr.com/ - full VM
-    * autopirate - https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/ - docker based - use traefik1 + oauth2 proxy
-    * a media stack on docker with traefik1 https://gist.github.com/anonymous/66ff223656174fd39c76d6075d6535fd
-    * another media stack : https://gitlab.com/guillaumedsde/docker-media-stack/-/tree/master
-
-* Organizr2
-    * organizr2 and nginx : https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
-    * organizr2 + nginx (using subdomains or subdirectories) + letsencrypt https://technicalramblings.com/blog/how-to-setup-organizr-with-letsencrypt-on-unraid/
-    * organizr + nginx samples for several services https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
-    * automated organizr2 installation : https://github.com/causefx/Organizr/issues/1370
-    * various
-        * https://guydavis.github.io/2019/01/03/nginx_organizr_v2/
-        * https://www.reddit.com/r/organizr/comments/axbo3r/organizr_authenticate_other_services_radarr/
-    * STILL NOT FULLY WORK organizr2 and traefik2 auth : 
-        https://github.com/causefx/Organizr/issues/1240
-        https://docs.organizr.app/books/setup-features/page/serverauth
-    * Plex Auth https://github.com/hjone72/PlexAuth
 
 
 
-* Aria2 download utility aria2
-    * https://aria2.github.io/ - support standard download method and bitorrent and metalink format
-    * http://ariang.mayswind.net/ - frontend
-    * https://github.com/lukasmrtvy/lsiobase-aria2-webui - docker image
 
-* youtube-dl download online videos
-    * HTML GUI for youtube-dl : https://github.com/Rudloff/alltube
 
-* filebot ansible role https://github.com/Cloudbox/Community/blob/master/roles/filebot/tasks/main.yml
 
-* Plex 
-    * guides https://plexguide.com/
-    * install plugin webtool https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks
-    * install traktv plugin https://github.com/Cloudbox/Cloudbox/tree/master/roles/trakttv-plugin/tasks
-    * install some agent and scanner https://github.com/Cloudbox/Community/wiki/Plex-Scanners-and-Agents 
-    * dashboard stat : https://github.com/Boerderij/Varken
+
 
 * Backup solutions
     * https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
@@ -774,54 +771,9 @@ List of available plugins
     * A collection of themes/skins for your favorite apps 
         https://github.com/gilbN/theme.park
 
-* Unmanic - Video files converter with web ui and scheduler https://github.com/Josh5/unmanic
+
 
 * Komga - comics server
 
-* Torrent
-
-    * opening ports 
-        * For better download/upload torrent client should be an active node by opening its port. Else less client
-        can connect directly to your torrent client. So you may need to open this port on your router. check with https://canyouseeme.org/
-        * In case of using VPN, most VPN provider do not offer port forwarding and your torrent client may not be reacheable.
-        * Having a good upload rate is usefull with private tracker with quota rules or test for direct connection capability.
-        But for such private trackers the VPN may have limited benefit (?) as long as the transfer traffic itself is encrypted, only the members can see what you download and upload and in private trackers.
-        https://superuser.com/a/1053429/486518
-        https://dietpi.com/phpbb/viewtopic.php?p=17692#p17692
-        * to check if your IP have been detected using torrent : https://iknowwhatyoudownload.com
-        * PIA vpn provider provide port forwarding on some server : https://www.privateinternetaccess.com/helpdesk/kb/articles/can-i-use-port-forwarding-without-using-the-pia-client
-
-    * transmission family
-        * docker images with openvpn client
-            * docker bundle transmission with openvpn client, stop transmission when openvpn down, dinamucly configure remote port for pia (private internet access) and perfectprivacy vpn providers (see https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/start.sh)
-            https://github.com/haugene/docker-transmission-openvpn
-
-
-    * rtorrent family
-        * installation
-            * install on debian for rutorrent, rtorrent  with configuration detail https://terminal28.com/how-to-install-and-configure-rutorrent-rtorrent-debian-9-stretch/
-            * install ansible role for rutorrent, rtorrent with complete dynamic rtorrent configuration https://github.com/Cloudbox/Cloudbox/tree/master/roles/rutorrent
-
-        * samples
-            * docker-compose sample with transmission torrent client, traefik2 and dperson openvpn client
-            https://www.reddit.com/r/docker/comments/daahlq/anybody_have_openvpn_any_torrent_client_and/
-            * docker-compose sample with rutorrent and dperson openvpn client
-            https://community.containo.us/t/rutorrent-is-not-displaying-correctly-after-adding-path-rule/1987
-
-        * docker images
-            * docker bundle rtorrent, flood (web ui) - from code source
-            https://github.com/Wonderfall/docker-rtorrent-flood
-            https://hub.docker.com/r/wonderfall/rtorrent-flood/dockerfile
-            * docker bundle rtorrent, rutorrent (webui), flood (web ui), autodl-irssi - based on linuxserver distribution - plugins : logoff fileshare filemanager pausewebui mobile ratiocolor force_save_session showip
-            https://github.com/romancin/rutorrent-flood-docker
-            https://hub.docker.com/r/romancin/rutorrent-flood
-            * docker bundle rtorrent from package, rutorrent from source
-            https://github.com/linuxserver/docker-rutorrent
-        
-        * docker images with openvpn client
-            * docker bundle rTorrent-ps (bitorrent client : rtorrent extended distribution), ruTorrent (web front end), autodl-irssi (scan irc and download torrent), openvpn client, Privoxy (web proxy allow unfiltered access to index sites)
-            https://github.com/binhex/arch-rtorrentvpn
-            * docker bundle rtorrent, flood (web ui), openvpn client - with detailed rtorrent configuration
-            https://github.com/h1f0x/rtorrent-flood-openvpn
 
 

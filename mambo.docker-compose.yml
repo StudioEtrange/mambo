@@ -40,8 +40,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      # cannot use PLEX_DATA_PATH because plex folder have to be created elsewhere (see scripts/mambo.sh)
-      device: ${APP_DATA_PATH}/plex
+      device: ${PLEX_DATA_PATH}
     name: ${TANGO_APP_NAME}_plex_data
   mkvtoolnix_data:
     driver: local
@@ -83,9 +82,15 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      # path created from within scripts/mambo.sh
-      device: ${VAULT_PATH}/torrent
+      device: ${VAULT_TORRENT_PATH}
     name: ${TANGO_APP_NAME}_transmission_watch
+  nzbtomedia_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${NZBTOMEDIA_DATA_PATH}
+    name: ${TANGO_APP_NAME}_nzbtomedia_data
   booksonic_data:
     driver: local
     driver_opts:
@@ -124,6 +129,7 @@ volumes:
 
 # NOTE : yaml do not support array merge, so we cannot factorize volume or labels declaration here
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
+# https://github.com/linuxserver/docker-calibre-web
 x-calibreweb: &default-calibreweb
   image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
   depends_on: 
@@ -177,6 +183,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.organizr2.loadbalancer.server.port=80"
+      - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
+      - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
       - "traefik.http.routers.organizr2.service=organizr2"
@@ -187,9 +198,7 @@ services:
       - "traefik.http.routers.organizr2-secure.service=organizr2"
       - "traefik.http.routers.organizr2-secure.tls=true"
       - "traefik.http.routers.organizr2-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.organizr2.loadbalancer.server.port=80"
-      - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
-      - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
+      # routers middleware
       - "traefik.http.routers.organizr2.middlewares=error-middleware"
       - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
     networks:
@@ -214,6 +223,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
+      - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
+      - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.tautulli.entrypoints=${TAUTULLI_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:${TAUTULLI_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.tautulli.priority=${TAUTULLI_PRIORITY}"
@@ -224,9 +238,7 @@ services:
       - "traefik.http.routers.tautulli-secure.service=tautulli"
       - "traefik.http.routers.tautulli-secure.tls=true"
       - "traefik.http.routers.tautulli-secure.tls.domains[0].main=${TAUTULLI_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
-      - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
-      - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
+      # routers middleware
       - "traefik.http.routers.tautulli.middlewares=tautulli-auth@rest,error-middleware"
       - "traefik.http.routers.tautulli-secure.middlewares=tautulli-auth@rest,error-middleware"
     networks:
@@ -253,6 +265,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.ombi.loadbalancer.server.port=5000"
+      - "traefik.http.services.ombi.loadbalancer.server.scheme=http"
+      - "traefik.http.services.ombi.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.ombi.entrypoints=${OMBI_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:${OMBI_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.ombi.priority=${OMBI_PRIORITY}" 
@@ -263,9 +280,7 @@ services:
       - "traefik.http.routers.ombi-secure.service=ombi"
       - "traefik.http.routers.ombi-secure.tls=true"
       - "traefik.http.routers.ombi-secure.tls.domains[0].main=${OMBI_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.ombi.loadbalancer.server.port=5000"
-      - "traefik.http.services.ombi.loadbalancer.server.scheme=http"
-      - "traefik.http.services.ombi.loadbalancer.passhostheader=true"
+      # routers middleware
       - "traefik.http.routers.ombi.middlewares=ombi-auth@rest,error-middleware"
       - "traefik.http.routers.ombi-secure.middlewares=ombi-auth@rest,error-middleware"
     networks:
@@ -296,6 +311,13 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
+      - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
+      # middleware
+      - "traefik.http.middlewares.sabnzbd-stripprefix.stripprefix.prefixes=/sabnzbd, /sabnzbd/"
+      # routers
       - "traefik.http.routers.sabnzbd.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
       - "traefik.http.routers.sabnzbd.priority=${SABNZBD_PRIORITY}"
@@ -306,10 +328,7 @@ services:
       - "traefik.http.routers.sabnzbd-secure.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.tls=true"
       - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
-      - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
-      - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
-      - "traefik.http.middlewares.sabnzbd-stripprefix.stripprefix.prefixes=/sabnzbd, /sabnzbd/"
+      # routers middleware
       - "traefik.http.routers.sabnzbd.middlewares=sabnzbd-stripprefix,sabnzbd-auth@rest,error-middleware"
       - "traefik.http.routers.sabnzbd-secure.middlewares=sabnzbd-stripprefix,sabnzbd-auth@rest,error-middleware"
     networks:
@@ -321,6 +340,26 @@ services:
     build:
       context: https://github.com/StudioEtrange/docker-sabnzbd.git#:ver/${SABNZBD_VERSION:-latest}
 
+  # nzbtomedia : sync nzb software
+  # https://github.com/clinton-hall/nzbToMedia
+  nzbtomedia:
+    image: studioetrange/nzbtomedia:latest
+    container_name: ${TANGO_APP_NAME}_nzbtomedia
+    depends_on:
+      - service_init
+    volumes:
+      # data/nzbtomedia will contain nzbtomedia
+      - nzbtomedia_data:/app
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - VERSION=${NZBTOMEDIA_VERSION:-master}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+    networks:
+      - default
+    build:
+      context: ./pool/image/nzbtomedia
 
 
   # Media server
@@ -348,6 +387,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.plex.loadbalancer.server.port=32400"
+      - "traefik.http.services.plex.loadbalancer.server.scheme=http"
+      - "traefik.http.services.plex.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.plex.entrypoints=${PLEX_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.plex.rule=HostRegexp(`{subdomain:${PLEX_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.plex.priority=${PLEX_PRIORITY}"
@@ -358,9 +402,7 @@ services:
       - "traefik.http.routers.plex-secure.service=plex"
       - "traefik.http.routers.plex-secure.tls=true"
       - "traefik.http.routers.plex-secure.tls.domains[0].main=${PLEX_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.plex.loadbalancer.server.port=32400"
-      - "traefik.http.services.plex.loadbalancer.server.scheme=http"
-      - "traefik.http.services.plex.loadbalancer.passhostheader=true"
+      # routers middleware
       # NOTE : do not activate error-middleware, if so plex service will cannot ask for authentification
       #- "traefik.http.routers.plex.middlewares=error-middleware"
       #- "traefik.http.routers.plex-secure.middlewares=error-middleware"
@@ -396,6 +438,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.medusa.loadbalancer.server.port=8081"
+      - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
+      - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.medusa.entrypoints=${MEDUSA_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.medusa.rule=HostRegexp(`{subdomain:${MEDUSA_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.medusa.priority=${MEDUSA_PRIORITY}"
@@ -406,9 +453,7 @@ services:
       - "traefik.http.routers.medusa-secure.service=medusa"
       - "traefik.http.routers.medusa-secure.tls=true"
       - "traefik.http.routers.medusa-secure.tls.domains[0].main=${MEDUSA_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.medusa.loadbalancer.server.port=8081"
-      - "traefik.http.services.medusa.loadbalancer.server.scheme=http"
-      - "traefik.http.services.medusa.loadbalancer.passhostheader=true"
+      # routers middleware
       - "traefik.http.routers.medusa.middlewares=medusa-auth@rest,error-middleware"
       - "traefik.http.routers.medusa-secure.middlewares=medusa-auth@rest,error-middleware"
     networks:
@@ -445,6 +490,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.mkvtoolnix.loadbalancer.server.port=5800"
+      - "traefik.http.services.mkvtoolnix.loadbalancer.server.scheme=http"
+      - "traefik.http.services.mkvtoolnix.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.mkvtoolnix.entrypoints=${MKVTOOLNIX_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.mkvtoolnix.rule=HostRegexp(`{subdomain:${MKVTOOLNIX_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.mkvtoolnix.priority=${MKVTOOLNIX_PRIORITY}"
@@ -455,9 +505,7 @@ services:
       - "traefik.http.routers.mkvtoolnix-secure.service=mkvtoolnix"
       - "traefik.http.routers.mkvtoolnix-secure.tls=true"
       - "traefik.http.routers.mkvtoolnix-secure.tls.domains[0].main=${MKVTOOLNIX_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.mkvtoolnix.loadbalancer.server.port=5800"
-      - "traefik.http.services.mkvtoolnix.loadbalancer.server.scheme=http"
-      - "traefik.http.services.mkvtoolnix.loadbalancer.passhostheader=true"
+      # routers middleware
       - "traefik.http.routers.mkvtoolnix.middlewares=mkvtoolnix-auth@rest,error-middleware"
       - "traefik.http.routers.mkvtoolnix-secure.middlewares=mkvtoolnix-auth@rest,error-middleware"
     networks:
@@ -465,6 +513,85 @@ services:
     expose:
       - 5800/tcp
   
+
+
+  # https://github.com/linuxserver/docker-transmission
+  # NOTE : there is 2 subservices transmission_internal and transmission_external
+  #     transmission_internal (http://internal-transmission.domain.com) is protected by organizr auth and will auto login with transmission auth basic --> Use this for portal access
+  #               if organizr auth is disabled, this subservices will have auto login disabled
+  #     transmission_external (http://transmission.domain.com) is NOT protected by organizr auth and need a basic authentification --> Use this for api access with 3rd tool
+  #                                                         tested with chrome "Transmission easy client"
+  # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
+  transmission:
+    # TODO to change image wait for PRs https://github.com/linuxserver/docker-transmission/pull/140 https://github.com/linuxserver/docker-transmission/pull/141
+    #image: linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
+    image: studioetrange/transmission:latest
+    container_name: ${TANGO_APP_NAME}_transmission
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - transmission_data:/config
+      - transmission_download:/downloads
+      - transmission_watch:/watch
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - TRANSMISSION_WEB_HOME=${TRANSMISSION_UI}
+      - USER=${TRANSMISSION_USER:-}
+      - PASS=${TRANSMISSION_PASSWORD:-}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service transmission
+      - "traefik.http.services.transmission.loadbalancer.server.port=9091"
+      - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
+      - "traefik.http.services.transmission.loadbalancer.passhostheader=true"
+      - 'traefik.http.middlewares.transmission-autoauthbasic.headers.customrequestheaders.Authorization=Basic ${TRANSMISSION_AUTH_BASIC}'
+      # transmission have a lot of problem with url endpoint and code error 409, we need to add /
+      - 'traefik.http.middlewares.transmission-slash1.redirectregex.regex=^(https?://[^/]+/transmission/web)$$'
+      - 'traefik.http.middlewares.transmission-slash1.redirectregex.replacement=$${1}/'
+      - 'traefik.http.middlewares.transmission-slash2.redirectregex.regex=^(https?://[^/]+/transmission/rpc)$$'
+      - 'traefik.http.middlewares.transmission-slash2.redirectregex.replacement=$${1}/'
+      # sub service transmission_internal
+      - "traefik.http.routers.transmission_internal.entrypoints=${TRANSMISSION_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.transmission_internal.rule=HostRegexp(`{subdomain:internal-${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_internal.priority=${TRANSMISSION_INTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_internal.service=transmission"
+      - "traefik.http.routers.transmission_internal-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.transmission_internal-secure.rule=HostRegexp(`{subdomain:internal-${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_internal-secure.priority=${TRANSMISSION_INTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_internal-secure.service=transmission"
+      - "traefik.http.routers.transmission_internal-secure.tls=true"
+      - "traefik.http.routers.transmission_internal-secure.tls.domains[0].main=internal-${TRANSMISSION_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.transmission_internal.middlewares=transmission-auth@rest,transmission-slash1,transmission-slash2,transmission-autoauthbasic"
+      #- "traefik.http.routers.transmission_internal.middlewares=transmission-auth@rest,transmission-authbasic,error-middleware"
+      - "traefik.http.routers.transmission_internal-secure.middlewares=transmission-auth@rest,transmission-slash1,transmission-slash2,transmission-autoauthbasic"
+      #- "traefik.http.routers.transmission_internal-secure.middlewares=transmission-auth@rest,transmission-authbasic,error-middleware"
+      # sub service transmission_external
+      - "traefik.http.routers.transmission_external.entrypoints=${TRANSMISSION_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.transmission_external.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_external.priority=${TRANSMISSION_EXTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_external.service=transmission"
+      - "traefik.http.routers.transmission_external-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.transmission_external-secure.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_external-secure.priority=${TRANSMISSION_EXTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_external-secure.service=transmission"
+      - "traefik.http.routers.transmission_external-secure.tls=true"
+      - "traefik.http.routers.transmission_external-secure.tls.domains[0].main=${TRANSMISSION_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.transmission_external.middlewares=transmission-slash1,transmission-slash2"
+      - "traefik.http.routers.transmission_external-secure.middlewares=transmission-slash1,transmission-slash2"
+    networks:
+       - default
+    expose:
+      - 51413/tcp
+      - 51413/udp
+    ports:
+      - ${TRANSMISSION_PORT}:51413/tcp
+      - ${TRANSMISSION_PORT}:51413/udp
+    build:
+      context: https://github.com/StudioEtrange/docker-transmission.git#mambo
+
 
 
 
@@ -587,6 +714,11 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.booksonic.loadbalancer.server.port=4040"
+      - "traefik.http.services.booksonic.loadbalancer.server.scheme=http"
+      - "traefik.http.services.booksonic.loadbalancer.passhostheader=true"
+      # routers
       - "traefik.http.routers.booksonic.entrypoints=${BOOKSONIC_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.booksonic.rule=HostRegexp(`{subdomain:${BOOKSONIC_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.booksonic.priority=${BOOKSONIC_PRIORITY}"
@@ -597,9 +729,6 @@ services:
       - "traefik.http.routers.booksonic-secure.service=booksonic"
       - "traefik.http.routers.booksonic-secure.tls=true"
       - "traefik.http.routers.booksonic-secure.tls.domains[0].main=${BOOKSONIC_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.booksonic.loadbalancer.server.port=4040"
-      - "traefik.http.services.booksonic.loadbalancer.server.scheme=http"
-      - "traefik.http.services.booksonic.loadbalancer.passhostheader=true"
       - "traefik.http.routers.booksonic.middlewares=booksonic-auth@rest,error-middleware"
       - "traefik.http.routers.booksonic-secure.middlewares=booksonic-auth@rest,error-middleware"
       # airsonic (and booksonic) cannot be correctly print into an iframe
@@ -630,57 +759,11 @@ services:
       - EMAIL=${JDOWNLOADER2_EMAIL:-}
       - PASSWORD=${JDOWNLOADER2_PASSWORD:-}
     labels:
-      - "${TANGO_APP_NAME}.managed=true"
+      - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=false"
     networks:
       - default
    
-  # https://github.com/linuxserver/docker-transmission
-  transmission:
-    image: linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
-    container_name: ${TANGO_APP_NAME}_transmission
-    depends_on: 
-      - service_init
-    restart: unless-stopped
-    volumes:
-      - transmission_data:/config
-      - transmission_download:/downloads
-      - transmission_watch:/watch
-    environment:
-      - PUID=${TANGO_USER_ID:-0}
-      - PGID=${TANGO_GROUP_ID:-0}
-      - TRANSMISSION_WEB_HOME=${TRANSMISSION_UI}
-      - USER=${TRANSMISSION_USER}
-      - PASS=${TRANSMISSION_PASSWORD}
-    labels:
-      - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.transmission.entrypoints=${TRANSMISSION_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.transmission.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.transmission.priority=${TRANSMISSION_PRIORITY}"
-      - "traefik.http.routers.transmission.service=transmission"
-      - "traefik.http.routers.transmission-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.transmission-secure.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.transmission-secure.priority=${TRANSMISSION_PRIORITY}"
-      - "traefik.http.routers.transmission-secure.service=transmission"
-      - "traefik.http.routers.transmission-secure.tls=true"
-      - "traefik.http.routers.transmission-secure.tls.domains[0].main=${TRANSMISSION_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.transmission.loadbalancer.server.port=9091"
-      - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
-      - "traefik.http.services.transmission.loadbalancer.passhostheader=true"
-      - "traefik.http.routers.transmission.middlewares=transmission-auth@rest,error-middleware"
-      - "traefik.http.routers.transmission-secure.middlewares=transmission-auth@rest,error-middleware"
-    networks:
-       - default
-    expose:
-      - 9091/tcp
-      - 51413/tcp
-      - 51413/udp
-    ports:
-      - ${TRANSMISSION_PORT}:51413/tcp
-      - ${TRANSMISSION_PORT}:51413/udp
-
-
 
 
 
@@ -706,25 +789,26 @@ services:
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
+      # service
+      - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
+      - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
+      - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
+      # middleware
+      - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/${CALIBREWEB_BOOKS_SUBPATH}, /${CALIBREWEB_BOOKS_SUBPATH}/"
+      # routers
       - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
       - "traefik.http.routers.calibreweb_books.priority=${CALIBREWEB_BOOKS_PRIORITY}"
       - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
-
       - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
       - "traefik.http.routers.calibreweb_books-secure.priority=${CALIBREWEB_BOOKS_PRIORITY}"
       - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
       - "traefik.http.routers.calibreweb_books-secure.tls=true"
       - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=${CALIBREWEB_BOOKS_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
-      - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
-      - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
-
+      # routers middleware
       - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,error-middleware"
       - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,error-middleware"
-
-      - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/${CALIBREWEB_BOOKS_SUBPATH}, /${CALIBREWEB_BOOKS_SUBPATH}/"
   
   # calibreweb_comics:
   #   << : *default-calibreweb

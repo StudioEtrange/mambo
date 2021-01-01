@@ -1,0 +1,4 @@
+---
+sabnzbd:
+  user: "{{ lookup('env','SABNZBD_USER') }}"
+  pass: "{{ lookup('env','SABNZBD_PASSWORD') }}"

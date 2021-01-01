@@ -1,0 +1,42 @@
+#!/usr/bin/with-contenv bash
+
+
+ITEM="nzbtomedia"
+[ "$VERSION" = "" ] && VERSION="master"
+FOLDER="/app"
+
+  echo '------------------------'
+  echo '| Installing nzbtomedia |'
+  echo '------------------------'
+
+[ "$ERASE" = "1" ] && echo "  + Erase ${FOLDER}" && rm -Rf $FOLDER
+if [ -f "${FOLDER}/autoProcessMedia.cfg.spec" ]; then
+    echo "  + ${ITEM} already installed in ${FOLDER}"
+else
+    mkdir -p "${FOLDER}"
+    [ "$ERASE" = "1" ] && echo "  + Download version ${VERSION}"
+    type curl 1>&2 2>/dev/null && {
+        curl -fkSL -o "/tmp/${ITEM}-${VERSION}.tar.gz" "https://github.com/clinton-hall/nzbToMedia/archive/${VERSION}.tar.gz"
+    } || {
+        wget "https://github.com/clinton-hall/nzbToMedia/archive/${VERSION}.tar.gz" -O "/tmp/${ITEM}-${VERSION}.tar.gz" --no-check-certificate
+    }
+
+    cd "${FOLDER}"
+    tar xzf "/tmp/${ITEM}-${VERSION}.tar.gz" --strip-components=1
+
+    cp "${FOLDER}/autoProcessMedia.cfg.spec" "${FOLDER}/autoProcessMedia.cfg"
+
+    # NOTE : add a sh launcher to force use of python3 (in case of using sabnzbd's python version which not may be python3)
+    tee "${FOLDER}/nzbToSickBeard.sh" << END
+#!/bin/bash
+_CURRENT_FILE_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" && pwd )"
+python3 \${_CURRENT_FILE_DIR}/nzbToSickBeard.py "\$@"
+END
+    chmod +x "${FOLDER}/nzbToSickBeard.sh"
+
+fi
+
+
+# Set Permissions
+chown -R abc:abc \
+  /app

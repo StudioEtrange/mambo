@@ -1,0 +1,41 @@
+---
+# ###### clientAgent - Supported clients: sabnzbd, nzbget
+# clientAgent = sabnzbd
+# ###### SabNZBD (You must edit this if you're using nzbToMedia.py with SabNZBD)
+# sabnzbd_host = http://sabnzbd
+# sabnzbd_port = 8080
+# sabnzbd_apikey = af8d734c2ac3d2e78d1aa5bb3a3e5a8e
+# ###### Enter the default path to your default download directory (non-category downloads). this directory is protected by safe_mode.
+# default_downloadDirectory = /download/complete
+
+- name: Set sabznbd host
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    insertafter: '\[Nzb\]'
+    regexp: '^\w*sabnzbd_host\s?=.*'
+    line: '    sabnzbd_host = http://sabnzbd'
+    state: present
+
+- name: Set sabznbd port
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    insertafter: '\[Nzb\]'
+    regexp: '^\w*sabnzbd_port\s?=.*'
+    line: '    sabnzbd_port = 8080'
+    state: present
+
+- name: Set sabznbd api key
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    insertafter: '\[Nzb\]'
+    regexp: '^\w*sabnzbd_apikey\s?=.*'
+    line: "    sabnzbd_apikey = {{ sabnzbd.api_key }}"
+    state: present
+
+- name: Set sabznbd default download directory
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    insertafter: '\[Nzb\]'
+    regexp: '^\w*default_downloadDirectory\s?=.*'
+    line: '    default_downloadDirectory = /download/complete'
+    state: present

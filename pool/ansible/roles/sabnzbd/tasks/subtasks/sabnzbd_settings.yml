@@ -1,0 +1,85 @@
+#########################################################################
+# Title:         SABnzbd - Settings Tasks                               #
+# Author(s):     desimaniac                                             #
+# Modified by :  StudioEtrange
+# URL:           https://github.com/cloudbox/cloudbox                   #
+# --                                                                    #
+#         Part of the Cloudbox project: https://cloudbox.works          #
+#########################################################################
+#                   GNU General Public License v3.0                     #
+#########################################################################
+---
+# - name: Add domain to whitelist
+#   lineinfile:
+#     path: "/opt/sabnzbd/app/sabnzbd.ini"
+#     regexp: '(^host_whitelist\s?=.*,)'
+#     backrefs: yes
+#     line: '\1 sabnzbd.{{ user.domain }}'
+#     state: present
+
+# - name: Remove url_base
+#   lineinfile:
+#     path: "/opt/sabnzbd/app/sabnzbd.ini"
+#     regexp: '^url_base\s?=.*'
+#     line: 'url_base = ""'
+#     state: present
+
+# Authentication
+- name: Set Username
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    insertafter: '^warn_dupl_jobs\s?=.*'
+    regexp: '^username\s?=.*'
+    line: "username = {{ sabnzbd.user }}"
+    state: present
+
+- name: Set Password
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    insertafter: '^rss_filenames\s?=.*'
+    regexp: '^password\s?=.*'
+    line: "password = {{ sabnzbd.pass }}"
+    state: present
+
+- name: Set Form Auth
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^html_login\s?=.*'
+    line: 'html_login = 1'
+    state: present
+
+# Paths
+- name: Change incomplete downloads directory
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^download_dir\s?=.*'
+    line: 'download_dir = /download/incomplete'
+    state: present
+
+- name: Change complete downloads directory
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^complete_dir\s?=.*'
+    line: 'complete_dir = /download/complete'
+    state: present
+
+- name: Change watched directory
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^dirscan_dir\s?=.*'
+    line: 'dirscan_dir = /download/vault/nzb'
+    state: present
+
+- name: Change script directory
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^script_dir\s?=.*'
+    line: 'script_dir = /scripts'
+    state: present
+
+- name: Change logs directory
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^log_dir\s?=.*'
+    line: 'log_dir = /data/sabnzbd/logs'
+    state: present

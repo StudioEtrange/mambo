@@ -2,6 +2,9 @@
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 
+
+
+# INIT TANGO -------------------
 # TANGO lookup order
 #       1. externaly defined TANGO_ROOT     ==> instance mode : isolated or shared
 #       2. "${_CURRENT_FILE_DIR}/../tango"  ==> instance mode : isolated or shared
@@ -29,12 +32,31 @@ fi
 STELLA_LOG_STATE="OFF"
 . "${_CURRENT_FILE_DIR}/stella-link.sh" include
 
-# init tango framework
-. "${TANGO_ROOT}/src/tango-init.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+. "${TANGO_ROOT}/src/tango-init.sh" $@
 
+
+
+
+
+
+
+
+# SET ARG ------------------------
 # set command line
-. "${TANGO_ROOT}/src/tango-set-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+. "${TANGO_ROOT}/src/tango-set-arg.sh" $@
 
+
+
+
+
+
+
+
+
+
+
+
+# PARSE ARG ------------------------
 PARAMETERS="
 ACTION=										'action' 			a				'init update info shell up down status install logs restart services modules scripts plugins cert letsencrypt auth' '1'
 TARGET=										'target' 			s				''	'0'
@@ -46,11 +68,12 @@ usage() {
 	echo "----------------"
 	echo "o-- commands :"
 	echo "L     install : deploy this app."
-	echo "L     init plex [--claim] : init plex services. Do it once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred (claim TODO NOT IMPLEMENTED)"
-	echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
+	echo "L     init plex [--claim] : init plex service. Do it at least once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred"
+	echo "L     init [sabnzbd] : init all or one services. Will stop service if running and configure some default settings without modifying other settings."
+    echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
 	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
-	echo "L     info [plex] [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
+	echo "L     info [plex|sabnzbd] [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see service status."
 	echo "L     logs [service] [-f] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
@@ -69,16 +92,24 @@ usage() {
 # parse command line
 . "${TANGO_ROOT}/src/tango-parse-arg.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
 
+
+
+
+
+
+
+
+
+# SET CONTEXT ------------------------
 # default mambo env file is mambo.env in HOME
 [ "${ENV}" = "" ] && [ -f "${HOME}/mambo.env" ] && ENV="${HOME}/mambo.env"
 
-
-
 __action_done_by_mambo=""
 
-# organizr2 actions
+# mambo actions
 case ${ACTION} in
     auth )
+        __action_done_by_mambo="1"
         case ${TARGET} in
             sync )
                 # disable generated files modification, we just want to load var and sync api
@@ -95,11 +126,56 @@ case ${ACTION} in
 
         esac
     ;;
+    info )
+        case ${TARGET} in
+            plex|sabnzbd )
+                __action_done_by_mambo="1"
+            ;;
+        esac
+    ;;
+    init )
+        __action_done_by_mambo="1"
+    ;;
+
 esac
 
-# generate files, variables, folders and everything for the framework to work
-. "${TANGO_ROOT}/src/tango-prepare-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+# init and generate files, variables, folders and everything for the framework to work
+. "${TANGO_ROOT}/src/tango-set-context.sh" $@
 
+
+case ${ACTION} in
+    install|cert|letsencrypt|modules|services|vendor )
+    ;;
+    * )
+        # set variables specific to mambo services
+        __organizr2_set_context
+        __transmission_set_context
+        __sabnzbd_set_context
+        __plex_set_context
+        __nzbtomedia_set_context
+    ;;
+esac
+
+
+if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then 
+    __update_env_files "ingest mambo specific values set context phase"
+    __load_env_vars
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# BEFORE ACTION ------------------------
 if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
     if [ ! "${INSTANCE_MODE_SHARED_OK}" = "1" ]; then
         echo "* ERROR cannot use TANGO from ${TANGO_ROOT} in instance mode ${TANGO_INSTANCE_MODE}"
@@ -107,81 +183,132 @@ if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
     fi
 fi
 
-# organizr2 actions
+[ "${__action_done_by_mambo}" = "" ] && . "${TANGO_ROOT}/src/tango-before-action.sh" $@
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ACTION ------------------------
+    
+# mambo actions
 case ${ACTION} in
+    init )
+        case ${TARGET} in
+            plex )
+                __tango_log "INFO" "mambo" "Init service Plex"
+                __plex_init
+            ;;
+            sabnzbd )
+                __tango_log "INFO" "mambo" "Init service sabnzbd"
+                __sabnzbd_init
+            ;;
+            nzbtomedia )
+                __tango_log "INFO" "mambo" "Init service nzbtomedia"
+                __nzbtomedia_init
+            ;;
+            * )
+                __tango_log "INFO" "mambo" "Init service Plex"
+                __plex_init
+                [ $? -ne 0 ] && __tango_log "ERROR" "Error while configuring plex" && exit 1
+                __tango_log "INFO" "mambo" "Init service sabnzbd"
+                __sabnzbd_init
+                [ $? -ne 0 ] && __tango_log "ERROR" "Error while configuring sabnzbd" && exit 1
+                __tango_log "INFO" "mambo" "Init service nzbtomedia"
+                __nzbtomedia_init
+                [ $? -ne 0 ] && __tango_log "ERROR" "Error while configuring nzbtomedia" && exit 1
+            ;;
+        esac
+    ;;
+
     auth )
         case ${TARGET} in
             sync )
-                __tango_log "INFO" "Sync authorization between traefik and organizr2"
-                __organizr2_auth "SYNC"
-                __action_done_by_mambo="1"
+                __tango_log "INFO" "mambo" "Sync authorization between traefik and organizr2"
+                __organizr2_auth "PRINT"
             ;;
             disable )
-                __tango_log "INFO" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
+                __tango_log "INFO" "mambo" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
                 __organizr2_scheduler_shutdown
-                #__organizr2_auth "SYNC"
-                __action_done_by_mambo="1"
             ;;
             enable )
-                __tango_log "INFO" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
+                __tango_log "INFO" "mambo" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
                 __organizr2_scheduler_set
-                #__organizr2_auth "SYNC"
-                __action_done_by_mambo="1"
             ;;
         esac
     ;;
     info )
-        if [ "${TARGET}" = "plex" ]; then
-            echo "---------==---- PLEX ----==---------"
-            [ "${PLEX_USER}" = "" ] && echo "** Error missing plex user -- please set PLEX_USER" && exit 1
-            [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing plex password -- please set PLEX_PASSWORD" && exit 1
-            __token="$(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
-            echo "L-- X-Plex-Token : ${__token}"
-            echo "L-- Owned server"
-            __print_plex_server_registered "${__token}" "OWN"
-            __action_done_by_mambo="1"        
-        else
-            # we need to refresh generated files with values from organizr2 API because info command use these files to print value
-            __organizr2_auth "INIT"
-        fi
+        case ${TARGET} in
+            plex ) 
+                echo "---------==---- PLEX ----==---------"
+                [ "${PLEX_USER}" = "" ] && echo "** Error missing user -- please set PLEX_USER"
+                [ "${PLEX_PASSWORD}" = "" ] && echo "** Error missing password -- please set PLEX_PASSWORD"
+                echo "L-- User : ${PLEX_USER}"
+                echo "L-- Password : ${PLEX_PASSWORD}"
+                __token="$(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
+                echo "L-- X-Plex-Token : ${__token}"
+                echo "L-- Owned server"
+                __print_plex_server_registered "${__token}" "OWN"
+            ;;
+
+            sabnzbd )
+                echo "---------==---- SABNZBD ----==---------"
+                [ "${SABNZBD_USER}" = "" ] && echo "** Error missing user -- please set SABNZBD_USER"
+                [ "${SABNZBD_PASSWORD}" = "" ] && echo "** Error missing password -- please set SABNZBD_PASSWORD"
+                echo "L-- User : ${SABNZBD_USER}"
+                echo "L-- Password : ${SABNZBD_PASSWORD}"
+                echo "L-- API KEY : ${SABNZBD_API_KEY}"
+                echo "L-- NZB KEY : ${SABNZBD_NZB_KEY}"
+            ;;
+        esac
+    ;;
+    install|cert|letsencrypt|modules|services|vendor )
     ;;
     * )
-        __organizr2_auth "INIT"
+        __transmission_auth
     ;;
 esac
 
-  
-# ingest specific mambo values
-[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __update_env_files "ingest mambo specific values (organizr2,...)"
+# ingest specific mambo values generated in previous phase (ACTION or BEFORE_ACTION)
+if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then 
+    __update_env_files "ingest mambo specific values action phase"
+    __load_env_vars
+fi
 
 if [ "${__action_done_by_mambo}" = "" ]; then
-    
-    # before action hook
-    . "${TANGO_ROOT}/src/tango-before-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
-
-    case ${ACTION} in
-      
-
-        init )
-            case ${TARGET} in
-                plex )
-                    __tango_log "INFO" "Init service Plex"
-                    __init_service_plex
-                    __action_done_by_mambo="1"  
-                ;;
-            
-            esac
-        ;;
-    esac
-
     # execute requested action
-    . "${TANGO_ROOT}/src/tango-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+    . "${TANGO_ROOT}/src/tango-action.sh" $@
+fi
 
-    # organizr2 - manage scheduler task
+
+
+
+
+
+
+
+
+
+
+
+# AFTER ACTION ------------------------
+if [ "${__action_done_by_mambo}" = "" ]; then
+    # after action hook
+    . "${TANGO_ROOT}/src/tango-after-action.sh" $@
+
     case ${ACTION} in 
         up|restart )
             case ${TARGET} in
                 ""|tango|organizr2 )
+                    # organizr2 - manage scheduler task
                     __organizr2_scheduler_set
                     ;;
             esac
@@ -189,13 +316,32 @@ if [ "${__action_done_by_mambo}" = "" ]; then
         down )
             case ${TARGET} in
                 ""|tango|organizr2 )
+                    # organizr2 - manage scheduler task
                     __organizr2_scheduler_shutdown
                     ;;
             esac
         ;;
 
-    esac
+        install )
+            __tango_log "INFO" "mambo" "Install ansible"
+            pip install ansible==2.10.4
+        ;;
 
-    # after action hook
-    . "${TANGO_ROOT}/src/tango-after-action.sh" --app mambo --approot "${_CURRENT_FILE_DIR}" $@
+    esac
 fi
+
+
+
+
+
+
+
+
+
+
+
+# END ------------------------
+# clean and last hook
+# NOTE must be always executed
+. "${TANGO_ROOT}/src/tango-end.sh" $@
+
