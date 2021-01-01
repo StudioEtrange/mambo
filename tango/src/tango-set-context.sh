@@ -156,7 +156,7 @@ else
 	# STEP 2 ------ process command line and shell env variables
 
 
-	[ "${BUILD}" = "1" ] && BUILD="--build"
+	
 	if [ "${DEBUG}" = "1" ]; then
 		VERBOSE="1"
 		TANGO_LOG_STATE="ON"

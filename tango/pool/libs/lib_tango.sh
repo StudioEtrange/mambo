@@ -1,3 +1,95 @@
+# SERVICE LIFECYCLE -----------
+
+
+# start a service or all services 
+# if no service specified will start all service (by starting docker compose service "tango")
+# OPTIONS
+#		NO_EXEC_PLUGINS do not run attached plugins
+#		BUILD	build image before starting
+# TODO up --no-recreate ? == each time compose file is modified the container is recreated
+#							 maybe we want this, because we start or restart a service after modifying a configuration
+# 	if there are existing containers for a service, 
+#	and the service’s configuration or image was changed after the container’s creation,
+#	docker-compose up picks up the changes by stopping and recreating the containers 
+#	(preserving mounted volumes). To prevent Compose from picking up changes, use the --no-recreate flag.
+__service_up() {
+	local __service="$1"
+	local __opt="$2"
+
+	local __build=
+	local __no_exec_plugins=
+	for o in ${__opt}; do
+		[ "$o" = "BUILD" ] &&  __build="--build"
+		[ "$o" = "NO_EXEC_PLUGINS" ] && __no_exec_plugins="1"
+	done
+
+	docker-compose up -d $__build ${__service:-tango}
+
+	if [ "${__service}" = "" ]; then
+		[ ! "$__no_exec_plugins" = "1" ] && __exec_auto_plugin_service_active_all
+		docker-compose logs service_init
+	else
+		[ ! "$__no_exec_plugins" = "1" ] && __exec_auto_plugin_all_by_service ${__service}
+		docker-compose logs ${__service}
+	fi
+
+}
+
+# OPTIONS
+#	NO_DELETE do not delete containers just stop them
+__service_down_all() {
+	local __opt="$1"
+
+	local __no_delete=
+	for o in ${__opt}; do
+		[ "$o" = "NO_DELETE" ] &&  __no_delete="1"
+	done
+
+	if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then 
+		if [ ! "${ALL}" = "1" ]; then
+			# test if network already exist and set it as 'external' to not erase it
+			if [ ! -z $(docker network ls --filter name=^${TANGO_APP_NETWORK_NAME}$ --format="{{ .Name }}") ] ; then 
+				[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __set_network_as_external "default" "${TANGO_APP_NETWORK_NAME}"
+			fi
+		fi
+
+		if [ ! "${ALL}" = "1" ]; then
+			# only non shared service
+			docker stop $(docker ps -q $(__container_filter 'NON_STOPPED LIST_NAMES '${TANGO_APP_NAME}'_.*'))
+			[ ! "${__no_delete}" = "1" ] && docker rm $(docker ps -q $(__container_filter 'ONLY_STOPPED LIST_NAMES '${TANGO_APP_NAME}'_.*'))
+		else
+			# only shared and non shared service
+			if [ "${__no_delete}" = "1" ]; then
+				docker stop $(docker ps -q $(__container_filter 'NON_STOPPED LIST_NAMES '${TANGO_APP_NAME}'_.* '${TANGO_INSTANCE_NAME}'_.*'))
+			else
+				docker-compose down -v
+			fi
+		fi
+	else
+		if [ "${__no_delete}" = "1" ]; then
+			docker stop $(docker ps -q $(__container_filter 'NON_STOPPED LIST_NAMES '${TANGO_APP_NAME}'_.* '${TANGO_INSTANCE_NAME}'_.*'))
+		else
+			docker-compose down -v
+		fi
+	fi
+}
+
+# OPTIONS
+#	NO_DELETE do not delete container just stop it
+# TODO answer yes to rm
+__service_down() {
+	local __service="$1"
+	local __opt="$2"
+
+	local __no_delete=
+	for o in ${__opt}; do
+		[ "$o" = "NO_DELETE" ] &&  __no_delete="1"
+	done
+
+	docker-compose stop "${__service}"
+	[ ! "${__no_delete}" = "1" ] && docker-compose rm "${__service}"
+}
+
 # MANAGE ENV VARIABLES AND FILES GENERATION -----------------
 
 # load all declared variables (including associative arrays)
@@ -23,7 +115,9 @@ __update_env_files() {
 	echo "# ------ UPDATE : update_env_files : $(date) -- ${__text}" >> "${GENERATED_ENV_FILE_FOR_BASH}"
 	for __variable in ${VARIABLES_LIST}; do
 		[ -z ${!__variable+x} ] || echo "${__variable}=${!__variable}" >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
-		[ -z ${!__variable+x} ] || echo "${__variable}=\"$(echo ${!__variable} | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\$/\\$/g')\"" >> "${GENERATED_ENV_FILE_FOR_BASH}"	
+		# NOTE : we need to export variables because some software like ansible need to access them
+		# 		 we export variables only when update file (__update_env_files) not when file is created (__create_env_for_bash) because it easier
+		[ -z ${!__variable+x} ] || echo "export ${__variable}=\"$(echo ${!__variable} | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\$/\\$/g')\"" >> "${GENERATED_ENV_FILE_FOR_BASH}"	
 	done
 
 	# store associative arrays
@@ -45,8 +139,8 @@ __update_env_files() {
 # extract declared variable names from various env files (tango, app and user env files)
 __init_declared_variable_names() {
 	# reset global variables values
-	VARIABLES_LIST=""
-	ASSOCIATIVE_ARRAY_LIST=""
+	export VARIABLES_LIST=""
+	export ASSOCIATIVE_ARRAY_LIST=""
 
 	# init VARIABLES_LIST values
 	[ -f "${TANGO_ENV_FILE}" ] && VARIABLES_LIST="$(sed -e '/^[[:space:]]*$/d' -e '/^[#]\+.*$/d' -e 's/^\([^=+]*\)+\?=\(.*\)$/\1/g' "${TANGO_ENV_FILE}")"
@@ -77,15 +171,11 @@ __add_modules_declared_variable_names() {
 # add variables to variables list to be stored in env files
 __add_declared_variables() {
 	VARIABLES_LIST="${VARIABLES_LIST} $1"
-
-	VARIABLES_LIST="$($STELLA_API list_filter_duplicate "${VARIABLES_LIST}")"
 }
 
 # add associative array to arrays list to be stored in env files
 __add_declared_associative_array() {
 	ASSOCIATIVE_ARRAY_LIST="${ASSOCIATIVE_ARRAY_LIST} ${1}"
-
-	ASSOCIATIVE_ARRAY_LIST="$($STELLA_API list_filter_duplicate "${ASSOCIATIVE_ARRAY_LIST}")"
 }
 
 
@@ -646,7 +736,7 @@ __add_service_direct_port_access_all() {
 	done
 }
 
-# ITEMS MANAGEMENT (an item is a module or a plugin) -------------------------
+# ITEMS MANAGEMENT (an item is a module or a plugin) -----------------------------------------
 
 __set_module_all() {
 	local __array_list_names=( ${TANGO_SERVICES_MODULES} )
@@ -747,9 +837,10 @@ __exec_plugin() {
 
 	__parse_item "plugin" "${__plugin}" "PLUGIN"
 
-	echo "* Plugin execution : ${PLUGIN_NAME}"
-	echo "L-- service : ${__service}"
-	echo "L-- arg list : ${PLUGIN_ARG_LIST}"
+	__tango_log "INFO" "tango" "Plugin execution : ${PLUGIN_NAME}"
+	__tango_log "INFO" "tango" "	into service : ${__service}"
+	__tango_log "INFO" "tango" "  with args list : ${PLUGIN_ARG_LIST}"
+
 	docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${__service} /bin/sh -c '[ "'${PLUGIN_OWNER}'" = "APP" ] && /pool/'${TANGO_APP_NAME}'/plugins/'${PLUGIN_NAME}' '${PLUGIN_ARG_LIST}' || /pool/tango/plugins/'${PLUGIN_NAME}' '${PLUGIN_ARG_LIST}
 }
 
@@ -1013,7 +1104,7 @@ __list_items() {
 
 
 
-# FEATURES MANAGEMENT --------
+# FEATURES MANAGEMENT ------------------------
 
 __set_error_engine() {
 	# router order
@@ -1318,7 +1409,7 @@ __set_network_as_external() {
 }
 
 
-# DOCKER -----------------
+# DOCKER ---------------------------------
 
 # docker client available
 __is_docker_client_available() {
@@ -1355,6 +1446,64 @@ __container_is_running() {
         return 1
     fi
 }
+
+
+
+
+# OPTIONS
+# filter user
+#		can be empty or "all" to list all container
+# filter status options
+# 		NON_RUNNING, NON_STOPPED, ONLY_RUNNING, ONLY_STOPPED are exclusive (can not be cumulated with any other filters)
+#		RUNNING, STOPPED can be cumulated
+#		NON_RUNNING is the same than ONLY_STOPPED
+#		NON_STOPPED is the same than ONLY_RUNNING
+#		LIST_NAMES name1 name2 name3  : will include filter which have these names
+# sample
+#		${DOCKER_CMD} ps -a $(__container_filter "ONLY_RUNNING") --format "{{.Names}}#{{.Status}}#{{.Image}}"
+__container_filter() {
+	local __opt="$1"
+
+	local __opt_running=
+	local __opt_non_running=
+	local __opt_only_running=
+	local __opt_stopped=
+	local __opt_non_stopped=
+	local __opt_only_stopped=
+	local __flag_names=
+	local __names_list=
+	for o in ${__opt}; do
+		[ "$o" = "RUNNING" ] && __opt_running="1" && __opt_non_running="0" && __opt_only_running="0" && __opt_non_stopped="0" && __opt_only_stopped="0" && __flag_names=
+		[ "$o" = "NON_RUNNING" ] && __opt_running="0" && __opt_stopped="0" && __opt_non_running="1" && __opt_only_running="0" && __opt_non_stopped="0" && __opt_only_stopped="0" && __flag_names=
+		[ "$o" = "ONLY_RUNNING" ] && __opt_running="0" && __opt_stopped="0" && __opt_non_running="0" && __opt_only_running="1" && __opt_non_stopped="0" && __opt_only_stopped="0" && __flag_names=
+		[ "$o" = "STOPPED" ] && __opt_stopped="1" && __opt_non_running="0" && __opt_only_running="0" && __opt_non_stopped="0" && __opt_only_stopped="0" && __flag_names=
+		[ "$o" = "NON_STOPPED" ] && __opt_running="0" && __opt_stopped="0" && __opt_non_running="0" && __opt_only_running="0" && __opt_non_stopped="1" && __opt_only_stopped="0" && __flag_names=
+		[ "$o" = "ONLY_STOPPED" ] && __opt_running="0" && __opt_stopped="0" && __opt_non_running="0" && __opt_only_running="0" && __opt_non_stopped="0" && __opt_only_stopped="1" && __flag_names=
+		[ "$__flag_names" = "1" ] && __names_list="$__names_list $o"
+		[ "$o" = "LIST_NAMES" ] && __flag_names=1
+	done
+
+	local __filter_default="--filter=label=${TANGO_INSTANCE_NAME}.managed=true"
+
+	local __filter_names=
+	if [ ! "${__names_list}"  = "" ]; then
+		__names_list="$($STELLA_API trim "${__names_list}")"
+		__filter_names="--filter=name=^/$(echo -n ${__names_list} | sed -e 's/ /$|^\//g')$"
+	fi
+
+	local __filter_status=
+	[ "$__opt_running" = "1" ] && __filter_status="${__filter_status} --filter=status=running"
+	[ "$__opt_stopped" = "1" ] && __filter_status="${__filter_status} --filter=status=exited --filter=status=created"
+	[ "$__opt_non_running" = "1" ] && __filter_status="--filter=status=exited --filter=status=created"
+	[ "$__opt_only_running" = "1" ] && __filter_status="--filter=status=running"
+	[ "$__opt_non_stopped" = "1" ] && __filter_status="--filter=status=running"
+	[ "$__opt_only_stopped" = "1" ] && __filter_status="--filter=status=exited --filter=status=created"
+
+
+
+	echo "${__filter_default} ${__filter_names} ${__filter_status}"
+}
+
 
 docker-compose() {
 	# NOTE we need to specify project directory because when launching from an other directory, docker compose seems to NOT auto load .env file
@@ -1418,6 +1567,19 @@ __xml_get_attribute_value() {
 	xidel "${__file}" --silent --extract "${__xpath_selector}"
 }
 
+
+# simple extract value in an ini file
+# support	key=value and key = value
+__ini_get_key_value() {
+	local __file="$1"
+	local __key="$2"
+
+	if [ ! -z $__key ]; then
+		if [ -f "${__file}" ]; then
+	        cat "${__file}" | sed -e 's,'$__key'[[:space:]]*=[[:space:]]*,'$__key'=,g' | awk 'match($0,/^'$__key'=.*$/) {print substr($0, RSTART+'$(( ${#__key} + 1 ))',RLENGTH);}'
+    	fi            
+	fi
+}
 
 # create all path according to _SUBPATH_CREATE variables content
 # see __create_path

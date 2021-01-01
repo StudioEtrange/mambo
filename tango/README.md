@@ -274,6 +274,7 @@ For full list see `tango.internal.env` file
     ```
     ./tango plugins list
     ```
+* A module stay in background as a service but a plugin just execute a script and stop 
 
 * Each plugin may have some restrictions and will work only into some specific services
 
@@ -524,7 +525,8 @@ For full list see `tango.internal.env` file
     * https://rclone.org/
         * rclone desktop browser : https://github.com/kapitainsky/RcloneBrowser
         * rclone desktop browser on docker with VNC : https://github.com/romancin/rclonebrowser-docker
-    * https://github.com/restic/restic
+        * rclone for android : https://github.com/x0b/rcx
+    * restic is a backup program, can use rclone https://github.com/restic/restic
 
 * VPN
     * dperson openvpn client
