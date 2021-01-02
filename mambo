@@ -152,7 +152,6 @@ case ${ACTION} in
         __transmission_set_context
         __sabnzbd_set_context
         __plex_set_context
-        __nzbtomedia_set_context
     ;;
 esac
 

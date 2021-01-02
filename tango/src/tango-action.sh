@@ -97,10 +97,10 @@ case ${ACTION} in
 		else
 			case ${TARGET} in
 				traefik )
-					docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${TARGET} /bin/sh -c '[ -e /bin/bash ] && /bin/bash || /bin/sh'
+					docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${TARGET} /bin/sh
 				;;
 				* )
-					docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${TARGET} /bin/sh -c '[ -e /bin/bash ] && /bin/bash || /bin/sh'
+					docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${TARGET} /bin/sh
 				;;
 			esac
 		fi

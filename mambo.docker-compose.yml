@@ -35,6 +35,13 @@ volumes:
       o: bind
       device: ${ORGANIZR2_DATA_PATH}
     name: ${TANGO_APP_NAME}_organizr2_data
+  o3_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${O3_DATA_PATH}
+    name: ${TANGO_APP_NAME}_o3_data
   plex_data:
     driver: local
     driver_opts:
@@ -187,6 +194,9 @@ services:
       - "traefik.http.services.organizr2.loadbalancer.server.port=80"
       - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
       - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
+      # generic middleware
+      # force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
+      - 'traefik.http.middlewares.xframe-allow-all.headers.customFrameOptionsValue=allow-from *'
       # routers
       - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
@@ -201,6 +211,46 @@ services:
       # routers middleware
       - "traefik.http.routers.organizr2.middlewares=error-middleware"
       - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
+    networks:
+      - default
+    expose:
+      - 80
+  o3:
+    image: organizr/organizr
+    container_name: ${TANGO_APP_NAME}_o3
+    depends_on: 
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # will contain organizr2 configuration
+      - o3_data:/config
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      # use 'manual' as branch value to disable code update installed into /config folder
+      - branch=${O3_VERSION:-v2-master}
+      - fpm=true
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service
+      - "traefik.http.services.o3.loadbalancer.server.port=80"
+      - "traefik.http.services.o3.loadbalancer.server.scheme=http"
+      - "traefik.http.services.o3.loadbalancer.passhostheader=true"
+      # routers
+      - "traefik.http.routers.o3.entrypoints=${O3_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.o3.rule=HostRegexp(`{subdomain:${O3_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.o3.service=o3"
+      - "traefik.http.routers.o3.priority=${O3_PRIORITY}"
+      - "traefik.http.routers.o3-secure.entrypoints=${O3_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.o3-secure.rule=HostRegexp(`{subdomain:${O3_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.o3-secure.priority=${O3_PRIORITY}"
+      - "traefik.http.routers.o3-secure.service=o3"
+      - "traefik.http.routers.o3-secure.tls=true"
+      - "traefik.http.routers.o3-secure.tls.domains[0].main=${O3_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # routers middleware
+      - "traefik.http.routers.o3.middlewares=error-middleware"
+      - "traefik.http.routers.o3-secure.middlewares=error-middleware"
     networks:
       - default
     expose:
@@ -807,8 +857,10 @@ services:
       - "traefik.http.routers.calibreweb_books-secure.tls=true"
       - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=${CALIBREWEB_BOOKS_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       # routers middleware
-      - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,error-middleware"
-      - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,error-middleware"
+      - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
+      - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
+      #- "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
+      #- "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
   
   # calibreweb_comics:
   #   << : *default-calibreweb

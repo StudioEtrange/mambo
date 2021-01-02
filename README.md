@@ -1,11 +1,17 @@
 # MAMBO - A docker based media stack
 
+A central portal for all your media services.
+
+* Based on organizr2
+* SSO for all service with plex authentification
+* Access level managed and centralized in organizr2
+* Highly based on traefik2 for internal routing
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
 * Configurable through env variables or env file
-* Highly based on traefik2 for internal routing
 
-## REQUIREMENTS
+
+## Requirements
 
 * bash 4
 * git
@@ -17,8 +23,9 @@ If you want to use hardware transcode on nvidia gpu :
 
 NOTE : mambo will auto install all other required tools like docker-compose
 
-## SERVICES INCLUDED
+## Services included
 
+* Organizr2 - Media portal
 * Plex - media center
 * Ombi - user request content  
 * Sabnzbd - newzgroup download
@@ -26,20 +33,15 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * Tautulli - plex statistics and newsletter
 * JDownloader2 - direct download manager
 * Tranmission - torrent downloader
-* Organizr2
 * Handbrake - Video Conversion (Transcoding and compression)
 * MKVToolNix - Matroska tools with WebGUI - Video Editing (Remuxing - changing media container while keeping original source quality)
 
 
-Non functionnal
-
-* Booksonic - audio book streamer : problem with Single Sign On
-
-
-## USAGE
+&nbsp;
+# USAGE
 
 
-### Quick usage
+## Quick usage
 
 * Install
 
@@ -48,6 +50,8 @@ Non functionnal
     cd mambo
     ./mambo install
     ```
+
+* TODO TO BE COMPLETED
 
 * Create a `mambo.env` file in your $HOME with
     ```
@@ -76,7 +80,7 @@ Non functionnal
     ./mambo down
     ```
 
-## AVAILABLE COMMANDS
+## Available commands
 
 ```
     install : deploy this app.
@@ -104,7 +108,7 @@ Non functionnal
 
 
 ----
-## CONFIGURATION
+## Configuration
 
 * You could set every mambo variables through a user environment file, shell environment variables and some from command line. 
 
@@ -172,9 +176,9 @@ Non functionnal
     ```
 
 ----
-## SERVICES ADMINISTRATION
+# Services Administration
 
-### Enable/disable
+## Enable/disable
 
 * To declare a service use list `TANGO_SERVICES_AVAILABLE`
 * To disable a service, use variable list `TANGO_SERVICES_DISABLED`
@@ -185,7 +189,7 @@ Non functionnal
     TANGO_SERVICES_DISABLED=database
     ```
 
-### Start/stop a service
+## Start/stop a service
 
 * Launch a specific service
 
@@ -198,55 +202,75 @@ Non functionnal
     ```
     ./mambo down <service>
     ```
+## Adding a new service
 
+* Steps for adding a `foo` service
+    * in `docker-compose.yml` 
+        * add a `foo` service block
+        * add a dependency on this service into `mambo` service
+    * in `mambo.env`
+        * add a variable `FOO_VERSION=latest`
+        * add service to `TANGO_SERVICES_AVAILABLE` list
+        * if this service has subservices, declare subservices into `TANGO_SUBSERVICES_ROUTER`
+        * if this service needs to access all media folders, add it to `TANGO_ARTEFACT_SERVICES`
+        * choose to which logical network areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
+        * to generate an HTTPS certificate add service to `LETS_ENCRYPT_SERVICES`
+        * if HTTPS redirection add service to `NETWORK_SERVICES_REDIRECT_HTTPS`
+        * for time setting add service to TANGO_TIME_VOLUME_SERVICES or `TANGO_TIME_VAR_TZ_SERVICES`
+    * in `mambo`
+        * add `foo` in command line argument definition of `TARGET` choices
+    * in README.md
+        * add a section to describe its configuration
 
-## SERVICES CONFIGURATION
+----
+
+# Services configuration
 
 * You need to configure yourself each service. Mambo do only a few configurations on some services. 
 * Keep in mind that each service reached other services with url like `http://<service>:<default service port>` (ie `http://ombi:5000`)
 
 ----
-### Plex
+## Plex
 
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Plex-Media-Server
 
 * TODO continue
 
 
-#### Plex and Organizr2 
+### Plex and Organizr2 
 
-    Into Organizr2
+Into Organizr2
 
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : Plex - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://plex.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : `ombi-plex`
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list 
-            * Group : User
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Plex - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://plex.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : `ombi-plex`
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list 
+        * Group : User
 
-    * SSO : Allow to login only to organizr2, plex login is automatic
-        * See Organizr2 settings
+* SSO : Allow to login only to organizr2, plex login is automatic
+    * See Organizr2 settings
 
-    * Integration to Homepage :
-        * Tab Editor / Homepage Items / Plex
-            * Enable, Minimum Authentication : User
-            * Connection / Url : http://plex:32400
-            * Connection / Token : get token with command `./mambo info plex`
-            * Connection / Machine : get machine identifier with command `./mambo info plex`
-            * Personalize all viewing options - recommended : 
-                * Active Streams / Enable, Minimum Authentication : User
-                * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
-                * Misc Options / Name : Plex
-                * Misc Options / Url : `https://plex.mydomain.com`
+* Integration to Homepage :
+    * Tab Editor / Homepage Items / Plex
+        * Enable, Minimum Authentication : User
+        * Connection / Url : http://plex:32400
+        * Connection / Token : get token with command `./mambo info plex`
+        * Connection / Machine : get machine identifier with command `./mambo info plex`
+        * Personalize all viewing options - recommended : 
+            * Active Streams / Enable, Minimum Authentication : User
+            * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
+            * Misc Options / Name : Plex
+            * Misc Options / Url : `https://plex.mydomain.com`
 
 
 ----
-### Organizr2
+## Organizr2
 
 * With organiz2, you could bring up a central portal for all your services
 
@@ -255,12 +279,12 @@ Non functionnal
 * a guide https://smarthomepursuits.com/install-organizr-v2-windows/
 * api documentation : https://organizr2.mydomain.com/api/docs/
 
-#### Organizr2 configuration
+### Organizr2 configuration
 
 * Initial Setup
     * License : personal
     * User : plex admin real username, plex admin email and a different password
-    * Hash : choose a keyword
+    * Hash : choose a random keyword
     * registration password : choose a password so that user can signup themselves
     * api : do not change
     * db name : db
@@ -272,7 +296,8 @@ Non functionnal
     * Settings / System Settings / Main / Authentication
         * Type : Organizr DB + Backend
         * Backend : plex
-        * Do get plex token / get plex machine (you can use command `./mambo info plex` to check plex server info)
+        * Do get plex token / then save
+        * Do get plex machine (you can use command `./mambo info plex` to check some plex server info)
         * Admin username : a plex user admin that will match admin organizr admin account
         * Strict plex friends : enabled (only plex friends are registered)
         * Enable Plex oAuth : enabled (active plex login to log into organizr)
@@ -298,116 +323,80 @@ Non functionnal
             (Theme URL is https://github.com/Burry/Organizr-Plex-Theme)
 
 
-#### Organizr2 : Adding a service
+### Organizr2 : Adding a service
 
-    * To add a service into organizr2 add a new tab
-        * `Local Tab URL`, if not empty, is used when requesting service from inside network (local network)
-        * `Tab URL` is used when requesting service from outside network (internet) (and inside network too, if `Local Tab URL` is empty)
-        * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable directly from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
+* To add a service into organizr2 add a new tab
+    * `Local Tab URL`, if not empty, is used when requesting service from inside network (local network)
+    * `Tab URL` is used when requesting service from outside network (internet) (and inside network too, if `Local Tab URL` is empty)
+    * Note that in **all cases** URL in `Local Tab URL` or `Tab URL` must be reachable directly from a browser (from inside local network for `Local Tab URL` and from internet for `Tab URL`).
 
-#### Organizr2 : authentification/authorization system
+### Organizr2 : authentification/authorization system
 
-    * When enabled (`ORGANIZR2_AUTHORIZATION=ON`) access to a service depends on group access level. By default the access level is for a new tab `Co-Admin`
-        * This allow to access to the service through Organizr2 UI
-        * This allow to direct access to the service url is  blocked by adding a forwardAuth middleware (`service-auth@rest`) to traefik dynamicly.
-        * There is a mapping between the organizr2 tab name and the service name. Tab name and service name (after `_` character if there is any) must be the same
-            * service name : `ombi` organizr2 tab name : `ombi
-            * service name : `calibreweb_books` organizr2 tab name : `books`
-
-
-----
-### Booksonic
-
-* Initial Configuration
-    * access to Booksonic - a 'getting started' page will appear
-    * change default login password
-    * Setup Media Folder : add a media folder. Shoud be one from `TANGO_ARTEFACT_FOLDERS` list, mounted under `/media/`
-
-* Booksonic-App android reader
-    * build from source 
-        * https://amp.reddit.com/r/Booksonic/comments/hboaua/building_from_source/
-        * instructions : https://github.com/mmguero-android/Booksonic-Android
-
-#### Booksonic and Organizr2 
-
-    Into Organizr2
-
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://booksonic.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : booksonic
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list
-            * Group : User
-            * Type : New Window
-
-    * SSO : impossible to make it work
-        * booksonic implement a version of subsonic API for HTTP request with password https://booksonic.chimere-harpie.org/rest/getStarred.view?u=USER&p=PASSWORD&v=1.14.0&c=CLIENTNAME and after this request it create a cookie and the user is authentificated. https://www.reddit.com/r/Booksonic/comments/emkizu/question_about_accessing_the_booksonic_api/?utm_source=share&utm_medium=web2x&context=3
-        * can not find a way to auto login from orginzr2
-        * There is also the problem to give access to the Booksonic-App android reader
-        * sync plex authent by using ldap to plex
-            * https://github.com/hjone72/LDAP-for-Plex
-            * https://github.com/Starbix/docker-plex-ldap
+* When enabled (`ORGANIZR2_AUTHORIZATION=ON`) access to a service depends on group access level. By default the access level is for a new tab `Co-Admin`
+    * This allow to access to the service through Organizr2 UI
+    * This allow to direct access to the service url is  blocked by adding a forwardAuth middleware (`service-auth@rest`) to traefik dynamicly.
+    * There is a mapping between the organizr2 tab name and the service name. Tab name and service name (after `_` character if there is any) must be the same
+        * service name : `ombi` organizr2 tab name : `ombi`
+        * service name : `calibreweb_books` organizr2 tab name : `books`
 
 
 ----
-### Tautulli
+## Tautulli
 
-    * access to tautulli - setup wizard will be launched
-    * create an admin account
-    * signin with your plex account
-    * For Plex Media Server :
-        * Plex IP or Hostname : `plex`
-        * Port Number : `32400`
-        * Use SSL : `disabled`
-        * Remote Server : `disabled`
-        * Click Verify
-    * Then after setup finished, in settings
-        * Web interface / advanced settings / Enable HTTP Proxy : `enabled`
-        * Web interface / advanced settings / Enable HTTPS" : `disabled`
-        * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletter and image - newsletter are exposed through mambo service `web`)
+* access to tautulli - setup wizard will be launched
+* create an admin account
+* signin with your plex account
+* For Plex Media Server :
+    * Plex IP or Hostname : `plex`
+    * Port Number : `32400`
+    * Use SSL : `disabled`
+    * Remote Server : `disabled`
+    * Click Verify
+* Then after setup finished, in settings
+    * Web interface / advanced settings / Enable HTTP Proxy : `enabled`
+    * Web interface / advanced settings / Enable HTTPS" : `disabled`
+    * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletters and images - newsletters are exposed through mambo service `web`)
 
-    * NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
-        ```
-        Newsletter url : {newsletter_url} 
-        ```
+* NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
+    ```
+    Newsletter url : {newsletter_url} 
+    ```
 
+### Tautulli new users
 
+* to add a new plex user just refresh user list
+* edit user and check "Allow guest access"
 
-#### Tautulli and Organizr2 
+### Tautulli and Organizr2 
 
-    Into Organizr2
+Into Organizr2
 
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://tautulli.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : tautulli
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list
-            * Group : User
-            
-    * SSO : Allow to login only to organizr2, tautulli login is automatic
-        * System Settings - Single Sign-On
-            * Tautulli Url : `http://tautulli:5000` (DO NOT CHANGE THIS : it is the local docker network url)
-            * `Enable` SSO
-    
-    * Integration to Homepage :
-        * Tab Editor / Homepage Items / Taututlli
-            * Enable, Minimum Authentication : User
-            * Connection / Url : http://tautulli:8181
-            * Connection / API : get api key from tautulli
-            * Personalize all viewing options
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://tautulli.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : tautulli
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list
+        * Group : User
+        
+* SSO : Allow to login only to organizr2, tautulli login is automatic
+    * System Settings - Single Sign-On
+        * Tautulli Url : `http://tautulli:5000` (DO NOT CHANGE THIS : it is the local docker network url)
+        * `Enable` SSO
+
+* Integration to Homepage :
+    * Tab Editor / Homepage Items / Taututlli
+        * Enable, Minimum Authentication : User
+        * Connection / Url : http://tautulli:8181
+        * Connection / API : get api key from tautulli
+        * Personalize all viewing options
 
 ----
-### Sabnzbd
+## Sabnzbd
 
 * Folders 
     * Temporary Download Folder : `/download/incomplete`
@@ -419,7 +408,7 @@ Non functionnal
     * Create a categorie for each kind of media and store media files in folder/path `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
 
 ----
-### Medusa
+## Medusa
 
 Into Medusa
 
@@ -441,40 +430,40 @@ Into Medusa
         * HTTPS : `enabled`
 
 
-#### Medusa and Organizr2 
+### Medusa and Organizr2 
 
-    Into Organizr2
-
-
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : Medusa - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://medusa.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : medusa
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list
-            * Group : Co-Admin
+Into Organizr2
 
 
-    * Integration to Homepage :
-        * Tab Editor / Homepage Items / Sickrage
-            * Enable, Minimum Authentication : User
-            * Connection / Url : http://medusa:8081
-            * Connection / API : get api key from medusa
-            * Personalize all viewing options - recommended : 
-                *  Misc Options / Default view : week
-                *  Misc Options / Items by day : 7
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Medusa - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://medusa.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : medusa
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list
+        * Group : Co-Admin
 
 
-    Into Medusa, deactivate login because access is protected with organizr2
-        * General / Interface / Web Interface / HTTP username : blank
-        * General / Interface / Web Interface / HTTP password : blank
+* Integration to Homepage :
+    * Tab Editor / Homepage Items / Sickrage
+        * Enable, Minimum Authentication : User
+        * Connection / Url : http://medusa:8081
+        * Connection / API : get api key from medusa
+        * Personalize all viewing options - recommended : 
+            *  Misc Options / Default view : week
+            *  Misc Options / Items by day : 7
+
+
+Into Medusa, deactivate login because access is protected with organizr2
+    * General / Interface / Web Interface / HTTP username : blank
+    * General / Interface / Web Interface / HTTP password : blank
 
 ----
-### Ombi
+## Ombi
 
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Ombi
 
@@ -495,171 +484,198 @@ Into Medusa
         * Click on Test Connectivity
         * Click on Load Libraries and select libraries in which content will look for user request
 
-----
-#### Ombi and Organizr2 
+### Ombi new users
 
-    Into Organizr2
+* To add users 
+    * Parameters / Configuration / User importer : Run importer
 
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : Ombi - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://ombi.mydomain.com/auth/cookie`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : `ombi-plex`
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list 
-            * Group : User
+### Ombi and Organizr2 
 
-    * SSO : Allow to login only to organizr2, ombi login is automatic
-        * System Settings - Single Sign-On
-            * Ombi Url : `http://ombi:5000` (DO NOT CHANGE THIS : it is the local docker network url)
-            * Token : get API Key from Ombi settings / Ombi / Ombi Configuration
+Into Organizr2
 
-    * Integration to Homepage : TODO
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Ombi - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://ombi.mydomain.com/auth/cookie`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : `ombi-plex`
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list 
+        * Group : User
+
+* SSO : Allow to login only to organizr2, ombi login is automatic
+    * System Settings - Single Sign-On
+        * Ombi Url : `http://ombi:5000` (DO NOT CHANGE THIS : it is the local docker network url)
+        * Token : get API Key from Ombi settings / Ombi / Ombi Configuration
+
+* Integration to Homepage : TODO
 ---
-### MKVToolNix
+## MKVToolNix
 
-    * Check it works at `https://mkvtoolnix.domain.com`
+* Check it works at `https://mkvtoolnix.domain.com`
 
-#### MKVToolNix and Organizr2 
+### MKVToolNix and Organizr2 
 
-    Into Organizr2
+Into Organizr2
 
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : MKVToolNix - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://mkvtoolnix.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Image url : `https://img2.freepng.fr/20180609/ij/kisspng-matroska-mkvtoolnix-computer-software-5b1b5f16f14ec2.9703737815285204709884.jpg`
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list
-            * Group : Co-Admin
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : MKVToolNix - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://mkvtoolnix.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Image url : `https://img2.freepng.fr/20180609/ij/kisspng-matroska-mkvtoolnix-computer-software-5b1b5f16f14ec2.9703737815285204709884.jpg`
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list
+        * Group : Co-Admin
 
 
-
-----
-### JDownloader2
-
-    * create an account on https://my.jdownloader.org/ and install a browser extension
-    * set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
-    * you can see your instance at https://my.jdownloader.org/
 
 ----
-### transmission
+## JDownloader2
 
-    * UI Access through https://media.mydomain.com 
-    * Direct UI Access through https://internal-transmission.mydomain.com
-    * Third tools access through https://transmission.mydomain.com
-    * NOTE : when modify settings from webui, they are saved only when transmission is stopped
-
-#### Transmission and Organizr2 
-
-    Into mambo.env 
-       
-    * set TRANSMISSION_USER and TRANSMISSION_PASSWORD
-
-    Into Organizr2
-        
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : Transmission - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://internal-transmission.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : `transmission`
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list
-            * Group : Co-Admin
-
-    * Integration to Homepage :
-        * Tab Editor / Homepage Items / Transmission
-            * Enable, Minimum Authentication : Co-Admin
-            * Connection / Url : http://transmission:9091
-            * Connection / User and password : fill with correct values
+* create an account on https://my.jdownloader.org/ and install a browser extension
+* set `JDOWNLOADER2_EMAIL` and `JDOWNLOADER2_PASSWORD` variables before launch
+* you can see your instance at https://my.jdownloader.org/
 
 ----
-### Calibre Web
+## transmission
+
+* UI Access through https://media.mydomain.com 
+* Direct UI Access through https://internal-transmission.mydomain.com
+* Third tools access through https://transmission.mydomain.com
+* NOTE : when modify settings from webui, they are saved only when transmission is stopped
+
+### Transmission and Organizr2 
+
+Into mambo.env 
     
-    Into Calibre web `https://books.mydomain.com`
+* set TRANSMISSION_USER and TRANSMISSION_PASSWORD
+
+Into Organizr2
     
-    * First access :
-        * Location of Calibre database : /books
-        * Connection : admin/admin123
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Transmission - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://internal-transmission.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : `transmission`
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list
+        * Group : Co-Admin
 
-    * Admin / Configuration / Edit UI Configuration
-        * View Configuration / Theme : caliblur
-    * Admin / Configuration / Edit Basic Configuration
-        * Feature Configuration : Enable Uploads
-        * External binaries
-            * Path to Calibre E-Book Converter : /usr/bin/ebook-convert
-            * Path to Kepubify E-Book Converter : /usr/bin/kepubify
-            * Location of Unrar binary : /usr/bin/unrar
-
-#### Calibre Web and Organizr2
-
-    Into Organizr2
-
-    * Add a tab in Organizr2 menu
-        * Tab editor / add a tab ("plus" button)
-            * Tab name : books - MUST be same name as listed in `mambo services list` - ignore case
-            * Tab Url : `https://books.mydomain.com`
-            * Local Url : not needed (or same as Tab Url)
-            * Choose image : `calibre-web`
-            * Press 'Test tab' : it will indicate if we can use this tab as iframe
-            * Press 'Add tab'
-            * Refresh your browser page
-        * Tab editor / Tabs list 
-            * Group : User
-            * Type : New window
-
-    * Settings / System Settings / Main / Auth Proxy
-        * Auth Proxy : enable
-        * Auth Proxy Header Name : X-WEBAUTH-USER (this is the default value)
-
-
-    Into Calibre web
-
-    * Admin / Configuration / Edit Basic Configuration / Feature Configuration
-        * Allow Reverse Proxy Authentication : enable
-        * Reverse Proxy Header Name :  X-WEBAUTH-USER
+* Integration to Homepage :
+    * Tab Editor / Homepage Items / Transmission
+        * Enable, Minimum Authentication : Co-Admin
+        * Connection / Url : http://transmission:9091
+        * Connection / User and password : fill with correct values
 
 ----
-## NETWORK CONFIGURATION
+## Calibre Web for Books
+    
+Into Calibre web `https://books.mydomain.com`
+
+* First access :
+    * Location of Calibre database : /books
+    * Connexion : admin/admin123
+
+* Admin / Users / admin user
+    * Password : change password to anything you want
+    * Mail/... : anything you want
+
+* Admin / Users / Add New user
+    * Username : same as your plex admin user
+    * Password : change password to anything you want
+    * Mail/... : anything you want
+    * Admin User
+
+* Admin / Configuration / Edit Basic Configuration
+    * Feature Configuration : Enable Uploads
+    * External binaries
+        * Path to Calibre E-Book Converter : /usr/bin/ebook-convert
+        * Path to Kepubify E-Book Converter : /usr/bin/kepubify
+        * Location of Unrar binary : /usr/bin/unrar
+
+* Admin / Configuration / Edit UI Configuration
+    * Default Settings for New Users
+        * Allow Downloads
+        * Allow eBook Viewer
+    * View Configuration / Theme : caliblur
+
+
+### Calibre Web and Organizr2
+
+Into Organizr2
+
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : books - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://books.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : `calibre-web`
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list 
+        * Group : User
+        * Type : New window
+
+Into Calibre web
+
+* Admin-Settings / Configuration / Edit Basic Configuration / Feature Configuration
+    * Allow Reverse Proxy Authentication : enable
+    * Reverse Proxy Header Name : `X-Organizr-User`
+
+WARN
+
+* with this system you cannot logout of calibreweb but only by logout from organizr2. And you can not to login as a different user into calibreweb for debug or test purpose
+* to debug/test add a direct access port to calibre web dedicated to your media : `CALIBREWEB_BOOKS_DIRECT_ACCESS_PORT=22222` and access it through `http://localhost:22222`
+
+### Calibre Web new users
+
+To add a matching plex user to Calibre web, 
+you can check registerd plex username/mail in Ombi user list
+
+* Admin / Users / Add New user
+    * Username : same as plex username
+    * Password : anything you want
+    * Mail : same as plex mail
+
+
+
+
+----
+# Network Configuration
 
 * for more information see https://github.com/StudioEtrange/tango/blob/master/README.md
 
-### Logical area
+## Logical area
 
-* Mambo have 3 logical areas. `main`, `secondary` and `admin`. Each of them have a HTTP entrypoint and a HTTPS entrypoint. 
-* So you can separate each service on different area according to your needs by opening/closing your router settings
+* Mambo use 2 logical areas. `main` and `admin`. Each of them have a HTTP entrypoint and a HTTPS entrypoint. 
 
 * By default
     * all services are on `main` area, so accessible throuh ports 80/443 (ie: http://ombi.mydomain.com)
     * traefik admin services are on `admin` area, so accessible throuh ports 9000/9443 (ie: http://traefik.mydomain.com)
 
-* A service can be declared into several logical area
 
-### Available areas and entrypoints
+## Available areas and entrypoints
 
 |logical area|entrypoint name|protocol|default port|variable|
 |-|-|-|-|-|
 |main|web_main|HTTP|80|NETWORK_PORT_MAIN|
 |main|web_main_secure|HTTPS|443|NETWORK_PORT_MAIN_SECURE|
-|secondary|web_secondary|HTTP|8000|NETWORK_PORT_SECONDARY|
-|secondary|web_secondary_secure|HTTPS|8443|NETWORK_PORT_SECONDARY_SECURE|
 |admin|web_admin|HTTP|9000|NETWORK_PORT_ADMIN|
 |admin|web_admin_secure|HTTPS|9443|NETWORK_PORT_ADMIN_SECURE|
-
 
 ----
 ## HTTP/HTTPS CONFIGURATION
 
-### HTTPS redirection
+HTTPS redirection
 
 * By default HTTP to HTTPS auto redirection is active
 * To enable/disable HTTPS only access to each service, declare them in `NETWORK_SERVICES_REDIRECT_HTTPS` variable. An autosigned certificate will be autogenerate
@@ -671,11 +687,11 @@ Into Medusa
     ```
 
 ----
-## MAMBO PLUGINS
+# Mambo Plugins
 
 List of available plugins
 
-### Transmission PIA port
+## Transmission PIA port
 
 * Plugin name : transmission_pia_port
 
@@ -691,7 +707,7 @@ List of available plugins
     ```
 
 
-### nzbToMedia
+## nzbToMedia
 
 * Use to connect medusa and sabnzbd
 * https://github.com/clinton-hall/nzbToMedia
@@ -728,27 +744,6 @@ List of available plugins
         ###### Enter the default path to your default download directory (non-category downloads). this directory is protected by safe>
         default_downloadDirectory = /download/complete
     ```
-
-----
-## ADDING A SERVICE
-
-* Steps for adding a `foo` service
-    * in `docker-compose.yml` 
-        * add a `foo` service block
-        * add a dependency on this service into `mambo` service
-    * in `mambo.env`
-        * add a variable `FOO_VERSION=latest`
-        * add service to `TANGO_SERVICES_AVAILABLE` list
-        * if this service has subservices, declare subservices into `TANGO_SUBSERVICES_ROUTER`
-        * if this service needs to access all media folders, add it to `TANGO_ARTEFACT_SERVICES`
-        * choose to which logical network areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
-        * to generate an HTTPS certificate add service to `LETS_ENCRYPT_SERVICES`
-        * if HTTPS redirection add service to `NETWORK_SERVICES_REDIRECT_HTTPS`
-        * for time setting add service to TANGO_TIME_VOLUME_SERVICES or `TANGO_TIME_VAR_TZ_SERVICES`
-    * in `mambo`
-        * add `foo` in command line argument definition of `TARGET` choices
-    * in README.md
-        * add a section to describe its configuration
 
 ----
 ## LINKS

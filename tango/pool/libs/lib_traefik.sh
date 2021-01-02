@@ -133,7 +133,7 @@ __traefik_api_rest_request() {
             echo "$__result"
         ;;
         PUT )
-            __tango_log "DEBUG" "traefik" "__traefik_api_rest_request() : PUT request result is : $__result"   
+            __tango_log "DEBUG" "INFO" "__traefik_api_rest_request() : PUT request result is : $__result"   
         ;;
     esac
 

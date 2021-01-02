@@ -46,3 +46,7 @@
 
 
 * emulator games web : webtropie with html&emularity OR retrojolt ?
+
+* ombi bug cannot sync plex items https://github.com/tidusjar/Ombi/issues/3420
+
+* organizr : sickbeard homepage widget : calendar bug

@@ -210,6 +210,9 @@ declare -A ORGANIZR2_AUTH_GROUP_BY_SERVICE
 # hash table : give group name for each group id
 declare -A ORGANIZR2_AUTH_GROUP_NAME_BY_ID
 
+# TODO migrate to apiv2
+#ORGANIZR2_INTERNAL_CONTAINER_API_URL="http://organizr2/api/v2"
+#ORGANIZR2_API_URL="${O3_HTTP_URL_DEFAULT_SECURE}/api/v2"
 __organizr2_api_url() {
     # NOTE http://localhost from inside organizr itself
     ORGANIZR2_INTERNAL_CONTAINER_API_URL="http://organizr2/api/?v1"
@@ -446,6 +449,7 @@ __organizr2_set_auth_service_all() {
 
 
 # TODO migrate organizr2 API v1 to v2
+#__traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_API_URL}'/auth?group='${__group_id}'"'
 # add traefik authentification system for a service to traefik API
 __organizr2_traefik_api_set_auth_service() {
     local __service="$1"
@@ -461,12 +465,12 @@ __organizr2_traefik_api_set_auth_service() {
     #__traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_INTERNAL_CONTAINER_API_URL}'/auth&group='${__group_id}'"'
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_API_URL}'/auth&group='${__group_id}'"'
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.trustforwardheader = true'
-    
+    # X-Organizr-User is the header returned by organizr when used
+    __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.authResponseHeaders = ["X-Organizr-User"]'
 
-    # NOTE THIS URL should redirect after authentification done to the original wanted page but seems to not work with traefik
+    # NOTE THIS URL should redirect after authentification done by organizr to the original wanted page but seems to not work with traefik
     ##https://media.chimere-harpie.org/?error=401&return=https://ombi.chimere-harpie.org/auth/cookie
 
-    
 }
 
 

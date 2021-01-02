@@ -130,7 +130,12 @@ Various notes, test, links, code... made while designing Mambo
 * organizr + nginx samples for several media/download services https://github.com/vertig0ne/organizr-ngxc/blob/master/ngxc.php
 
 
+* Organizr / calibreweb auth
+    * configure organizr Auth Proxy : https://github.com/causefx/Organizr/issues/1215
+    * organizr Auth proxy is case sensitiv https://github.com/causefx/Organizr/issues/1437
+
 ### Access through traefik without organizr auth for service api
+
 * add specific router for service api
 * https://github.com/htpcBeginner/docker-traefik/issues/27
 
@@ -140,7 +145,7 @@ Various notes, test, links, code... made while designing Mambo
 * Sabnzbd : ```Host(`sabnzbd.$DOMAINNAME`) && Query(`apikey=$SABNZBD_API_KEY`)```
 * Bazaar : ```Host(`bazarr.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$BAZARR_API_KEY`) || Query(`apikey`, `$BAZARR_API_KEY`))```
 
-### organizr and reverse proxy
+### organizr and reverse proxy interaction
 
 * You may want to write reverse proxy rules to 
 
@@ -171,10 +176,73 @@ Various notes, test, links, code... made while designing Mambo
         }
         ```
 
+### Organizr and authentification
+
+Use organizr to check user is authentified from organizr auth page : organizr can be used as a auth mechanism in front of a service
+
+* organizr expose an API for this (there is two versions or organizr v1 and v2)
+* This api can check if a user is already logged and belong to a GROUPID. 
+    * if true return HTTP 200 and headers `X-Organizr-User: username` and `X-Organizr-Email: user@gmail.com` and `X-Organizr-Group: 0` (in more recent versions) - These headers can be used to autologin into service like Calibreweb
+    * if false return HTTP 401 by default
+    * or if false return HTTP 302 and redirect to the organizr login page IF `Settings / System Settings / Main / Security / Enable Traefik Auth Redirect`
+* URL api v1 : http://organizr2.domain.com.api/api/?v1/auth&group=GROUPID
+* URL api v2 : http://organizr2.domain.com.api/api/v2/auth?group=GROUPID
+* This api an be used with a traefik middleware forwardauth attached to service router. When using an organizr to auto login into service do not forget to add an `authRespnseHeaders` to traefik middleware : `forwardauth.authResponseHeaders = ["X-Organizr-User"]`
+
+
+Auto login into organizr and by pass organir login mechanism
+
+* In organizr the Auth Proxy functionnality allow ONLY to auto login into organizr and bypass authentification
+    * This do not help in anyway to make SSO nor auto login into any service
+    * Example to allow any HTTP request with X-WEBAUTH-USER to be autologged into organizr :
+        * Settings / System Settings / Main / Auth Proxy
+            * Auth Proxy : enable
+            * Auth Proxy Header Name : X-WEBAUTH-USER (this is the default value)
+            * Auth Proxy Whitelist : ip or subnet like 0.0.0.0/0 (filter to autorize request only from this ip or subnet)
+
 
 ## audiobooks
 
 * how to manage metadata books collection for booksonic and plex with mp3tag : https://github.com/seanap/Plex-Audiobook-Guide/blob/master/README.md
+
+
+
+### Booksonic
+
+* Initial Configuration
+    * access to Booksonic - a 'getting started' page will appear
+    * change default login password
+    * Setup Media Folder : add a media folder. Shoud be one from `TANGO_ARTEFACT_FOLDERS` list, mounted under `/media/`
+
+* Booksonic-App android reader
+    * build from source 
+        * https://amp.reddit.com/r/Booksonic/comments/hboaua/building_from_source/
+        * instructions : https://github.com/mmguero-android/Booksonic-Android
+
+### Booksonic and Organizr2 
+
+Into Organizr2
+
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Booksonic - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://booksonic.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : booksonic
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list
+        * Group : User
+        * Type : New Window
+
+* SSO : impossible to make it work
+    * booksonic implement a version of subsonic API for HTTP request with password https://booksonic.chimere-harpie.org/rest/getStarred.view?u=USER&p=PASSWORD&v=1.14.0&c=CLIENTNAME and after this request it create a cookie and the user is authentificated. https://www.reddit.com/r/Booksonic/comments/emkizu/question_about_accessing_the_booksonic_api/?utm_source=share&utm_medium=web2x&context=3
+    * can not find a way to auto login from orginzr2
+    * There is also the problem to give access to the Booksonic-App android reader
+    * sync plex authent by using ldap to plex
+        * https://github.com/hjone72/LDAP-for-Plex
+        * https://github.com/Starbix/docker-plex-ldap
 
 
 ## ebooks
@@ -312,6 +380,9 @@ Various notes, test, links, code... made while designing Mambo
     From e-mail : Chimere & Harpie <info.mambo.media@gmail.com>
     * USER who want to use send to kindle MUST have download permission
     ```
+
+
+
 
 ### calibre
 
@@ -740,6 +811,16 @@ A frontend is a launcher of emulators
 
 * SMB vs NFS and SMB optimization : https://www.reddit.com/r/linuxquestions/comments/b5ba8t/nfs_vs_samba_whats_the_trend_nowadays/
 
+* sniff network TCP network inside a service
+    ```
+    # sniff service organizr2 which internally listen on port 80
+    docker exec -it -u 0:0 mambo_organizr2
+    # install tcpdump
+    apk add tcpdump
+    # listen network trafic
+    tcpdump -A -s 0 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
+    ```
+
 ### Game Streaming
 
 * moonlight
@@ -767,7 +848,7 @@ A frontend is a launcher of emulators
     * stream the game (an non the entire pc)
 
 
-### Sync game library
+### Game : Sync game library
 
 * FSCache linux + CIFS or NFS
 
