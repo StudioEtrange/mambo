@@ -105,6 +105,28 @@ volumes:
       o: bind
       device: ${BOOKSONIC_DATA_PATH}
     name: ${TANGO_APP_NAME}_booksonic_data
+  calibredb_books_media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREDB_BOOKS_MEDIA_PATH}
+    name: ${TANGO_APP_NAME}_calibredb_books_media
+  # TODO delete this
+  # calibreweb_books_media:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${CALIBREWEB_BOOKS_MEDIA_PATH}
+  #   name: ${TANGO_APP_NAME}_calibreweb_books_media
+  calibre_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBRE_DATA_PATH}
+    name: ${TANGO_APP_NAME}_calibre_data
   calibreweb_books_data:
     driver: local
     driver_opts:
@@ -112,13 +134,6 @@ volumes:
       o: bind
       device: ${CALIBREWEB_BOOKS_DATA_PATH}
     name: ${TANGO_APP_NAME}_calibreweb_books_data
-  calibreweb_books_media:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CALIBREWEB_BOOKS_MEDIA_PATH}
-    name: ${TANGO_APP_NAME}_calibreweb_books_media
   # calibreweb_comics_data:
   #   driver: local
   #   driver_opts:
@@ -146,8 +161,8 @@ x-calibreweb: &default-calibreweb
   environment:
     - PUID=${TANGO_USER_ID:-0}
     - PGID=${TANGO_GROUP_ID:-0}
-    # NOTE : you can choose a calibre binary version to inject with CALIBRE_MOD_VERSION or just use a latest version available
-    #       a linuxserver.io module must be used from docker hub repository only,
+    # NOTE : you can choose a calibre binary version to inject with a linuxserver docker mod 'CALIBRE_MOD_VERSION' or just use a latest version available
+    #       a linuxserver docker mod must be used from docker hub repository only,
     #       it cannot be used from a local build
     #       https://github.com/StudioEtrange/docker-calibre-mod
     #       https://hub.docker.com/repository/docker/studioetrange/calibre-mod
@@ -194,8 +209,8 @@ services:
       - "traefik.http.services.organizr2.loadbalancer.server.port=80"
       - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
       - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
-      # generic middleware
-      # force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
+      # middlewares
+      # generic middleware - force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
       - 'traefik.http.middlewares.xframe-allow-all.headers.customFrameOptionsValue=allow-from *'
       # routers
       - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
@@ -211,6 +226,25 @@ services:
       # routers middleware
       - "traefik.http.routers.organizr2.middlewares=error-middleware"
       - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
+      # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 hostaname
+      - "traefik.http.middlewares.organizr2-plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
+      - "traefik.http.routers.organizr2-plex.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
+      # NOTE : as organizr2-plex.priority and organizr2.priority are even, organizr2-plex.rule priority is higher than organizr2.rule because rule is longer
+      - "traefik.http.routers.organizr2-plex.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
+      - "traefik.http.routers.organizr2-plex.service=plex"
+      - "traefik.http.routers.organizr2-plex.priority=${ORGANIZR2_PRIORITY}"
+      - "traefik.http.routers.organizr2-plex-secure.entrypoints=${ORGANIZR2_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
+      - "traefik.http.routers.organizr2-plex-secure.priority=${ORGANIZR2_PRIORITY}"
+      - "traefik.http.routers.organizr2-plex-secure.service=plex"
+      - "traefik.http.routers.organizr2-plex-secure.tls=true"
+      - "traefik.http.routers.organizr2-plex-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # add plex-auth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
+      - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,plex-auth@rest"
+      - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,plex-auth@rest"
+      # NOTE : do not activate error-middleware, if so plex service will cannot ask for authentification
+      # - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,plex-auth@rest,error-middleware"
+      # - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,plex-auth@rest,error-middleware"
     networks:
       - default
     expose:
@@ -482,7 +516,7 @@ services:
       - data:/data
       # different paths used by medusa
       - download:/download
-      - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
+      #- artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
     environment:
       - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
     labels:
@@ -816,7 +850,51 @@ services:
    
 
 
+ 
+  # Calibre
+  # https://github.com/linuxserver/docker-calibre
+  calibre:
+    image: ghcr.io/linuxserver/calibre:${CALIBRE_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_calibre
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # will contain calibre configuration
+      - calibre_data:/config
+      # different paths used by calibre
+      - download:/download
+      - calibredb_books_media:/calibredb/books
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service
+      - "traefik.http.services.calibre.loadbalancer.server.port=8080"
+      - "traefik.http.services.calibre.loadbalancer.server.scheme=http"
+      - "traefik.http.services.calibre.loadbalancer.passhostheader=true"
+      # routers
+      - "traefik.http.routers.calibre.entrypoints=${CALIBRE_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.calibre.rule=HostRegexp(`{subdomain:${CALIBRE_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.calibre.priority=${CALIBRE_PRIORITY}"
+      - "traefik.http.routers.calibre.service=calibre"
+      - "traefik.http.routers.calibre-secure.entrypoints=${CALIBRE_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.calibre-secure.rule=HostRegexp(`{subdomain:${CALIBRE_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.calibre-secure.priority=${CALIBRE_PRIORITY}"
+      - "traefik.http.routers.calibre-secure.service=calibre"
+      - "traefik.http.routers.calibre-secure.tls=true"
+      - "traefik.http.routers.calibre-secure.tls.domains[0].main=${CALIBRE_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # routers middleware
+      - "traefik.http.routers.calibre.middlewares=calibre-auth@rest,error-middleware"
+      - "traefik.http.routers.calibre-secure.middlewares=calibre-auth@rest,error-middleware"
+    networks:
+      - default
+    expose:
+      - 8080/tcp
 
+  
 
 # TODO ?
 # do we need to do this at first run init :  https://github.com/cgspeck/docker-rdp-calibre/blob/master/firstrun.sh
@@ -835,7 +913,8 @@ services:
       # will contain calibre-web configuration
       - calibreweb_books_data:/config
       # different paths used by calibreweb
-      - calibreweb_books_media:/books
+      - download:/download
+      - calibredb_books_media:/books
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"

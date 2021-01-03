@@ -468,8 +468,6 @@ __organizr2_traefik_api_set_auth_service() {
     # X-Organizr-User is the header returned by organizr when used
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.authResponseHeaders = ["X-Organizr-User"]'
 
-    # NOTE THIS URL should redirect after authentification done by organizr to the original wanted page but seems to not work with traefik
-    ##https://media.chimere-harpie.org/?error=401&return=https://ombi.chimere-harpie.org/auth/cookie
 
 }
 

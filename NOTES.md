@@ -190,7 +190,7 @@ Use organizr to check user is authentified from organizr auth page : organizr ca
 * This api an be used with a traefik middleware forwardauth attached to service router. When using an organizr to auto login into service do not forget to add an `authRespnseHeaders` to traefik middleware : `forwardauth.authResponseHeaders = ["X-Organizr-User"]`
 
 
-Auto login into organizr and by pass organir login mechanism
+Auto login into organizr portail (=bypass organir login mechanism)
 
 * In organizr the Auth Proxy functionnality allow ONLY to auto login into organizr and bypass authentification
     * This do not help in anyway to make SSO nor auto login into any service
@@ -199,6 +199,58 @@ Auto login into organizr and by pass organir login mechanism
             * Auth Proxy : enable
             * Auth Proxy Header Name : X-WEBAUTH-USER (this is the default value)
             * Auth Proxy Whitelist : ip or subnet like 0.0.0.0/0 (filter to autorize request only from this ip or subnet)
+
+
+### Organizr and Plex SSO
+
+Plex SSO through organizr means : log into organizr then we are auto logged into plex also with the same acount
+
+* According to the doc Organizr Plex SSO doesn't work if Plex Reverse Proxy is a subdomain https://docs.organizr.app/books/setup-features/page/sso
+* To still use subdomain and have SSO, we need to add another access with subfolder to plex
+    * solution for traefik 1 : https://www.reddit.com/r/organizr/comments/edcpvz/plex_sso_and_traefik_401_unauthorized/fbxmh4y/?utm_source=reddit&utm_medium=web2x&context=3
+    * same solution for traefik 2 :
+        * edit organizr tab to access to plex to url http://organizr2.comain.com.plex
+        * set organizr plex sso configuration (see https://docs.organizr.app/books/setup-features/page/sso) 
+        * add two routes (/plex and / web) to organizr2 router that will go to plex service 
+        ```
+organizr2:
+    image: organizr/organizr
+    labels:
+        - "${TANGO_INSTANCE_NAME}.managed=true"
+        - "traefik.enable=true"
+        # auth middlewares
+        - "traefik.http.middlewares.myauth.address=https://organizr2.domain.com:443/api/?v1/auth&group=1"
+        - "traefik.http.middlewares.myauth.forwardauth.tls.insecureSkipVerify=true"
+        - "traefik.http.middlewares.myauth.forwardauth.trustforwardheader=true"
+        # service
+        - "traefik.http.services.organizr2.loadbalancer.server.port=80"
+        - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
+        - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
+        # routers
+        - "traefik.http.routers.organizr2-secure.entrypoints=web_main_secure"
+        - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:organizr2.}{domain:domain.com}`)"      
+        - "traefik.http.routers.organizr2-secure.service=organizr2"
+        - "traefik.http.routers.organizr2-secure.tls=true"
+        - "traefik.http.routers.organizr2-secure.tls.domains[0].main=organizr2.domain.com"
+        # routers middleware
+        - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
+        # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 hostaname
+        - "traefik.http.middlewares.organizr2-plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
+        # NOTE : as organizr2-plex.priority and organizr2.priority are even, organizr2-plex.rule priority is higher than organizr2.rule because rule is longer
+        - "traefik.http.routers.organizr2-plex-secure.entrypoints=web_main_secure"
+        - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:organizr2.}}{domain:domain.com}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
+        - "traefik.http.routers.organizr2-plex-secure.service=plex"
+        - "traefik.http.routers.organizr2-plex-secure.tls=true"
+        - "traefik.http.routers.organizr2-plex-secure.tls.domains[0].main=organizr2.domain.com"
+        # add myauth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
+        - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,myauth"
+        - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,myauth"
+        # NOTE : do not activate error-middleware, if so plex service will cannot ask for authentification
+    networks:
+        - default
+    expose:
+        - 80
+        ```
 
 
 ## audiobooks

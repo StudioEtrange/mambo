@@ -50,3 +50,5 @@
 * ombi bug cannot sync plex items https://github.com/tidusjar/Ombi/issues/3420
 
 * organizr : sickbeard homepage widget : calendar bug
+
+* why services listed in TANGO_ARTEFACT_SERVICES mount also artefact volume in TANGO_ARTEFACT_MOUNT_POINT (like sabnzbd)

@@ -1,4 +1,4 @@
-# MAMBO - A docker based media stack
+# MAMBO - A docker based media stack - WIP - do not use YET
 
 A central portal for all your media services.
 
@@ -33,7 +33,8 @@ NOTE : mambo will auto install all other required tools like docker-compose
 * Tautulli - plex statistics and newsletter
 * JDownloader2 - direct download manager
 * Tranmission - torrent downloader
-* Handbrake - Video Conversion (Transcoding and compression)
+* Calibre Web - web ebook reader and library
+* Calibre - ebook management
 * MKVToolNix - Matroska tools with WebGUI - Video Editing (Remuxing - changing media container while keeping original source quality)
 
 
@@ -202,25 +203,6 @@ NOTE : mambo will auto install all other required tools like docker-compose
     ```
     ./mambo down <service>
     ```
-## Adding a new service
-
-* Steps for adding a `foo` service
-    * in `docker-compose.yml` 
-        * add a `foo` service block
-        * add a dependency on this service into `mambo` service
-    * in `mambo.env`
-        * add a variable `FOO_VERSION=latest`
-        * add service to `TANGO_SERVICES_AVAILABLE` list
-        * if this service has subservices, declare subservices into `TANGO_SUBSERVICES_ROUTER`
-        * if this service needs to access all media folders, add it to `TANGO_ARTEFACT_SERVICES`
-        * choose to which logical network areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
-        * to generate an HTTPS certificate add service to `LETS_ENCRYPT_SERVICES`
-        * if HTTPS redirection add service to `NETWORK_SERVICES_REDIRECT_HTTPS`
-        * for time setting add service to TANGO_TIME_VOLUME_SERVICES or `TANGO_TIME_VAR_TZ_SERVICES`
-    * in `mambo`
-        * add `foo` in command line argument definition of `TARGET` choices
-    * in README.md
-        * add a section to describe its configuration
 
 ----
 
@@ -283,7 +265,7 @@ Into Organizr2
 
 * Initial Setup
     * License : personal
-    * User : plex admin real username, plex admin email and a different password
+    * User : plex admin real username, plex admin real email and a different password
     * Hash : choose a random keyword
     * registration password : choose a password so that user can signup themselves
     * api : do not change
@@ -605,7 +587,11 @@ Into Calibre web `https://books.mydomain.com`
     * Default Settings for New Users
         * Allow Downloads
         * Allow eBook Viewer
-    * View Configuration / Theme : caliblur
+    * View Configuration 
+        * Title : choose a title
+        * Theme : caliblur
+        * sort regexp : tweak it if needed
+
 
 
 ### Calibre Web and Organizr2
@@ -645,7 +631,7 @@ you can check registerd plex username/mail in Ombi user list
     * Username : same as plex username
     * Password : anything you want
     * Mail : same as plex mail
-
+    * Language : choose a language for UI
 
 
 
