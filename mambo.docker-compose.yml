@@ -105,21 +105,13 @@ volumes:
       o: bind
       device: ${BOOKSONIC_DATA_PATH}
     name: ${TANGO_APP_NAME}_booksonic_data
-  calibredb_books_media:
+  lazylibrarian_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${CALIBREDB_BOOKS_MEDIA_PATH}
-    name: ${TANGO_APP_NAME}_calibredb_books_media
-  # TODO delete this
-  # calibreweb_books_media:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     o: bind
-  #     device: ${CALIBREWEB_BOOKS_MEDIA_PATH}
-  #   name: ${TANGO_APP_NAME}_calibreweb_books_media
+      device: ${LAZYLIBRARIAN_DATA_PATH}
+    name: ${TANGO_APP_NAME}_lazylibrarian_data
   calibre_data:
     driver: local
     driver_opts:
@@ -134,18 +126,13 @@ volumes:
       o: bind
       device: ${CALIBREWEB_BOOKS_DATA_PATH}
     name: ${TANGO_APP_NAME}_calibreweb_books_data
-  # calibreweb_comics_data:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     o: bind
-  #     device: ${APP_DATA_PATH}/calibreweb_comics
-  # calibreweb_comics_media:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     o: bind
-  #     device: ${MAMBO_MEDIA_PATH}/${MAMBO_MEDIA_CALIBREDB_FOLDER}/calibreweb_comics
+  calibredb_books_media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREDB_BOOKS_MEDIA_PATH}
+    name: ${TANGO_APP_NAME}_calibredb_books_media
 
 
 
@@ -226,29 +213,34 @@ services:
       # routers middleware
       - "traefik.http.routers.organizr2.middlewares=error-middleware"
       - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
-      # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 hostaname
-      - "traefik.http.middlewares.organizr2-plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
-      - "traefik.http.routers.organizr2-plex.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
-      # NOTE : as organizr2-plex.priority and organizr2.priority are even, organizr2-plex.rule priority is higher than organizr2.rule because rule is longer
-      - "traefik.http.routers.organizr2-plex.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
-      - "traefik.http.routers.organizr2-plex.service=plex"
-      - "traefik.http.routers.organizr2-plex.priority=${ORGANIZR2_PRIORITY}"
-      - "traefik.http.routers.organizr2-plex-secure.entrypoints=${ORGANIZR2_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
-      - "traefik.http.routers.organizr2-plex-secure.priority=${ORGANIZR2_PRIORITY}"
-      - "traefik.http.routers.organizr2-plex-secure.service=plex"
-      - "traefik.http.routers.organizr2-plex-secure.tls=true"
-      - "traefik.http.routers.organizr2-plex-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # BEGIN SPECIAL tip -------------------------------------------------------------------------------------
+      # make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 dns name
+      # middlewares
+      - "traefik.http.middlewares.organizr2_plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
+      # routers
+      - "traefik.http.routers.organizr2_plex.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.organizr2_plex.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
+      - "traefik.http.routers.organizr2_plex.service=plex"
+      # organizr2_plex is declared as a tango subservice, which have higher priority than their relative parent (organizr2 router here)
+      - "traefik.http.routers.organizr2_plex.priority=${ORGANIZR2_PLEX_PRIORITY}"
+      - "traefik.http.routers.organizr2_plex-secure.entrypoints=${ORGANIZR2_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.organizr2_plex-secure.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
+      - "traefik.http.routers.organizr2_plex-secure.priority=${ORGANIZR2_PLEX_PRIORITY}"
+      - "traefik.http.routers.organizr2_plex-secure.service=plex"
+      - "traefik.http.routers.organizr2_plex-secure.tls=true"
+      - "traefik.http.routers.organizr2_plex-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       # add plex-auth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
-      - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,plex-auth@rest"
-      - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,plex-auth@rest"
+      - "traefik.http.routers.organizr2_plex.middlewares=organizr2_plex-stripprefix,plex-auth@rest"
+      - "traefik.http.routers.organizr2_plex-secure.middlewares=organizr2_plex-stripprefix,plex-auth@rest"
       # NOTE : do not activate error-middleware, if so plex service will cannot ask for authentification
-      # - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,plex-auth@rest,error-middleware"
-      # - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,plex-auth@rest,error-middleware"
+      # - "traefik.http.routers.organizr2_plex.middlewares=organizr2_plex-stripprefix,plex-auth@rest,error-middleware"
+      # - "traefik.http.routers.organizr2_plex-secure.middlewares=organizr2_plex-stripprefix,plex-auth@rest,error-middleware"
+      # END SPECIAL tip -------------------------------------------------------------------------------------
     networks:
       - default
     expose:
       - 80
+      
   o3:
     image: organizr/organizr
     container_name: ${TANGO_APP_NAME}_o3
@@ -849,7 +841,49 @@ services:
       - default
    
 
-
+  # Lazylibrarian
+  # https://github.com/linuxserver/docker-lazylibrarian
+  # https://hub.docker.com/r/linuxserver/lazylibrarian
+  lazylibrarian:
+    image: ghcr.io/linuxserver/lazylibrarian:${LAZYLIBRARIAN_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_lazylibrarian
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # will contain lazylibrarian configuration
+      - lazylibrarian_data:/config
+      # different paths used by lazylibrarian
+      - download:/download
+      - calibredb_books_media:/calibredb/books
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service
+      - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
+      - "traefik.http.services.lazylibrarian.loadbalancer.server.scheme=http"
+      - "traefik.http.services.lazylibrarian.loadbalancer.passhostheader=true"
+      # routers
+      - "traefik.http.routers.lazylibrarian.entrypoints=${LAZYLIBRARIAN_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.lazylibrarian.rule=HostRegexp(`{subdomain:${LAZYLIBRARIAN_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.lazylibrarian.priority=${LAZYLIBRARIAN_PRIORITY}"
+      - "traefik.http.routers.lazylibrarian.service=lazylibrarian"
+      - "traefik.http.routers.lazylibrarian-secure.entrypoints=${LAZYLIBRARIAN_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.lazylibrarian-secure.rule=HostRegexp(`{subdomain:${LAZYLIBRARIAN_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.lazylibrarian-secure.priority=${LAZYLIBRARIAN_PRIORITY}"
+      - "traefik.http.routers.lazylibrarian-secure.service=lazylibrarian"
+      - "traefik.http.routers.lazylibrarian-secure.tls=true"
+      - "traefik.http.routers.lazylibrarian-secure.tls.domains[0].main=${LAZYLIBRARIAN_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # routers middleware
+      - "traefik.http.routers.lazylibrarian.middlewares=lazylibrarian-auth@rest,error-middleware"
+      - "traefik.http.routers.lazylibrarian-secure.middlewares=lazylibrarian-auth@rest,error-middleware"
+    networks:
+      - default
+    expose:
+      - 5299/tcp
  
   # Calibre
   # https://github.com/linuxserver/docker-calibre

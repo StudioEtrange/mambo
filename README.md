@@ -339,10 +339,16 @@ Into Organizr2
     * Web interface / advanced settings / Enable HTTPS" : `disabled`
     * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletters and images - newsletters are exposed through mambo service `web`)
 
+### Tautulli newsletter
+
+* TODO : mail setup
+
 * NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
     ```
     Newsletter url : {newsletter_url} 
     ```
+
+
 
 ### Tautulli new users
 
@@ -524,9 +530,34 @@ Into Organizr2
 * you can see your instance at https://my.jdownloader.org/
 
 ----
+## Lazylibrarian
+
+access through https://lazylibrarian.domain.com
+
+* Config / Processing
+    * Folders / eBook Library Folder : `/calibredb/books`
+
+### Lazylibrarian Web and Organizr2
+
+Into Organizr2
+
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Lazylibrarian - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://lazylibrarian.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : `lazylibrarian`
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list 
+        * Group : Co-Admin
+      
+
+----
 ## transmission
 
-* UI Access through https://media.mydomain.com 
+* UI Access through portail https://media.mydomain.com 
 * Direct UI Access through https://internal-transmission.mydomain.com
 * Third tools access through https://transmission.mydomain.com
 * NOTE : when modify settings from webui, they are saved only when transmission is stopped
@@ -559,7 +590,7 @@ Into Organizr2
 
 ----
 ## Calibre Web for Books
-    
+
 Into Calibre web `https://books.mydomain.com`
 
 * First access :
@@ -583,9 +614,19 @@ Into Calibre web `https://books.mydomain.com`
         * Path to Kepubify E-Book Converter : /usr/bin/kepubify
         * Location of Unrar binary : /usr/bin/unrar
 
+* Admin / Email server smtp settings
+    * needed at least to get send to kindle feature
+    * settings based on your mail provider, sample for mymail@gmail.com :
+        * SMTP hostname : smtp.gmail.com
+        * SMTP port : 465
+        * Encryption : SSL/TLS
+        * SMTP login : mymail@gmail.com
+        * SMTP Password: xxxx
+        * From e-mail : My Mail <mymail@gmail.com>
+
 * Admin / Configuration / Edit UI Configuration
     * Default Settings for New Users
-        * Allow Downloads
+        * Allow Downloads (needed to get send to kindle feature)
         * Allow eBook Viewer
     * View Configuration 
         * Title : choose a title
@@ -593,6 +634,19 @@ Into Calibre web `https://books.mydomain.com`
         * sort regexp : tweak it if needed
 
 
+### Calibre Web new users
+
+To add a matching plex user to Calibre web, 
+you can check registerd plex username/mail in Ombi user list
+
+* Admin / Users / Add New user
+    * Username : same as plex username
+    * Password : anything you want
+    * Mail : same as plex mail
+    * Language : choose a language for UI
+
+
+Each user can set himself it's kindle mail. Calibre-web convert on the fly the sent ebook as mobo format for kindle if necessary.
 
 ### Calibre Web and Organizr2
 
@@ -621,17 +675,6 @@ WARN
 
 * with this system you cannot logout of calibreweb but only by logout from organizr2. And you can not to login as a different user into calibreweb for debug or test purpose
 * to debug/test add a direct access port to calibre web dedicated to your media : `CALIBREWEB_BOOKS_DIRECT_ACCESS_PORT=22222` and access it through `http://localhost:22222`
-
-### Calibre Web new users
-
-To add a matching plex user to Calibre web, 
-you can check registerd plex username/mail in Ombi user list
-
-* Admin / Users / Add New user
-    * Username : same as plex username
-    * Password : anything you want
-    * Mail : same as plex mail
-    * Language : choose a language for UI
 
 
 

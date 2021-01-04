@@ -52,3 +52,5 @@
 * organizr : sickbeard homepage widget : calendar bug
 
 * why services listed in TANGO_ARTEFACT_SERVICES mount also artefact volume in TANGO_ARTEFACT_MOUNT_POINT (like sabnzbd)
+
+* api access for sabnzbd, lazylibrarian... like transmission

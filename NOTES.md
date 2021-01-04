@@ -216,7 +216,6 @@ Plex SSO through organizr means : log into organizr then we are auto logged into
 organizr2:
     image: organizr/organizr
     labels:
-        - "${TANGO_INSTANCE_NAME}.managed=true"
         - "traefik.enable=true"
         # auth middlewares
         - "traefik.http.middlewares.myauth.address=https://organizr2.domain.com:443/api/?v1/auth&group=1"
@@ -229,23 +228,24 @@ organizr2:
         # routers
         - "traefik.http.routers.organizr2-secure.entrypoints=web_main_secure"
         - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:organizr2.}{domain:domain.com}`)"      
+        - "traefik.http.routers.organizr2-secure.priority=50"
         - "traefik.http.routers.organizr2-secure.service=organizr2"
         - "traefik.http.routers.organizr2-secure.tls=true"
         - "traefik.http.routers.organizr2-secure.tls.domains[0].main=organizr2.domain.com"
         # routers middleware
         - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
-        # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 hostaname
+        # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 dns name
         - "traefik.http.middlewares.organizr2-plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
-        # NOTE : as organizr2-plex.priority and organizr2.priority are even, organizr2-plex.rule priority is higher than organizr2.rule because rule is longer
         - "traefik.http.routers.organizr2-plex-secure.entrypoints=web_main_secure"
-        - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:organizr2.}}{domain:domain.com}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"      
+        - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:organizr2.}}{domain:domain.com}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"
+        - "traefik.http.routers.organizr2-plex-secure.priority=100"
         - "traefik.http.routers.organizr2-plex-secure.service=plex"
         - "traefik.http.routers.organizr2-plex-secure.tls=true"
         - "traefik.http.routers.organizr2-plex-secure.tls.domains[0].main=organizr2.domain.com"
         # add myauth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
         - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,myauth"
         - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,myauth"
-        # NOTE : do not activate error-middleware, if so plex service will cannot ask for authentification
+        # NOTE : do not activate error-middleware, if so plex service cannot ask for authentification
     networks:
         - default
     expose:
@@ -485,7 +485,7 @@ Into Organizr2
 
     ```
     export CALIBRE_RELEASE_DOCKERMOD_VERSION="4.6.0"
-    export LAZYLIBRARIAN_DOCKER_VERSION="a78d76ad-ls114 "
+    export LAZYLIBRARIAN_DOCKER_VERSION="a78d76ad-ls114"
     export MAMBO_HOME="$HOME/mambo"
     docker stop lazylibrarian && docker rm lazylibrarian
     docker run --name lazylibrarian -d -v ${MAMBO_HOME}/data/lazylibrarian:/config -v /media/MEDIA/EBOOKS:/books  -v ${MAMBO_HOME}/download:/downloads -p 8020:5299 -e PUID="$(id -u)" -e PGID="$(id -g)" -e TZ="Europe/Paris" -e DOCKER_MODS="studioetrange/calibre-mod:${CALIBRE_RELEASE_DOCKERMOD_VERSION}" linuxserver/lazylibrarian:${LAZYLIBRARIAN_DOCKER_VERSION}
