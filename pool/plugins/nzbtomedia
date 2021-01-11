@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# DEPRECATED replaced by a docker service
 
 # FEATURES : nzbToMedia is a script used to postprocess download between sabnzbd and indexer like sickbeard
 #            this plugin install nzbToMedia in /data/nzbtomedia

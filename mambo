@@ -324,6 +324,13 @@ if [ "${__action_done_by_mambo}" = "" ]; then
         install )
             __tango_log "INFO" "mambo" "Install ansible"
             pip install ansible==2.10.4
+
+            __tango_log "INFO" "mambo" "Install python yq"
+            pip install yq==2.11.1
+            # rename yq python binary to avoid conflict with yq go tool
+            $STELLA_API feature_info miniconda3 MINICONDA
+            __tango_log "DEBUG" "mambo" "miniconda3 is in $MINICONDA_FEAT_INSTALL_ROOT"
+            mv $MINICONDA_FEAT_INSTALL_ROOT/bin/yq $MINICONDA_FEAT_INSTALL_ROOT/bin/pyyq
         ;;
 
     esac

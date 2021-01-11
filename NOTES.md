@@ -43,7 +43,7 @@ Various notes, test, links, code... made while designing Mambo
     * http://ariang.mayswind.net/ - frontend
     * https://github.com/lukasmrtvy/lsiobase-aria2-webui - docker image
 
-* youtube-dl download online videos
+* youtube-dl : command line tool to download online videos (NOT only from youtube)
     * https://ytdl-org.github.io/youtube-dl/
     * HTML GUI for youtube-dl : https://github.com/Rudloff/alltube
     ```
@@ -56,6 +56,11 @@ Various notes, test, links, code... made while designing Mambo
     * https://github.com/Boerderij/Varken
     * standalone application that display dashboard for Plex, Sonarr, SickChill, Radarr, Tautulli, Ombi, Lidarr
     * use InfluxDB/Grafana
+
+
+* Graphics themas
+    * CSS changes to many popular web services https://github.com/Archmonger/Blackberry-Themes
+    * A collection of themes/skins for your favorite apps https://github.com/gilbN/theme.park
 
 
 ## Plex
@@ -136,14 +141,13 @@ Various notes, test, links, code... made while designing Mambo
 
 ### Access through traefik without organizr auth for service api
 
-* add specific router for service api
-* https://github.com/htpcBeginner/docker-traefik/issues/27
-
-* Sonarr : ```Host(`sonarr.$DOMAINNAME`) && PathPrefix(`/api`)```
-* LazyLibrarian : ```Host(`lazylibrarian.$DOMAINNAME`) && PathPrefix(`/opds`)```
-* Radarr : ```Host(`radarr.domain.com`) && (Headers(`X-Api-Key`, `$RADARR_API_KEY`) || Query(`apikey=$RADARR_API_KEY `))```
-* Sabnzbd : ```Host(`sabnzbd.$DOMAINNAME`) && Query(`apikey=$SABNZBD_API_KEY`)```
-* Bazaar : ```Host(`bazarr.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$BAZARR_API_KEY`) || Query(`apikey`, `$BAZARR_API_KEY`))```
+* add specific router for reaching a service api
+    * https://github.com/htpcBeginner/docker-traefik/issues/27
+    * Sonarr : ```Host(`sonarr.$DOMAINNAME`) && PathPrefix(`/api`)```
+    * LazyLibrarian : ```Host(`lazylibrarian.$DOMAINNAME`) && PathPrefix(`/opds`)```
+    * Radarr : ```Host(`radarr.domain.com`) && (Headers(`X-Api-Key`, `$RADARR_API_KEY`) || Query(`apikey=$RADARR_API_KEY `))```
+    * Sabnzbd : ```Host(`sabnzbd.$DOMAINNAME`) && Query(`apikey=$SABNZBD_API_KEY`)```
+    * Bazaar : ```Host(`bazarr.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$BAZARR_API_KEY`) || Query(`apikey`, `$BAZARR_API_KEY`))```
 
 ### organizr and reverse proxy interaction
 
@@ -213,43 +217,43 @@ Plex SSO through organizr means : log into organizr then we are auto logged into
         * set organizr plex sso configuration (see https://docs.organizr.app/books/setup-features/page/sso) 
         * add two routes (/plex and / web) to organizr2 router that will go to plex service 
         ```
-organizr2:
-    image: organizr/organizr
-    labels:
-        - "traefik.enable=true"
-        # auth middlewares
-        - "traefik.http.middlewares.myauth.address=https://organizr2.domain.com:443/api/?v1/auth&group=1"
-        - "traefik.http.middlewares.myauth.forwardauth.tls.insecureSkipVerify=true"
-        - "traefik.http.middlewares.myauth.forwardauth.trustforwardheader=true"
-        # service
-        - "traefik.http.services.organizr2.loadbalancer.server.port=80"
-        - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
-        - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
-        # routers
-        - "traefik.http.routers.organizr2-secure.entrypoints=web_main_secure"
-        - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:organizr2.}{domain:domain.com}`)"      
-        - "traefik.http.routers.organizr2-secure.priority=50"
-        - "traefik.http.routers.organizr2-secure.service=organizr2"
-        - "traefik.http.routers.organizr2-secure.tls=true"
-        - "traefik.http.routers.organizr2-secure.tls.domains[0].main=organizr2.domain.com"
-        # routers middleware
-        - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
-        # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 dns name
-        - "traefik.http.middlewares.organizr2-plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
-        - "traefik.http.routers.organizr2-plex-secure.entrypoints=web_main_secure"
-        - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:organizr2.}}{domain:domain.com}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"
-        - "traefik.http.routers.organizr2-plex-secure.priority=100"
-        - "traefik.http.routers.organizr2-plex-secure.service=plex"
-        - "traefik.http.routers.organizr2-plex-secure.tls=true"
-        - "traefik.http.routers.organizr2-plex-secure.tls.domains[0].main=organizr2.domain.com"
-        # add myauth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
-        - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,myauth"
-        - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,myauth"
-        # NOTE : do not activate error-middleware, if so plex service cannot ask for authentification
-    networks:
-        - default
-    expose:
-        - 80
+        organizr2:
+            image: organizr/organizr
+            labels:
+                - "traefik.enable=true"
+                # auth middlewares
+                - "traefik.http.middlewares.myauth.address=https://organizr2.domain.com:443/api/?v1/auth&group=1"
+                - "traefik.http.middlewares.myauth.forwardauth.tls.insecureSkipVerify=true"
+                - "traefik.http.middlewares.myauth.forwardauth.trustforwardheader=true"
+                # service
+                - "traefik.http.services.organizr2.loadbalancer.server.port=80"
+                - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
+                - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
+                # routers
+                - "traefik.http.routers.organizr2-secure.entrypoints=web_main_secure"
+                - "traefik.http.routers.organizr2-secure.rule=HostRegexp(`{subdomain:organizr2.}{domain:domain.com}`)"      
+                - "traefik.http.routers.organizr2-secure.priority=50"
+                - "traefik.http.routers.organizr2-secure.service=organizr2"
+                - "traefik.http.routers.organizr2-secure.tls=true"
+                - "traefik.http.routers.organizr2-secure.tls.domains[0].main=organizr2.domain.com"
+                # routers middleware
+                - "traefik.http.routers.organizr2-secure.middlewares=error-middleware"
+                # SPECIAL tip to make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 dns name
+                - "traefik.http.middlewares.organizr2-plex-stripprefix.stripprefix.prefixes=/plex, /plex/"
+                - "traefik.http.routers.organizr2-plex-secure.entrypoints=web_main_secure"
+                - "traefik.http.routers.organizr2-plex-secure.rule=HostRegexp(`{subdomain:organizr2.}}{domain:domain.com}`) && (PathPrefix(`/plex`) || PathPrefix(`/web`))"
+                - "traefik.http.routers.organizr2-plex-secure.priority=100"
+                - "traefik.http.routers.organizr2-plex-secure.service=plex"
+                - "traefik.http.routers.organizr2-plex-secure.tls=true"
+                - "traefik.http.routers.organizr2-plex-secure.tls.domains[0].main=organizr2.domain.com"
+                # add myauth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
+                - "traefik.http.routers.organizr2-plex.middlewares=organizr2-plex-stripprefix,myauth"
+                - "traefik.http.routers.organizr2-plex-secure.middlewares=organizr2-plex-stripprefix,myauth"
+                # NOTE : do not activate error-middleware, if so plex service cannot ask for authentification
+            networks:
+                - default
+            expose:
+                - 80
         ```
 
 
@@ -295,6 +299,17 @@ Into Organizr2
     * sync plex authent by using ldap to plex
         * https://github.com/hjone72/LDAP-for-Plex
         * https://github.com/Starbix/docker-plex-ldap
+
+
+### tautulli
+
+* tautulli newsletter
+    * doc : https://github.com/Tautulli/Tautulli-Wiki/wiki/Frequently-Asked-Questions#q-i-want-to-customize-the-newsletter
+    * default template : https://raw.githubusercontent.com/Tautulli/Tautulli/master/data/interfaces/newsletters/recently_added.html
+    * get newsletter json data : http://localhost:8181/newsletter_preview?newsletter_id=1&raw=true
+    * template engine used :  https://www.makotemplates.org/
+        * https://github.com/Tautulli/Tautulli/blob/master/plexpy/newsletters.py#L469
+        * https://github.com/Tautulli/Tautulli/blob/97f80adf0bd5364ae9ef27598a9668f183c3b28c/plexpy/newsletters.py#L321
 
 
 ## ebooks
@@ -343,16 +358,88 @@ Into Organizr2
     * Mylar is an automated Comic Book (cbr/cbz) downloader program for use with NZB and torrents written in python. It supports SABnzbd, NZBGET, and many torrent clients in addition to DDL.
     * https://github.com/mylar3/mylar3
 
-
 * ZenCBR – Comic Book Archive Maintenance Utility
     * a windows tool to manage cbr/cbz files
     * http://www.zentastic.com/blog/2012/01/30/zencbr-comic-book-archive-maintenance-utility/
     
+* DeDRM calibre plugin - remove DRM from amazon ebook
+    * a docker version with calibre, plugin DeDRM, Kindle for PC (with wine) https://github.com/vace117/calibre-dedrm-docker-image
+
+* KCC - KCC is actually a comic/manga to EPUB converter
+    * KCC can understand and convert PNG, JPG, GIF or WebP files in folders, CBZ, ZIP, CBR, RAR , CB7, 7Z, PDF
+    * https://github.com/ciromattia/kcc
+    * ComicRack metadata : KCC read XML file called ComicInfo.xml in the root of the CBZ/CBR/CB7 archive (https://github.com/ciromattia/kcc/wiki/ComicRack-metadata)
+
+* Librera - Android reader
+    * https://play.google.com/store/apps/details?id=com.foobnix.pdf.reader
+    * have a good opds implementation : https://komga.org/guides/opds.html
+
+* Tachiyomi - Android manga reader
+    * https://tachiyomi.org/
+    * Automatically keep track of your manga with MyAnimeList, AniList, Kitsu, Shikimori, and Bangumi
+
+* Komga - Komga is a free and open source comics/mangas server.
+    * https://komga.org/
+    * https://github.com/gotson/komga
+    * Support CBZ, CBR, PDF and EPUB format
+    * Support OPDS
+    * integrated webreader and supports Tachiyomi with an extension
+    * Manage multiple users, with per-library accesss control
+
+
+
+* ebook-tools
+    * https://github.com/na--/ebook-tools
+    * collection of bash shell scripts for automated and semi-automated organization and management of large ebook collections
+    * on bare metal have dependencies like calibre, need realpath, need bash 4.4 for inherit_errexit option
+    * docker version (with dependencies including calibre) 
+        * https://github.com/na--/ebook-tools#docker
+        * https://hub.docker.com/r/ebooktools/scripts/
+
+* Manga-py
+    * Universal assistant download manga script
+    * https://github.com/manga-py/manga-py
+    * 200 manga provider referenced
+
+
+### Shoko
+
+* Anime metadata/catalog management tool
+    * An anime cataloging program designed to automate the cataloging of your anime collection regardless of the size and number of files in your collection.
+    * https://github.com/shokoanime
+    * https://shokoanime.com/
+    * https://hub.docker.com/r/cazzar/shokoserver
+    * Have a server (windows/linux) and two cli for metadata/catalog admin (desktop (only windows) and web) Web client not yet finished
+    * Media player support to retrive metadata from shoko server
+        * plex metadata agent (https://shokoanime.com/downloads/shoko-metadata/)
+        * kodi plugin (plugin name : nakamori)
+        * Media Portal plugin
+    * use anidb for metadata
+
+* Test
+    ```
+    Shokometada on plex https://github.com/Cazzar/ShokoMetadata.bundle
+    docker stop shokoserver && docker rm shokoserver
+    mkdir -p docker-shokoserver
+    cd docker-shokoserver
+    mkdir -p data
+    sudo docker image rm cazzar/shokoserver:daily
+    docker run --name shokoserver -d -v $(pwd)/data/shokoserver:/home/shoko/.shoko -v /media/MEDIA/ANIMATION:/anime -p 8111:8111 -e PUID=$(id -u) -e PGID=$(id -g) -v /etc/timezone:/etc/timezone:ro -v /etc/localtime:/etc/localtime:ro --restart unless-stopped cazzar/shokoserver:daily
+    ```
+
+
 
 ### ubooquity
 
-* Test
+* Comics server
+    * https://vaemendis.net/ubooquity/
+    * Ubooquity supports many types of files, with a preference for ePUB, CBZ, CBR and PDF files.
+    * Metadata from library management software Calibre and ComicRack are also supported.
+    * Works on JVM
+    * old ? 2018
+    * no code source
 
+* Test
     ```
     export MAMBO_HOME="$HOME/mambo"
     cd ${MAMBO_HOME}
@@ -395,7 +482,12 @@ Into Organizr2
     this script : https://github.com/janeczku/calibre-web/issues/412
     feature request : https://github.com/janeczku/calibre-web/issues/344
 
-* Test Calibre-web + calibre docker-mod
+* Calibre-web can convert on fly to mobi to send to kindle feature
+    * use ebook-convert (https://manual.calibre-ebook.com/generated/en/ebook-convert.html)
+    * convert ebook to mobi with its current embedded metadata and the created file is NOT added to calibre database !
+    * https://github.com/janeczku/calibre-web/blob/a659f2e49d6413e2285a4473b44d380e09ac543f/cps/tasks/convert.py#L179
+
+* Test Calibre-web + calibre-mod linuxserver docker-mod
     ```
     CALIBRE_WEB_VERSION="24ae7350f5b749127b48e66758bc3f449296c65f"
     export CALIBRE_WEB_DOCKER_VERSION="${CALIBRE_WEB_VERSION}"
@@ -436,14 +528,14 @@ Into Organizr2
 
 
 
-### calibre
+### Calibre
 
 * Calibre desktop management is a tool to organize books collection
 * Calibre content server is an ODPS server
 
 * NOTE : if editing calibre database with  calibre desktop management , and view it through calibre-web to refresh calibre-web do "Reconnect to calibre DB"
  
-* Test calibre desktop management with a web access with guacamole 
+* Test of calibre desktop management with a web access with guacamole 
     ```
     export CALIBRE_DOCKER_VERSION="v4.6.0-ls39"
     export MAMBO_HOME="$HOME/mambo"
@@ -464,15 +556,188 @@ Into Organizr2
     choose a folder for calibre library : /books/CALIBRE_DB1
     ```
 
-### calibre-mod
+### Calibre : how to generate a newsletter
+
+Proposal : To generate a newsletter we could use the catalog feature of calibre
+
+
+* Generate a catalog from Calibre GUI
+    * doc https://www.mobileread.com/forums/showthread.php?t=118556
+    * Filter books
+        * added maximum 2 days ago : date:>=2daysago
+    * Convert book / Create catalog / choose epub or mobi format to get cover
+    * Then convert generated catalog to HTMLZ
+    * there is also a command line tool to generate a catalog
+        * generate xml catalog : calibredb catalog ctg.xml -v --search='date:>=2daysago' --library-path=/calibredb/books
+        * convert xml to json : cat ctg.xml | xq
+    * template of catalog : C:\Program Files (x86)\Calibre2\app\resources\catalog
+        * section_list_templates.conf : configuration for index list of catalog
+        * template.xhtml : template for one book
+
+* Generate an html catalogue with calibre2opds (tool to generate static html items)
+    * doc https://calibre2opds.wordpress.com/read-the-documentation/generate-catalogs/
+
+
+
+
+### Calibre ecosystem tools & product
+
+* calibre2opds
+    * alternative to Calibre Content Server
+    * OPDS standard (Open Publication Distribution System)
+    * generates static html items
+    * doc : https://calibre2opds.wordpress.com/ https://wiki.mobileread.com/wiki/Calibre2Opds_Index
+    * code : https://github.com/calibre2opds/calibre2opds
+    
+
+* COPS : Calibre OPDS (and HTML) PHP Server
+    * alternative to Calibre Content Server    
+    * OPDS standard (Open Publication Distribution System)
+    * generate dynamic html items
+    * doc : https://blog.slucas.fr/projects/calibre-opds-php-server/
+    * code : https://github.com/seblucas/cops
+    * do not need a lot of computer ressource
+
+* Calibre-web
+    * web portail that show books and can administrative metadata books
+    * have OPDS feed for eBook reader apps
+    * code : https://github.com/janeczku/calibre-web
+    * can Send eBooks to Kindle devices with the click of a button
+    * can Sync your Kobo devices through Calibre-Web with your Calibre library
+
+
+### Calibre convert format
+
+* command line tool : ebook-convert 
+    * https://manual.calibre-ebook.com/generated/en/ebook-convert.html
+    * NOTE : do not automaticly add new converted format to calibre databse
+
+* convert epub to mobi AND add it to calibre database
+    * https://www.reddit.com/r/LazyLibrarian/comments/8wtpv3/calibredbebookconvert_question/e1z0pa2?utm_source=share&utm_medium=web2x&context=3
+    ```
+    #!/bin/bash
+    # convert all epub file of /books folder
+    IFS=$'\n'
+    for file in `find /books/ -type f -name "*.epub"`
+    do
+     if [ ! -f "${file%epub}mobi" ]
+     then
+      /opt/calibre/ebook-convert "$file" "${file%epub}mobi" --output-profile kindle
+      bookid=`dirname "${file%epub}mobi"`
+      bookid=${bookid%\)}
+      /opt/calibre/calibredb add_format --with-library=/books/ ${bookid##*\(} "${file%epub}mobi"
+     fi
+    done
+    ```
+
+* ebook-convert use metadata from source file, an option exist to read from an opf file
+    ``` 
+    --read-metadata-from-opf, --from-opf, -m
+    Read metadata from the specified OPF file. Metadata read from this file will override any metadata in the source file.
+    ```
+
+### Calibre metadata inside db and/or ebooks
+
+If in Calibre you add a book to the Calibre Library and then update the metadata about the book via the Calibre GUI, then the results are at that point ONLY stored in the Calibre metadata database – they are not written back to the actual ebook file. When in calibre you use the "Save to Disk" or "Send to Device" commands, these commands update the embedded metadata as part of the process.If you not use of the "Save to Disk" or "Send to Device" commands and if you need embeeded metadata then you have to take alternative action to get the metadata into the physical ebook file.
+
+Choose one of these options :
+
+* For any format : The most generic way is to run a Calibre "Convert Book" command on the book. If necessary you can simply convert the book to the same format (e.g. Mobi to Mobi as this will insert the updated metadata into the ebook file over-writing the original copy.
+* For any format : ebook-meta command line tool to read/write metadata 
+    * https://manual.calibre-ebook.com/generated/en/ebook-meta.html
+    * https://z3kit.com/articles/ebook-meta.html
+* For any format  : "Embed Metadata" action (FR : "integrer metadonnees") (you may need to add it to a menu/toolbar), that will embed the metadata
+* For ePub and AZW3 format : "Polish book" action (FR : "polir livres") (you may need to add it to a menu/toolbar), has several run time options one of which is to update the metadata
+    * in command line : https://manual.calibre-ebook.com/generated/en/ebook-polish.html
+* For ePub format files you have some additional options :
+    * You can use the plugin "Modify ePub" plugin that is available as an optional extra for use within Calibre.  This is probably the best way to go as it provides the maximum amount of fine-grained control.
+    * You can use the "Reprocess ePub" option of tool calibre2opds configuration tab to make sure that the ePub files cover and metadata match the calibre metadata database.
+
+* For mobi : https://www.reddit.com/r/Calibre/comments/7a2gjt/is_there_a_foolproof_way_do_edit_mobi_metadata/
+
+### Calibre-mod docker mod
 
 * calibre-mod add calibre binaries and dependencies necessary to enable ebook conversion into a linuxserver's.io docker image
-    * in mambo could be used with lazylibrarion and calibre-web
+    * in mambo it is used with lazylibrarion and calibre-web
 
 * a personal fork of calibre-mod to store a calibre-mod version for each calibre version
     * https://github.com/StudioEtrange/docker-calibre-mod
     * initialize an empty calibre database
     * TODO inject this code https://github.com/cgspeck/docker-rdp-calibre/blob/master/firstrun.sh into studioetrange/docker-calibre-mod ?
+
+* install kindlegen into calibre-mod ?
+    * install method https://github.com/Technosoft2000/docker-calibre-web/blob/f074829ccac84a0b140b70701802548f83d4c90c/Dockerfile#L39
+
+
+
+### About comics Metadata
+
+Proposal of a comic metadata auto workflow
+
+* For guide and layout : https://vaemendis.github.io/ubooquity-doc/pages/tutorials/add-metadata-with-comicrack.html
+    * 1/ scrap metadata with comicrack - it will embed metadata in ComicInfo.xml file into cbz
+    * 2/ FOR CALIBRE : Import metadata from cbz inside calibre with  EmbedComicMetadata plugin https://github.com/dickloraine/EmbedComicMetadata
+    * 3/ FOR Ubooquity : ubooquity read automaticly ComicInfo.xml
+
+
+
+### ComicRack 
+
+http://comicrack.cyolito.com/
+
+
+* Store metadata in ComicInfo.xml
+
+* BUG : if ComicRack do not show network drive 
+Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mapping-network-drives-and-book-folders
+
+* ComicRack plugin comic vine scrapper
+    * https://github.com/cbanack/comic-vine-scraper
+
+* ComicRack plugin LibraryOrganizer 
+    * http://comicrack.cyolito.com/forum/13-scripts/11603-library-organizer-version-2-1-11-september-25-2014
+    * https://bitbucket.org/Stonepaw/library-organizer/src/default/
+* ComicRack plugin DataManager
+    * http://comicrack.cyolito.com/forum/13-scripts/33002-cr-data-manager-manipulate-data-based-on-rules-version-1-2-4
+
+* Configuration
+    * Preferences / Avancées / Insérer les informations du livre dans le fichier
+    * Preferences / Avancées / Livres automatiquement mis a jour
+    * Comic Vine Scraper Settings (star icon) / Behaviour / When rescrapping save choice in Note
+
+
+* Test
+    ```
+    # This is a dummy Dockerfile.
+    # See https://github.com/jlesage/docker-baseimage-gui to get the content of the
+    # Dockerfile used to generate this image.
+    FROM jlesage/baseimage-gui:ubuntu-18.04-v3.5.2
+
+    WORKDIR /opt
+    RUN apt-get update \
+            && dpkg --add-architecture i386 \
+            && echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections \
+            && apt-get install -y wget gnupg \
+            && wget -nc https://dl.winehq.org/wine-builds/winehq.key \
+            && apt-key add winehq.key \
+            && echo 'deb https://dl.winehq.org/wine-builds/ubuntu/ bionic main' > /etc/apt/sources.list.d/wine.list \
+            && apt-get update \
+            && apt-get install -y --install-recommends winehq-stable
+
+    RUN wget https://dw54.uptodown.com/dwn/5vms8YPd4Luem-L6wxMeJnQQp-VfJ84SFQrvAp7KnrmF315xr5ODII7zqVRXLieNmsOGpeK5k66841Xin5cRO-Py_4x71slRiEJkd9wp3vAl0Li_43CUGSo-ordwVHst/8etWGB-DZ1HblLKY4$
+
+    #https://appdb.winehq.org/objectManager.php?sClass=version&iId=27270
+    RUN WINEPREFIX="$HOME/comicrack32" WINEARCH=win32 wine wineboot
+    RUN WINEPREFIX="$HOME/comicrack32" WINEARCH=win32 winetricks dotnet45 wmi corefonts wsh57
+
+    RUN WINEPREFIX="$HOME/comicrack32" WINEARCH=win32 wine comicrack0-9-178.exe
+
+    ENV APP_NAME="ComicRack"
+    ENV KEEP_APP_RUNNING=1
+
+    docker build -t=studioetrange/docker-comicrack .
+
+    ```
 
 ### Lazylibrarian - download tool
 
@@ -863,7 +1128,7 @@ A frontend is a launcher of emulators
 
 * SMB vs NFS and SMB optimization : https://www.reddit.com/r/linuxquestions/comments/b5ba8t/nfs_vs_samba_whats_the_trend_nowadays/
 
-* sniff network TCP network inside a service
+* sniff network TCP network inside a container/service
     ```
     # sniff service organizr2 which internally listen on port 80
     docker exec -it -u 0:0 mambo_organizr2

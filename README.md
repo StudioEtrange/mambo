@@ -1,10 +1,11 @@
-# MAMBO - A docker based media stack - WIP - do not use YET
+# MAMBO - An opiniated docker based media stack - WIP - do not use YET
 
 A central portal for all your media services.
 
 * Based on organizr2
-* SSO for all service with plex authentification
-* Access level managed and centralized in organizr2
+* SSO for all service using plex authentification
+* Access level managed and centralized in organizr2 (dynamic synced between organizr2 and traefik2)
+* Generate an ebook newsletter section into tautulli
 * Highly based on traefik2 for internal routing
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
@@ -239,7 +240,7 @@ Into Organizr2
     * See Organizr2 settings
 
 * Integration to Homepage :
-    * Tab Editor / Homepage Items / Plex
+    * Tab Editor / Homepage Items / Plex (WARN : you should check every values you setted in every tab of this settings panel before save it)
         * Enable, Minimum Authentication : User
         * Connection / Url : http://plex:32400
         * Connection / Token : get token with command `./mambo info plex`
@@ -247,8 +248,10 @@ Into Organizr2
         * Personalize all viewing options - recommended : 
             * Active Streams / Enable, Minimum Authentication : User
             * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
-            * Misc Options / Name : Plex
-            * Misc Options / Url : `https://plex.mydomain.com`
+            * Misc Options / Plex Tab Name : Plex (Name of your plex tab in setted in tab editor)
+            * Misc Options / Url : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
+            * The Plex Tab Name and Plex Tab WAN URL are used to configure the homepage items to open up inside the Plex Tab you have setup
+
 
 
 ----
@@ -456,7 +459,9 @@ Into Medusa, deactivate login because access is protected with organizr2
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Ombi
 
 * Parameters 
-    * Ombi / do not allow to collect analytics data
+    * Ombi
+        * base url : -leave empty-
+        * do not allow to collect analytics data
     * Configuration / User importer 
         * Import Plex Users : `enabled`
         * Import Plex Admin : `enabled`
@@ -471,6 +476,20 @@ Into Medusa, deactivate login because access is protected with organizr2
         * Plex Authorization Token : get Auth token with `./mambo info plex`
         * Click on Test Connectivity
         * Click on Load Libraries and select libraries in which content will look for user request
+    * Configuration / Customization
+        * Application Name : Your App
+        * Application URL : https://organizr2.domain.com/ (portail URL)
+    * Notifications / Email
+        * settings based on your mail provider, sample for mymail@gmail.com :
+        * Enable SMTP Authentification
+        * SMTP Host : smtp.gmail.com
+        * SMTP port : 587
+        * Email sender address : mymail@gmail.com
+        * Admin email : mymail@gmail.com
+        * Email sender name : My Name
+        * Username : mymail@gmail.com
+        * Password : xxxx
+        
 
 ### Ombi new users
 
@@ -591,6 +610,8 @@ Into Organizr2
 ----
 ## Calibre Web for Books
 
+Calibre-web will print ebooks registerd in calibre database. When configured, it can send to kindle a converted ebook. Each converted created file is updated with metadata from its metadata.opf file and added to calibre database
+
 Into Calibre web `https://books.mydomain.com`
 
 * First access :
@@ -610,7 +631,8 @@ Into Calibre web `https://books.mydomain.com`
 * Admin / Configuration / Edit Basic Configuration
     * Feature Configuration : Enable Uploads
     * External binaries
-        * Path to Calibre E-Book Converter : /usr/bin/ebook-convert
+        * Path to Calibre E-Book Converter : /pool/mambo/scripts/ebook_convert_wrapper.sh
+        * Calibre E-Book Converter Settings : ADD_CALIBREDB_AND_METADATA_FROM_OPF /usr/bin /books -v
         * Path to Kepubify E-Book Converter : /usr/bin/kepubify
         * Location of Unrar binary : /usr/bin/unrar
 
@@ -618,11 +640,11 @@ Into Calibre web `https://books.mydomain.com`
     * needed at least to get send to kindle feature
     * settings based on your mail provider, sample for mymail@gmail.com :
         * SMTP hostname : smtp.gmail.com
-        * SMTP port : 465
+        * SMTP port : 465 (Calibre-web do not accept use of port 587 for SMTPS dont know why)
         * Encryption : SSL/TLS
         * SMTP login : mymail@gmail.com
         * SMTP Password: xxxx
-        * From e-mail : My Mail <mymail@gmail.com>
+        * From e-mail : My Name
 
 * Admin / Configuration / Edit UI Configuration
     * Default Settings for New Users
@@ -677,6 +699,33 @@ WARN
 * to debug/test add a direct access port to calibre web dedicated to your media : `CALIBREWEB_BOOKS_DIRECT_ACCESS_PORT=22222` and access it through `http://localhost:22222`
 
 
+
+# Calibre
+
+Into Organizr2
+
+    * Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Calibre - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://calibre.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : any image
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list 
+        * Group : Co-Admin
+
+Into Calibre
+
+    * recommended action to add to toolbar
+        * "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
+        * "Polish book" action (FR : "polir livres") - for ePub and AZW3 files
+    * recommended plugins
+        * "Modify ePub" - for ePub files
+        * "Quality check" - for ePub files
+
+    * all calibre database are in folder `/calibredb`
 
 ----
 # Network Configuration
@@ -740,64 +789,3 @@ List of available plugins
 
 * Use to connect medusa and sabnzbd
 * https://github.com/clinton-hall/nzbToMedia
-
-
-* configure sabnzbd
-    * Folders/Scripts Folder : `/scripts/nzbToMedia`
-
-* configure autoProcessMedia.cfg
-    ```
-    [General]
-    force_clean = 1
-    [SickBeard]
-    #### autoProcessing for TV Series
-    #### tv - category that gets called for post-processing with SB
-    [[tv]]
-        enabled = 1
-        host = medusa
-        port = 8081
-        apikey = ***-medusa-api-key-***
-        username = ***-medusa-username-***
-        password = ***-medusa-password-***
-        ###### ADVANCED USE - ONLY EDIT IF YOU KNOW WHAT YOU'RE DOING ######
-        # Set this to minimum required size to consider a media file valid (in MB)
-        minSize = 50
-    
-    [Nzb]
-        ###### clientAgent - Supported clients: sabnzbd, nzbget
-        clientAgent = sabnzbd
-        ###### SabNZBD (You must edit this if you're using nzbToMedia.py with SabNZBD)
-        sabnzbd_host = http://sabnzbd
-        sabnzbd_port = 8080
-        sabnzbd_apikey = ***-sabnzbd-api-key-***
-        ###### Enter the default path to your default download directory (non-category downloads). this directory is protected by safe>
-        default_downloadDirectory = /download/complete
-    ```
-
-----
-## LINKS
-
-
-
-
-
-
-
-
-
-* Backup solutions
-    * https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
-    * https://rclone.org/
-    * https://github.com/restic/restic
-
-* Graphics themas
-    * CSS changes to many popular web services https://github.com/Archmonger/Blackberry-Themes
-    * A collection of themes/skins for your favorite apps 
-        https://github.com/gilbN/theme.park
-
-
-
-* Komga - comics server
-
-
-

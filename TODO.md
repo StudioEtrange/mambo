@@ -4,7 +4,21 @@
 
 * [ ] lib transmission : generate encoded password for use in Authentification header
 
-* [ ] allow api access to service without organizr auth https://github.com/htpcBeginner/docker-traefik/issues/27#issuecomment-743916338
+* [ ] mydjapi (mydjownloader api for organizrv2)
+    ```
+    export MAMBO_HOME="$HOME/mambo"
+    mkdir -p ${MAMBO_HOME}/data/myjdapi
+    docker stop myjdapi && docker rm myjdapi
+    docker run -d \
+    --name="myjdapi" \
+    -p 8075:8080 \
+    -v ${MAMBO_HOME}/data/myjdapi:/config:rw \
+    -e USER="XXXX" \ 
+    -e PASS="XXX" \
+    -e DEVICE="JDownloader@jdownloader" \
+    rix1337/docker-myjd-api:latest
+    ```
+
 
 * each plugin can work 
     * only on some specific services
@@ -13,17 +27,40 @@
     * may require some var init in tango init or mambo init
     * TODO implement restriction system on plugin, which may work only if certains criteria are ok
 
-* use ofelia to launch  __organizr2_init every X seconds : 
-    ** make a plugin : 
-        * declare a manual plugin on a ofelia itself ? ./tango --plugin ofelia%!organizr2 
-        * dont know how to trigger plugin execution ? maybe do the same code than manual launch ./tango plugins exec organizr2
-        
-    TODO SOLUTION : 
-        ** change __add_volume_pool_and_plugins_data_all (lib_tango) to mount tango and tango_app root in every services so plugins will have access to whole tango and mambo path : DONT know if we need this ! not sure at all !
-        ** ONLY on plugin which need it and that are compatible : at the beginning of plugin do the same thing than in tango_init and manbo init. (WARN : it may not work, because stella is launched and some containers may not have all the requirement to launch stella)
-        ** Merge tango_init and mambo init first lines (of mambo script) : bad idea
 
-* nzbmedia : generate autoProcessMedia.cfg 
+* [ ] nzbmedia : ansible generate autoProcessMedia.cfg 
+    * configure sabnzbd
+        * Folders/Scripts Folder : `/scripts/nzbToMedia`
+
+    * configure autoProcessMedia.cfg
+        ```
+        [General]
+        force_clean = 1
+        [SickBeard]
+        #### autoProcessing for TV Series
+        #### tv - category that gets called for post-processing with SB
+        [[tv]]
+            enabled = 1
+            host = medusa
+            port = 8081
+            apikey = ***-medusa-api-key-***
+            username = ***-medusa-username-***
+            password = ***-medusa-password-***
+            ###### ADVANCED USE - ONLY EDIT IF YOU KNOW WHAT YOU'RE DOING ######
+            # Set this to minimum required size to consider a media file valid (in MB)
+            minSize = 50
+        
+        [Nzb]
+            ###### clientAgent - Supported clients: sabnzbd, nzbget
+            clientAgent = sabnzbd
+            ###### SabNZBD (You must edit this if you're using nzbToMedia.py with SabNZBD)
+            sabnzbd_host = http://sabnzbd
+            sabnzbd_port = 8080
+            sabnzbd_apikey = ***-sabnzbd-api-key-***
+            ###### Enter the default path to your default download directory (non-category downloads). this directory is protected by safe>
+            default_downloadDirectory = /download/complete
+        ```
+
 
 
 * description about the difference between a module, a plugin and a script (scripts_info, scripts_init, ...) are too complex
@@ -53,4 +90,11 @@
 
 * why services listed in TANGO_ARTEFACT_SERVICES mount also artefact volume in TANGO_ARTEFACT_MOUNT_POINT (like sabnzbd)
 
-* api access for sabnzbd, lazylibrarian... like transmission
+* [ ] allow api access to service without organizr auth https://github.com/htpcBeginner/docker-traefik/issues/27#issuecomment-743916338 (api access for sabnzbd, lazylibrarian... like transmission)
+
+* [ ] calibre env var TODO ?
+    * for calibre and or calibrewdb wich use calibre binary
+    * taken from https://github.com/Thraxis/docker-lazylibrarian-calibre/blob/22db28939571b6a1b3416e3774b7c93807175976/Dockerfile#L10
+    * ENV CALIBRE_CONFIG_DIRECTORY="/config/calibre/"
+    * ENV CALIBRE_TEMP_DIR="/config/calibre/tmp/"
+    * ENV CALIBRE_CACHE_DIRECTORY="/config/cache/calibre/"
