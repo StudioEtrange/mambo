@@ -389,14 +389,53 @@ Into Organizr2
 ----
 ## Sabnzbd
 
-* Folders 
-    * Temporary Download Folder : `/download/incomplete`
-    * Completed Download Folder : `/download/complete`
-    * Watched Folder : `/vault/nzb`
-    * Scripts Folder : `/scripts`
+* Free and easy binary newsreader
+* https://sabnzbd.org/
 
-* Categories
-    * Create a categorie for each kind of media and store media files in folder/path `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
+### Auto configuration
+
+* Auto configuration steps :
+    `./mambo init sabnzbd`
+    `./mambo init nzbtomedia`
+
+* Start service
+    `./mambo up sabnzbd`
+
+### Sabnzbd and Organizr2 
+
+Into Sabnzbd
+
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Sabnzbd - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab Url : `https://sabnzbd.mydomain.com`
+        * Local Url : not needed (or same as Tab Url)
+        * Choose image : sabnzbd
+        * Press 'Test tab' : it will indicate if we can use this tab as iframe
+        * Press 'Add tab'
+        * Refresh your browser page
+    * Tab editor / Tabs list
+        * Group : Co-Admin
+
+### Manual configuration
+
+go to sabnzbd through organizr
+
+* Sabnzbd Config 
+    * Servers
+        * Add your newsgroup servers
+    * Categories : Create categories for kind of media files in folder/path `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
+        * tv / script : nzbToSickBeard.sh
+    * Switches
+        * enable Direct Unpack
+
+
+### Third party tools
+
+* SABconnect++ (chrome plugin)
+    * SABnzbd URL : https://sabnzbd.domain.com
+    * SABnzbd API Key : get API key with ./mambo info sabnzbd or from within sabnzbd admin panel by generating a QRCode
+
 
 ----
 ## Medusa
@@ -424,7 +463,6 @@ Into Medusa
 ### Medusa and Organizr2 
 
 Into Organizr2
-
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
@@ -576,8 +614,8 @@ Into Organizr2
 ----
 ## transmission
 
-* UI Access through portail https://media.mydomain.com 
 * Direct UI Access through https://internal-transmission.mydomain.com
+    * protected by organizr auth and will auto login with a transmission auth basic
 * Third tools access through https://transmission.mydomain.com
 * NOTE : when modify settings from webui, they are saved only when transmission is stopped
 
@@ -631,7 +669,7 @@ Into Calibre web `https://books.mydomain.com`
 * Admin / Configuration / Edit Basic Configuration
     * Feature Configuration : Enable Uploads
     * External binaries
-        * Path to Calibre E-Book Converter : /pool/mambo/scripts/ebook_convert_wrapper.sh
+        * Path to Calibre E-Book Converter : /pool/mambo/ebooks/ebook_convert_wrapper.sh
         * Calibre E-Book Converter Settings : ADD_CALIBREDB_AND_METADATA_FROM_OPF /usr/bin /books -v
         * Path to Kepubify E-Book Converter : /usr/bin/kepubify
         * Location of Unrar binary : /usr/bin/unrar
@@ -724,6 +762,7 @@ Into Calibre
     * recommended plugins
         * "Modify ePub" - for ePub files
         * "Quality check" - for ePub files
+        * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421
 
     * all calibre database are in folder `/calibredb`
 
@@ -785,7 +824,7 @@ List of available plugins
     ```
 
 
-## nzbToMedia
+## nzbToMedia - TODO not a plugin anymore
 
 * Use to connect medusa and sabnzbd
 * https://github.com/clinton-hall/nzbToMedia

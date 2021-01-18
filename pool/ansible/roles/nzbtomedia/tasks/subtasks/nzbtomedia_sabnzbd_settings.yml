@@ -11,31 +11,27 @@
 - name: Set sabznbd host
   lineinfile:
     path: "{{ nzbtomedia_cfg.stat.path }}"
-    insertafter: '\[Nzb\]'
-    regexp: '^\w*sabnzbd_host\s?=.*'
+    regexp: '^\s*sabnzbd_host\s?=.*'
     line: '    sabnzbd_host = http://sabnzbd'
     state: present
 
 - name: Set sabznbd port
   lineinfile:
     path: "{{ nzbtomedia_cfg.stat.path }}"
-    insertafter: '\[Nzb\]'
-    regexp: '^\w*sabnzbd_port\s?=.*'
+    regexp: '^\s*sabnzbd_port\s?=.*'
     line: '    sabnzbd_port = 8080'
     state: present
 
 - name: Set sabznbd api key
   lineinfile:
     path: "{{ nzbtomedia_cfg.stat.path }}"
-    insertafter: '\[Nzb\]'
-    regexp: '^\w*sabnzbd_apikey\s?=.*'
+    regexp: '^\s*sabnzbd_apikey\s?=.*'
     line: "    sabnzbd_apikey = {{ sabnzbd.api_key }}"
     state: present
 
 - name: Set sabznbd default download directory
   lineinfile:
     path: "{{ nzbtomedia_cfg.stat.path }}"
-    insertafter: '\[Nzb\]'
-    regexp: '^\w*default_downloadDirectory\s?=.*'
+    regexp: '^\s*default_downloadDirectory\s?=.*'
     line: '    default_downloadDirectory = /download/complete'
     state: present

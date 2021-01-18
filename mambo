@@ -181,8 +181,9 @@ if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
         exit 1
     fi
 fi
+. "${TANGO_ROOT}/src/tango-before-action.sh" $@
 
-[ "${__action_done_by_mambo}" = "" ] && . "${TANGO_ROOT}/src/tango-before-action.sh" $@
+#[ "${__action_done_by_mambo}" = "" ] && . "${TANGO_ROOT}/src/tango-before-action.sh" $@
 
 
 
@@ -214,16 +215,19 @@ case ${ACTION} in
                 __tango_log "INFO" "mambo" "Init service nzbtomedia"
                 __nzbtomedia_init
             ;;
-            * )
+            "" )
                 __tango_log "INFO" "mambo" "Init service Plex"
                 __plex_init
-                [ $? -ne 0 ] && __tango_log "ERROR" "Error while configuring plex" && exit 1
+                [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring plex" && exit 1
                 __tango_log "INFO" "mambo" "Init service sabnzbd"
                 __sabnzbd_init
-                [ $? -ne 0 ] && __tango_log "ERROR" "Error while configuring sabnzbd" && exit 1
+                [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring sabnzbd" && exit 1
                 __tango_log "INFO" "mambo" "Init service nzbtomedia"
                 __nzbtomedia_init
-                [ $? -ne 0 ] && __tango_log "ERROR" "Error while configuring nzbtomedia" && exit 1
+                [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring nzbtomedia" && exit 1
+            ;;
+            * )
+                __tango_log "ERROR" "mambo" "Wrong service name : ${TARGET}" && exit 1
             ;;
         esac
     ;;
@@ -260,8 +264,6 @@ case ${ACTION} in
 
             sabnzbd )
                 echo "---------==---- SABNZBD ----==---------"
-                [ "${SABNZBD_USER}" = "" ] && echo "** Error missing user -- please set SABNZBD_USER"
-                [ "${SABNZBD_PASSWORD}" = "" ] && echo "** Error missing password -- please set SABNZBD_PASSWORD"
                 echo "L-- User : ${SABNZBD_USER}"
                 echo "L-- Password : ${SABNZBD_PASSWORD}"
                 echo "L-- API KEY : ${SABNZBD_API_KEY}"

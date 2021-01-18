@@ -1,0 +1,17 @@
+# htaccess for expose only cover from a calibredb folder
+
+
+Options -ExecCGI -Indexes
+
+# CIFS mounted folder have problem to be served by apache httpd
+# https://stackoverflow.com/a/22104947
+# http://httpd.apache.org/docs/current/en/mod/core.html#EnableSendfile
+EnableSendfile On
+
+<FilesMatch "\.*$">
+    deny from all
+</FilesMatch>
+<FilesMatch "\.(png|jpe?g)$">
+    allow from all
+</FilesMatch>
+

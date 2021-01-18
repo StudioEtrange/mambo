@@ -1,6 +1,0 @@
-#!/usr/bin/with-contenv bash
-
-# Set Permissions
-chown -R abc:abc \
-	/app \
-	/config

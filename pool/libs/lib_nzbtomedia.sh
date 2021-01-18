@@ -5,12 +5,10 @@
 
 
 
-
 __nzbtomedia_init() {
     __nzbtomedia_first_launch
     __nzbtomedia_settings
-    # we need to reread some values, because sabnzbd may have generate values like api key
-    __nzbtomedia_set_context
+    __tango_log "INFO" "mambo" "we have tweaked some sabnzbd and medusa values, you should start/restart them"
 }
 
 # install nzbtomedia

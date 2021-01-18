@@ -9,26 +9,28 @@
 #                   GNU General Public License v3.0                     #
 #########################################################################
 ---
-# - name: Add domain to whitelist
-#   lineinfile:
-#     path: "/opt/sabnzbd/app/sabnzbd.ini"
-#     regexp: '(^host_whitelist\s?=.*,)'
-#     backrefs: yes
-#     line: '\1 sabnzbd.{{ user.domain }}'
-#     state: present
+- name: Authorized dns name to request sabnzbd
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    #regexp: '(^host_whitelist\s?=.*,)'
+    #backrefs: yes
+    #line: '\1 sabnzbd.{{ user.domain }}'
+    regexp: '^host_whitelist\s?=.*'
+    line: 'host_whitelist = "{{ sabnzbd.host_whitelist }}"'
+    state: present
 
-# - name: Remove url_base
-#   lineinfile:
-#     path: "/opt/sabnzbd/app/sabnzbd.ini"
-#     regexp: '^url_base\s?=.*'
-#     line: 'url_base = ""'
-#     state: present
+- name: Remove url_base
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^url_base\s?=.*'
+    line: 'url_base = ""'
+    state: present
 
 # Authentication
 - name: Set Username
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
-    insertafter: '^warn_dupl_jobs\s?=.*'
+    insertafter: '^https_port\s?=.*'
     regexp: '^username\s?=.*'
     line: "username = {{ sabnzbd.user }}"
     state: present
@@ -36,7 +38,7 @@
 - name: Set Password
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
-    insertafter: '^rss_filenames\s?=.*'
+    insertbefore: '^bandwidth_max\s?=.*'
     regexp: '^password\s?=.*'
     line: "password = {{ sabnzbd.pass }}"
     state: present
@@ -67,7 +69,7 @@
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
     regexp: '^dirscan_dir\s?=.*'
-    line: 'dirscan_dir = /download/vault/nzb'
+    line: 'dirscan_dir = /vault/nzb'
     state: present
 
 - name: Change script directory
@@ -77,9 +79,45 @@
     line: 'script_dir = /scripts'
     state: present
 
+# TODO change path when switching to linuxserver image
 - name: Change logs directory
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
     regexp: '^log_dir\s?=.*'
-    line: 'log_dir = /data/sabnzbd/logs'
+    line: 'log_dir = /config/app/logs'
     state: present
+
+
+- name: Test if a servers section exist
+  lineinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    regexp: '^\[servers\]'
+    state: absent
+  check_mode: yes
+  changed_when: false
+  register: servers_section
+
+- name: Add a fake news server to bypass sabnzbd wizard
+  blockinfile:
+    path: "{{ sabnzbd_ini.stat.path }}"
+    block: |
+      [servers]
+      [[fake.news.eu]]
+      username = foo
+      priority = 0
+      enable = 0
+      displayname = fake.news.eu
+      name = fake.news.eu
+      ssl_ciphers = ""
+      notes = ""
+      connections = 50
+      ssl = 1
+      host = fake.news.eu
+      timeout = 60
+      ssl_verify = 2
+      send_group = 0
+      password = bar
+      optional = 1
+      port = 563
+      retention = 3400
+  when: not servers_section.found

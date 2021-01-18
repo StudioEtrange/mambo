@@ -2,3 +2,11 @@
 sabnzbd:
   user: "{{ lookup('env','SABNZBD_USER') }}"
   pass: "{{ lookup('env','SABNZBD_PASSWORD') }}"
+  api_key: "{{ lookup('env','SABNZBD_API_KEY') | default('', true) }}"
+  nzb_key: "{{ lookup('env','SABNZBD_NZB_KEY') | default('', true) }}"
+  host_whitelist: "sabnzbd, {{ lookup('env','SABNZBD_SUBDOMAIN') }}{{ lookup('env','TANGO_DOMAIN') }}, {{ lookup('env','SABNZBD_ADDITIONAL_DOMAIN') }}, {{ lookup('env','TANGO_HOSTNAME') }}, {{ lookup('env','TANGO_HOSTNAME') }}.{{ lookup('env','TANGO_DOMAIN') }}"
+  ini: "{{ lookup('env','SABNZBD_INI_PATH') }}"
+
+nzbtomedia:
+  cfg: "{{ lookup('env','NZBTOMEDIA_DATA_PATH') }}/autoProcessMedia.cfg"
+

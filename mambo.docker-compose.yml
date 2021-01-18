@@ -105,6 +105,13 @@ volumes:
       o: bind
       device: ${BOOKSONIC_DATA_PATH}
     name: ${TANGO_APP_NAME}_booksonic_data
+  sabnzbd_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${SABNZBD_DATA_PATH}
+    name: ${TANGO_APP_NAME}_sabnzbd_data
   lazylibrarian_data:
     driver: local
     driver_opts:
@@ -143,17 +150,18 @@ x-calibreweb: &default-calibreweb
   image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
   depends_on: 
     - service_init
-    #- calibre_mod
   restart: unless-stopped
   environment:
     - PUID=${TANGO_USER_ID:-0}
     - PGID=${TANGO_GROUP_ID:-0}
     # NOTE : you can choose a calibre binary version to inject with a linuxserver docker mod 'CALIBRE_MOD_VERSION' or just use a latest version available
-    #       a linuxserver docker mod must be used from docker hub repository only,
+    #       a linuxserver docker mod must be used from docker hub repository only, it is downloaded.
     #       a linuxserver docker mod cannot be used from a local build because it is downloaded as a tar
     #       https://github.com/StudioEtrange/docker-calibre-mod
     #       https://hub.docker.com/repository/docker/studioetrange/calibre-mod
-    - DOCKER_MODS=calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+    #       linux docker mod logic : https://github.com/linuxserver/docker-baseimage-ubuntu/blob/bionic/root/docker-mods#L119
+    - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+    - AUTO_CREATE_DB=/books 
   networks:
     - default
   expose:
@@ -166,14 +174,6 @@ x-calibreweb: &default-calibreweb
 
 
 services:
-
-  # calibre_mod:
-  #   image: calibre-mod:${CALIBRE_MOD_VERSION}
-  #   command: >
-  #     exec < /tmp
-  #   build:
-  #     context: https://github.com/StudioEtrange/docker-calibre-mod.git#:ver/${CALIBRE_MOD_VERSION:-latest}
-
 
   # NOTE : service_init will be merged with service_init from tango compose file
   service_init:
@@ -376,22 +376,33 @@ services:
 
 
   # Newzgroup downloader
+  # https://hub.docker.com/r/hotio/sabnzbd
+  # https://github.com/hotio/sabnzbd
+  # TODO BUG : /config/.cache should not be here and do not have right owner/permission
+  #      cannnot use linuxserver/sabnzbd while https://github.com/linuxserver/docker-sabnzbd/issues/94
+  # https://hub.docker.com/r/linuxserver/sabnzbd/
+  # https://github.com/linuxserver/docker-sabnzbd
+  # https://sabnzbd.org/
   sabnzbd:
-    image: studioetrange/docker-sabnzbd:${SABNZBD_VERSION:-latest}
+    #image: ghcr.io/linuxserver/sabnzbd:${SABNZBD_VERSION:-latest}
+    image: hotio/sabnzbd:release-3.1.1
     container_name: ${TANGO_APP_NAME}_sabnzbd
     depends_on:
       - service_init
     restart: unless-stopped
     volumes:
       # data/sabnzbd will contain sabnzbd configuration
-      - data:/data
+      - sabnzbd_data:/config
       # different paths used by sabnzbd
       - download:/download
       - vault:/vault
+      - nzbtomedia_data:/scripts
       - artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
     environment:
-      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
-      - 'HOST_WHITELIST_ENTRIES=sabnzbd,${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN},${TANGO_HOSTNAME},${TANGO_HOSTNAME}.${TANGO_DOMAIN},${SABNZBD_ADDITIONAL_DOMAIN}'
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - DEBUG=yes
+      #- UMASK=002
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
@@ -399,30 +410,40 @@ services:
       - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
       - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
       - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
-      # middleware
-      - "traefik.http.middlewares.sabnzbd-stripprefix.stripprefix.prefixes=/sabnzbd, /sabnzbd/"
       # routers
       - "traefik.http.routers.sabnzbd.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
+      - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.sabnzbd.priority=${SABNZBD_PRIORITY}"
       - "traefik.http.routers.sabnzbd.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/sabnzbd`)"
+      - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.sabnzbd-secure.priority=${SABNZBD_PRIORITY}"
       - "traefik.http.routers.sabnzbd-secure.service=sabnzbd"
       - "traefik.http.routers.sabnzbd-secure.tls=true"
       - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       # routers middleware
-      - "traefik.http.routers.sabnzbd.middlewares=sabnzbd-stripprefix,sabnzbd-auth@rest,error-middleware"
-      - "traefik.http.routers.sabnzbd-secure.middlewares=sabnzbd-stripprefix,sabnzbd-auth@rest,error-middleware"
+      - "traefik.http.routers.sabnzbd.middlewares=xframe-allow-all,sabnzbd-auth@rest,error-middleware"
+      - "traefik.http.routers.sabnzbd-secure.middlewares=xframe-allow-all,sabnzbd-auth@rest,error-middleware"
+      # subservice sabnzbd_api routers
+      - "traefik.http.routers.sabnzbd_api.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.sabnzbd_api.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && Query(`apikey=${SABNZBD_API_KEY:-}`)"
+      - "traefik.http.routers.sabnzbd_api.priority=${SABNZBD_PRIORITY}"
+      - "traefik.http.routers.sabnzbd_api.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd_api-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.sabnzbd_api-secure.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && Query(`apikey=${SABNZBD_API_KEY:-}`)"
+      - "traefik.http.routers.sabnzbd_api-secure.priority=${SABNZBD_PRIORITY}"
+      - "traefik.http.routers.sabnzbd_api-secure.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd_api-secure.tls=true"
+      - "traefik.http.routers.sabnzbd_api-secure.tls.domains[0].main=${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # subservice sabnzbd_api routers middleware
+      - "traefik.http.routers.sabnzbd_api.middlewares=error-middleware"
+      - "traefik.http.routers.sabnzbd_api-secure.middlewares=error-middleware"
     networks:
       - default
     expose:
       - 8080
       # HTTPS port
       - 8081
-    build:
-      context: https://github.com/StudioEtrange/docker-sabnzbd.git#:ver/${SABNZBD_VERSION:-latest}
 
   # nzbtomedia : sync nzb software
   # https://github.com/clinton-hall/nzbToMedia
@@ -443,7 +464,7 @@ services:
     networks:
       - default
     build:
-      context: ./pool/image/nzbtomedia
+      context: ./pool/image/docker-nzbtomedia
 
 
   # Media server
@@ -607,7 +628,7 @@ services:
   #                                                         tested with chrome "Transmission easy client"
   # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
   transmission:
-    # TODO to change image wait for PRs https://github.com/linuxserver/docker-transmission/pull/140 https://github.com/linuxserver/docker-transmission/pull/141
+    # TODO wait for PRs https://github.com/linuxserver/docker-transmission/pull/140 https://github.com/linuxserver/docker-transmission/pull/141
     #image: linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
     image: studioetrange/transmission:latest
     container_name: ${TANGO_APP_NAME}_transmission
@@ -728,19 +749,22 @@ services:
 
   # web area
   web:
-    image: httpd:${WEB_VERSION:-latest}
+    image: bitnami/apache:${WEB_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_web
+    user: 0:0
     depends_on: 
       - service_init
     restart: unless-stopped
     volumes:
-      - web_data:/usr/local/apache2/htdocs
-      - newsletters_data:/usr/local/apache2/htdocs/newsletter
+      - web_data:/app/web
+      # allow to expose books cover
+      - calibredb_books_media:/app/calibredb/books
+      - ${TANGO_APP_ROOT}/pool/ebooks/calibredb_cover.htaccess:/app/calibredb/.htaccess
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       # service : web
-      - "traefik.http.services.web.loadbalancer.server.port=80"
+      - "traefik.http.services.web.loadbalancer.server.port=8080"
       - "traefik.http.services.web.loadbalancer.server.scheme=http"
       - "traefik.http.services.web.loadbalancer.passhostheader=true"
       # sub service web_site
@@ -754,6 +778,7 @@ services:
       - "traefik.http.routers.web_site-secure.service=web"
       - "traefik.http.routers.web_site-secure.tls=true"
       - "traefik.http.routers.web_site-secure.tls.domains[0].main=${WEB_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # sub service router
       - "traefik.http.routers.web_site.middlewares=error-middleware"
       - "traefik.http.routers.web_site-secure.middlewares=error-middleware"
       # sub service web_newsletter
@@ -767,12 +792,13 @@ services:
       - "traefik.http.routers.web_newsletter-secure.service=tautulli"
       - "traefik.http.routers.web_newsletter-secure.tls=true"
       - "traefik.http.routers.web_newsletter-secure.tls.domains[0].main=${WEB_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # sub service router
       - "traefik.http.routers.web_newsletter.middlewares=error-middleware"
       - "traefik.http.routers.web_newsletter-secure.middlewares=error-middleware"
     networks:
       - default
     expose:
-      - 80
+      - 8080
 
    
   # Audiobook and podcast streamer
@@ -818,8 +844,7 @@ services:
       # airsonic (and booksonic) cannot be correctly print into an iframe
       #     https://github.com/airsonic/airsonic/issues/583
       #     airsonic fix an X-Frame-Options to SAMEORIGIN to not allow be print into an iframe
-      #     we can override this with a middleware
-      # - 'traefik.http.middlewares.booksonic-iframe.headers.customFrameOptionsValue=allow-from *'
+      #     we can override this with the middleware xframe-allow-all
       #     but it do not really work well
     networks:
       - default

@@ -679,7 +679,31 @@ Proposal of a comic metadata auto workflow
     * 2/ FOR CALIBRE : Import metadata from cbz inside calibre with  EmbedComicMetadata plugin https://github.com/dickloraine/EmbedComicMetadata
     * 3/ FOR Ubooquity : ubooquity read automaticly ComicInfo.xml
 
+### Calibre metadata management
 
+* plugin 'Polir les livres'
+    * Installation : icône Préférences -> Barre d'outis & menus -> barre d'outils ou menu à personnaliser -> La barre d'outils principale
+    * Cocher les cases pour mettre à jour dans le fichier epub les métadonnées (colonnes) et la couverture.
+    * À noter que par défaut, lors du polissage Calibre conserve le fichier original au format original_epub
+    Pour ne pas le sauvegarder :
+    icône Préférences -> Ajustements -> Sauvegarder le fichier original ... vers le même format.
+    save_original_format_when_polishing = True (remplacer True par False)
+
+* 'Vérifier la bibliothèque'
+    * Menu de l'icône de la bibliothèque -> Maintenance de la bibliothèque -> Vérifier la bibliothèque puis Vérifier si les fichiers de la bibliothèque correspondent bien aux informations de la base de données.
+
+* plugin 'Quality Check' - controle de cohérence
+    * Installation : icône Préférences -> Extensions -> Obtenir de nouvelles extensions
+    * De nombreux contrôles de cohérence sont proposés. J'utilise principalement 'Check Metadata' -> 'Check title sort' et 'Check author sort'
+
+* plugin 'Modify ePub' - nombreux controles
+    * Installation : icône Préférences -> Extensions -> Obtenir de nouvelles extensions
+
+* En passant ces différents outils, je m'assure ainsi que :
+    * le fichier epub contient bien (avant export) la couverture et les métadonnées visibles dans Calibre ('Polir les livres')
+    * les répertoires et la base de données sont cohérents ('Vérifier la bibliothèque')
+    * Les métadonnées sont correctement harmonisées ('Quality Check')
+    * Le livre (fichier epub) ne contient pas de données inutiles qui en particulier alourdissent la taille(Mo).
 
 ### ComicRack 
 
@@ -1137,6 +1161,12 @@ A frontend is a launcher of emulators
     # listen network trafic
     tcpdump -A -s 0 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
     ```
+
+* CIFS/samba mounts and apache httpd : mounted folder/files have problem to be served by apache httpd
+    * https://stackoverflow.com/a/22104947
+    * http://httpd.apache.org/docs/current/en/mod/core.html#EnableSendfile
+    * Use ```EnableSendfile On```
+
 
 ### Game Streaming
 

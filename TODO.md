@@ -27,11 +27,12 @@
     * may require some var init in tango init or mambo init
     * TODO implement restriction system on plugin, which may work only if certains criteria are ok
 
+* [ ] sabnzbd add multicore par2
+    * https://sabnzbd.org/wiki/installation/multicore-par2
+    * dont need linuxserver/sabnzbd already have multicore par2
+    * hotio/sabnzbd do not have par2 multicore
 
 * [ ] nzbmedia : ansible generate autoProcessMedia.cfg 
-    * configure sabnzbd
-        * Folders/Scripts Folder : `/scripts/nzbToMedia`
-
     * configure autoProcessMedia.cfg
         ```
         [General]

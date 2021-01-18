@@ -1,43 +1,74 @@
 % if data:
+
+<%!
+
+from itertools import zip_longest
+def grouper(iterable, n, fillvalue=None):
+    args = [iter(iterable)] * n
+    return zip_longest(fillvalue=fillvalue, *args)
+
+import html
+def myescape(string):
+    #return html.escape(string).encode('ascii', 'xmlcharrefreplace').decode()
+    return string.encode('ascii', 'xmlcharrefreplace').decode()
+    
+%>
+
 <%
-recently_added=calibredb
+import re
+clean_html_sign=re.compile('<[^>]+>')
+clean_zero_index=re.compile('\.0')
+
+
+calibredb=data['calibredb']
+
+base_url_book_cover='http://web.chimere-harpie.org'
+base_url_book_tab='https://media.chimere-harpie.org/#Books'
+
+
+nb_books=len(calibredb['record'])
+books_id_list=[book['id'] for book in calibredb['record']]
+print("nb books :", nb_books)
+print("id books list :", books_id_list)
+
 %>
 
 
-                    <!-- ebooks integration by StudioEtrange for Mambo media stack https://github.com/StudioEtrange/mambo -->
+                    <!-- from plexpy.helpers import grouper
+                        ebooks integration by StudioEtrange for Mambo media stack https://github.com/StudioEtrange/mambo -->
                     <tr>
                         <td class="wrapper" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;box-sizing: border-box;padding: 5px;overflow: auto;">
                             <div class="sub-header-bar" style="margin-left: auto;margin-right: auto;font-size: 30px;text-align: center;width: 200px;border-top: 1px solid #E5A00D;margin-top: 15px;margin-bottom: 25px;"></div>
                             <div class="sub-header-title" style="margin-left: auto;margin-right: auto;font-size: 30px;text-align: center;font-weight: lighter;">
-                                <img src="${(base_url_image + 'images/libraries/movie.png') if base_url_image else 'https://tautulli.com/images/libraries/movie.png'}" class="sub-header-icon" width="30" height="30" style="border: none;-ms-interpolation-mode: bicubic;max-width: 100%;height: 30px;width: 30px;vertical-align: middle;margin-right: 5px;margin-bottom: 5px;"> Recently Added Books
+                                <img src="https://tautulli.com/images/libraries/movie.png" class="sub-header-icon" width="30" height="30" style="border: none;-ms-interpolation-mode: bicubic;max-width: 100%;height: 30px;width: 30px;vertical-align: middle;margin-right: 5px;margin-bottom: 5px;"> ${title}
                             </div>
                             <div class="sub-header-count" style="margin-left: auto;margin-right: auto;font-size: 30px;text-align: center;">
-                                <span class="count" style="color: #E5A00D;">${len(recently_added['movie'])}</span> <span class="count-units" style="color: #aaaaaa;font-size: 20px;text-transform: uppercase;">book${'s' if len(recently_added['movie']) > 1 else ''}</span>
+                                <span class="count" style="color: #E5A00D;">${len(calibredb['record'])}</span> <span class="count-units" style="color: #aaaaaa;font-size: 20px;text-transform: uppercase;">${items_name}${'s' if len(calibredb['record']) > 1 else ''}</span>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;">
                             <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;">
-                                % for movie_a, movie_b in grouper(recently_added['movie'], 2):
+                                % for book_a, book_b in grouper(calibredb['record'], 2):
                                 <tr>
                                     <td style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;">
                                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;">
                                             <tr>
-                                                % for movie in (movie_a, movie_b):
-                                                % if movie:
-                                                % if not movie_b:
+                                                % for book in (book_a, book_b):
+                                                % if book:
+                                                % if not book_b:
                                                 <td align="center" valign="top" class="card-instance pad" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 12px;vertical-align: top;overflow: hidden;padding: 0 !important;width: 251px !important;min-width: 251px !important;max-width: 251px !important;"></td>
                                                 % endif
                                                 <td align="center" valign="top" class="card-instance movie" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 12px;vertical-align: top;overflow: hidden;padding: 3px;width: 502px;min-width: 502px;max-width: 502px;height: 233px;">
-                                                    <table border="0" cellpadding="0" cellspacing="3" width="100%" class="card-background" style="background-image: url(${(base_url_image + movie['art_hash']) if base_url_image else movie['art_url']});border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;background-color: #282828;background-position: center;background-size: cover;background-repeat: no-repeat;background-clip: padding-box;border: 1px solid rgba(255,255,255,.1);">
+                                                    <table border="0" cellpadding="0" cellspacing="3" width="100%" class="card-background" style="background-image: url('');border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;background-color: #282828;background-position: center;background-size: cover;background-repeat: no-repeat;background-clip: padding-box;border: 1px solid rgba(255,255,255,.1);">
                                                         <tr>
                                                             <td class="card-poster-container" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;width: 152px;min-width: 152px;height: 227px;">
-                                                                <table border="0" cellpadding="0" cellspacing="0" class="card-poster" style="background-image: url(${(base_url_image + movie['thumb_hash']) if base_url_image else movie['thumb_url']});border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;background-color: #3F4245;background-position: center;background-size: cover;background-repeat: no-repeat;background-clip: padding-box;border: 1px solid rgba(255,255,255,.1);">
+                                                                <table border="0" cellpadding="0" cellspacing="0" class="card-poster" style="background-image: url('');border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;background-color: #3F4245;background-position: center;background-size: cover;background-repeat: no-repeat;background-clip: padding-box;border: 1px solid rgba(255,255,255,.1);">
                                                                     <tr>
                                                                         <td style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;">
-                                                                            <a href="${parameters['pms_web_url']}#!/server/${parameters['pms_identifier']}/details?key=%2Flibrary%2Fmetadata%2F${movie['rating_key']}" title="${movie['title']}" target="_blank" rel="noreferrer" style="text-decoration: underline;">
-                                                                                <img class="card-poster-overlay" src="${base_url_image + 'images/newsletter/view-on-plex-poster.png' if base_url_image else 'https://tautulli.com/images/newsletter/view-on-plex-poster.png'}" width="150" height="225" style="border: none;-ms-interpolation-mode: bicubic;max-width: 100%;display: block;">
+                                                                            <a href="${base_url_book_tab}" title="${book['title']['#text'] | myescape }" target="_blank" rel="noreferrer" style="text-decoration: underline;">
+                                                                                <img class="card-poster-overlay" src="${base_url_book_cover + book['cover']}" width="150" height="225" style="border: none;-ms-interpolation-mode: bicubic;max-width: 100%;display: block;">
                                                                             </a>
                                                                         </td>
                                                                     </tr>
@@ -47,19 +78,33 @@ recently_added=calibredb
                                                                 <table border="0" cellpadding="0" cellspacing="0" class="card-info-container-table" style="border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;height: 100%;">
                                                                     <tr>
                                                                         <td class="card-info-title nowrap" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 0.9rem;vertical-align: top;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;border-bottom: 1px solid rgba(255, 255, 255, .1);line-height: 1.2rem;padding: 5px;max-width: 320px;">
-                                                                            <a href="${parameters['pms_web_url']}#!/server/${parameters['pms_identifier']}/details?key=%2Flibrary%2Fmetadata%2F${movie['rating_key']}" title="${movie['title']}" target="_blank" rel="noreferrer" style="text-decoration: none;color: #ffffff;">${movie['title']}</a>
+                                                                            <a href="${base_url_book_tab}" title="${book['title']['#text'] | myescape }" target="_blank" rel="noreferrer" style="text-decoration: none;color: #ffffff;">
+                                                                                ${book['title']['#text'] | myescape}
+                                                                            % if 'series' in book and book['series']['#text']:
+                                                                            <br/>
+                                                                            <span style="font-size: 0.75rem">
+                                                                                <em>${book['series']['#text'] + ' (' + clean_zero_index.sub('',book['series']['@index']) + ')' | myescape}</em>
+                                                                            </span>
+                                                                            % endif
+                                                                            </a>
                                                                         </td>
                                                                     </tr>
                                                                     <tr>
                                                                         <td class="card-info-body" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 0.75rem;vertical-align: top;padding: 5px;height: 100%;">
-                                                                            % if movie['tagline']:
+                                                                            % if 'authors' in book and book['authors']:
                                                                             <p class="nowrap mb5" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-weight: 400;margin: 0;margin-bottom: 5px;white-space: nowrap;text-overflow: ellipsis;overflow: hidden;max-width: 325px;color: #ffffff;">
-                                                                                <em>${movie['tagline']}</em>
+                                                                                % if isinstance(book['authors']['author'], list):
+                                                                                    <em>${', '.join(book['authors']['author']) | myescape }</em>
+                                                                                % else:
+                                                                                    <em>${book['authors']['author'] | myescape }</em>
+                                                                                % endif
                                                                             </p>
                                                                             % endif
+                                                                            % if 'comments' in book:
                                                                             <p style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-weight: 400;margin: 0;max-width: 325px;color: #ffffff;">
-                                                                                ${movie['summary'][:450] + (movie['summary'][450:] and '...')}
+                                                                                ${clean_html_sign.sub('',book['comments'][:450]) + (clean_html_sign.sub('',book['comments'][450:]) and '...') | myescape }
                                                                             </p>
+                                                                            % endif
                                                                         </td>
                                                                     </tr>
                                                                     <tr>
@@ -69,24 +114,24 @@ recently_added=calibredb
                                                                                     <td class="badge-container" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;max-width: 260px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;">
                                                                                         <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;">
                                                                                             <tr>
-                                                                                                % if movie['year']:
-                                                                                                <td class="badge" title="${movie['year']}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${movie['year']}</td>
+                                                                                                % if 'year' in book and book['year']:
+                                                                                                <td class="badge" title="${book['year']}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${book['year']}</td>
                                                                                                 % endif
-                                                                                                % if movie['duration']:
-                                                                                                <% duration = int(int(movie['duration'])/60000) %>
-                                                                                                <td class="badge" title="${duration} mins" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${duration} mins</td>
+                                                                                                % if 'tags' in book and book['tags']['tag']:
+                                                                                                % if isinstance(book['tags']['tag'], str):
+                                                                                                    <td class="badge" title="${book['tags']['tag'] | myescape}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${book['tags']['tag'] | myescape}</td>
+                                                                                                % else:
+                                                                                                    % for genre in book['tags']['tag'][:]:
+                                                                                                    <td class="badge" title="${genre}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${genre | myescape}</td>
+                                                                                                    % endfor
                                                                                                 % endif
-                                                                                                % if movie['genres']:
-                                                                                                % for genre in movie['genres'][:]:
-                                                                                                <td class="badge" title="${genre}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${genre}</td>
-                                                                                                % endfor
                                                                                                 % endif
                                                                                             </tr>
                                                                                         </table>
                                                                                     </td>
-                                                                                    % if movie['rating']:
-                                                                                    <% rating = int(round(float(movie['rating']) / 2)) %>
-                                                                                    <td class="star-rating-container" title="${int(float(movie['rating'])/0.1)}%" align="right" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;width: 65px;">
+                                                                                    % if 'rating' in book and book['rating']:
+                                                                                    <% rating = int(round(float(book['rating']) / 2)) %>
+                                                                                    <td class="star-rating-container" title="${int(float(book['rating'])/0.1)}%" align="right" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;width: 65px;">
                                                                                         <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;">
                                                                                             <tr>
                                                                                                 % for _ in range(rating):
@@ -108,7 +153,7 @@ recently_added=calibredb
                                                         </tr>
                                                     </table>
                                                 </td>
-                                                % if not movie_b:
+                                                % if not book_b:
                                                 <td align="center" valign="top" class="card-instance pad" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 12px;vertical-align: top;overflow: hidden;padding: 0 !important;width: 251px !important;min-width: 251px !important;max-width: 251px !important;"></td>
                                                 % endif
                                                 % endif
@@ -121,4 +166,4 @@ recently_added=calibredb
                             </table>
                         </td>
                     </tr>
-
+% endif

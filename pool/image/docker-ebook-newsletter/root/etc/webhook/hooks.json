@@ -1,0 +1,20 @@
+[
+    {
+      "id": "generate",
+      "execute-command": "/app/generate_news.sh",
+      "command-working-directory": "/tmp",
+      "pass-file-to-command":
+      [
+        {
+            "source": "payload",
+            "name": "binary",
+            "envname": "ENV_VARIABLE", // to use $ENV_VARIABLE in execute-command
+                                     // if not defined, $HOOK_BINARY will be provided
+            "base64decode": true,      // defaults to false
+        }
+      ],
+      "include-command-output-in-response": true
+    }
+  ]
+
+  # TODO CONTINUE HERE

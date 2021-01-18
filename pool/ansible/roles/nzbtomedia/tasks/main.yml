@@ -2,15 +2,16 @@
 - debug: 
     msg: "NZBTOMEDIA_DATA_PATH: {{ lookup('env','NZBTOMEDIA_DATA_PATH') }}"
 
-- name: Check autoProcessMedia.cfg exists
+- name: Register nzbtomedia_cfg
   stat:
-    path: "{{ lookup('env','NZBTOMEDIA_DATA_PATH') }}/autoProcessMedia.cfg"
+    path: "{{ nzbtomedia.cfg }}"
   register: nzbtomedia_cfg
 
-- name: Check sabnzbd.ini exists
+- name: Register sabnzbd_ini
   stat:
-    path: "{{ lookup('env','SABNZBD_DATA_PATH') }}/sabnzbd.ini"
+    path: "{{ sabnzbd.ini }}"
   register: sabnzbd_ini
+
 
 - name: Settings sabznbd Tweaks
   include_tasks: "subtasks/nzbtomedia_sabnzbd_settings.yml"
