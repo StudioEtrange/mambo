@@ -589,12 +589,11 @@ ${generated_html_random.decode("utf-8") | n}
 <!-- END inject ebooks-list template -->
 
 
-
 <!-- BEGIN inject ebooks-list template -->
 <%
 from urllib.request import Request, urlopen
 
-req = Request("http://ebooks_list:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Last%207%20days%20added%20books&days_old_filter=7&random_order=0&limit=50&debug=0")
+req = Request("http://ebooks_list:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Last%207%20days%20added%20books&days_old_filter=7&random_order=0&limit=&debug=0")
 req.add_header("Accept", "text/html")
 
 url = urlopen(req)
@@ -603,10 +602,7 @@ generated_html_last_books = url.read()
 %>
 ${generated_html_last_books.decode("utf-8") | n}
 <!-- END inject ebooks-list template -->
-
-
-
-
+                    
 
 
                     % if recently_added.get('movie'):
@@ -880,6 +876,10 @@ ${generated_html_last_books.decode("utf-8") | n}
                         </td>
                     </tr>
                     % endif
+
+
+
+
                     % if recently_added.get('artist'):
                     <tr>
                         <td class="wrapper" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;box-sizing: border-box;padding: 5px;overflow: auto;">
@@ -1119,7 +1119,7 @@ ${generated_html_last_books.decode("utf-8") | n}
                             <div class="footer-bar" style="margin-left: auto;margin-right: auto;width: 200px;border-top: 1px solid #E5A00D;margin-top: 25px;"></div>
                             <div class="content-block powered-by" style="padding-bottom: 10px;padding-top: 10px;">
                                 <!-- FOOTER MESSAGE - DO NOT REMOVE -->
-                                and powered-by <a href="https://github.com/StudioEtrange/mambo" target="_blank" style="text-decoration: underline; color: inherit; font-size: inherit; --darkreader-inline-color: inherit;" data-darkreader-inline-color="">Mambo</a>
+                                and powered by <a href="https://github.com/StudioEtrange/mambo" target="_blank" style="text-decoration: underline; color: inherit; font-size: inherit; --darkreader-inline-color: inherit;" data-darkreader-inline-color="">Mambo</a>
                             </div>
                         </td>
                     </tr>
