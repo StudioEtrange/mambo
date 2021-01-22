@@ -21,6 +21,13 @@ volumes:
       o: bind
       device: ${WEB_PATH}
     name: ${TANGO_APP_NAME}_web_data
+  tautulli_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TAUTULLI_DATA_PATH}
+    name: ${TANGO_APP_NAME}_tautulli_data
   newsletters_data:
     driver: local
     driver_opts:
@@ -105,6 +112,13 @@ volumes:
       o: bind
       device: ${BOOKSONIC_DATA_PATH}
     name: ${TANGO_APP_NAME}_booksonic_data
+  ebooks_list_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${EBOOKS_LIST_DATA_PATH}
+    name: ${TANGO_APP_NAME}_ebooks_list_data
   sabnzbd_data:
     driver: local
     driver_opts:
@@ -291,19 +305,24 @@ services:
       - 80
 
   # Plex statistics and management tools
+  # https://github.com/Tautulli/Tautulli
+  # https://hub.docker.com/r/linuxserver/tautulli
+  # https://github.com/linuxserver/docker-tautulli
   tautulli:
-    image: studioetrange/docker-tautulli:${TAUTULLI_VERSION:-latest}
+    image: ghcr.io/linuxserver/tautulli:${TAUTULLI_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_tautulli
     depends_on: 
       - service_init
     restart: unless-stopped
     volumes:
       # data/tautulli will contain tautulli configuration
-      - data:/data
-      # newsletters_data will be used for generated newsletter
-      - newsletters_data:/data/tautulli/newsletters
+      - tautulli_data:/config
+      # newsletter templates
+      - ebooks_list_data:/custom_template
+      - ${TANGO_APP_ROOT}/pool/ebooks:/default_template:ro
     environment:
-      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
@@ -329,8 +348,7 @@ services:
       - default
     expose:
       - 8181
-    build:
-      context: https://github.com/StudioEtrange/docker-tautulli.git#:ver/${TAUTULLI_VERSION:-latest}
+
 
   
   
@@ -427,11 +445,11 @@ services:
       # subservice sabnzbd_api routers
       - "traefik.http.routers.sabnzbd_api.entrypoints=${SABNZBD_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.sabnzbd_api.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && Query(`apikey=${SABNZBD_API_KEY:-}`)"
-      - "traefik.http.routers.sabnzbd_api.priority=${SABNZBD_PRIORITY}"
+      - "traefik.http.routers.sabnzbd_api.priority=${SABNZBD_API_PRIORITY}"
       - "traefik.http.routers.sabnzbd_api.service=sabnzbd"
       - "traefik.http.routers.sabnzbd_api-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.sabnzbd_api-secure.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) && Query(`apikey=${SABNZBD_API_KEY:-}`)"
-      - "traefik.http.routers.sabnzbd_api-secure.priority=${SABNZBD_PRIORITY}"
+      - "traefik.http.routers.sabnzbd_api-secure.priority=${SABNZBD_API_PRIORITY}"
       - "traefik.http.routers.sabnzbd_api-secure.service=sabnzbd"
       - "traefik.http.routers.sabnzbd_api-secure.tls=true"
       - "traefik.http.routers.sabnzbd_api-secure.tls.domains[0].main=${SABNZBD_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
@@ -799,6 +817,33 @@ services:
       - default
     expose:
       - 8080
+  
+  # ebook newsletter
+  # not exposed through traefik
+  ebooks_list:
+    image: studioetrange/ebooks-list:latest
+    container_name: ${TANGO_APP_NAME}_ebooks_list
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - ebooks_list_data:/config
+      - calibredb_books_media:/calibredb/books
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+      # data used inside template
+      - 'URL_CALIBREDB_FOR_COVER=${WEB_HTTP_URL_DEFAULT_SECURE}'
+      - 'URL_BOOK_LINK=${ORGANIZR2_HTTP_URL_DEFAULT_SECURE}/#Books'
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+    networks:
+      - default
+    expose:
+      - 9000
+    build:
+      context: ./pool/image/docker-ebooks-list
 
    
   # Audiobook and podcast streamer
@@ -987,14 +1032,16 @@ services:
       - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
       - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
       # middleware
-      - "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/${CALIBREWEB_BOOKS_SUBPATH}, /${CALIBREWEB_BOOKS_SUBPATH}/"
+      #- "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/${CALIBREWEB_BOOKS_SUBPATH}, /${CALIBREWEB_BOOKS_SUBPATH}/"
       # routers
       - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
+      #- "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
+      - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.calibreweb_books.priority=${CALIBREWEB_BOOKS_PRIORITY}"
       - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
       - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
+      #- "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
+      - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.calibreweb_books-secure.priority=${CALIBREWEB_BOOKS_PRIORITY}"
       - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
       - "traefik.http.routers.calibreweb_books-secure.tls=true"
@@ -1004,22 +1051,4 @@ services:
       - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
       #- "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
       #- "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
-  
-  # calibreweb_comics:
-  #   << : *default-calibreweb
-  #   container_name: ${TANGO_APP_NAME}_calibreweb_comics
-  #   volumes:
-  #     # will contain calibre-web configuration
-  #     - calibreweb_comics_data:/config
-  #     # different paths used by calibreweb
-  #     - calibreweb_comics_media:/books
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.calibreweb_comics.entrypoints=web_secondary"
-  #     - "traefik.http.routers.calibreweb_comics.rule=HostRegexp(`{subdomain:calibreweb_comics}.{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/calibreweb_comics`)"
-  #     - "traefik.http.routers.calibreweb_comics.service=calibreweb_comics"
-  #     - "traefik.http.services.calibreweb_comics.loadbalancer.server.port=8083"
-  #     - "traefik.http.services.calibreweb_comics.loadbalancer.server.scheme=http"
-  #     - "traefik.http.services.calibreweb_comics.loadbalancer.passhostheader=true"
-  #     - "traefik.http.routers.calibreweb_comics.middlewares=calibreweb_comics-stripprefix"
-  #     - "traefik.http.middlewares.calibreweb_comics-stripprefix.stripprefix.prefixes=/calibreweb_comics, /calibreweb_comics/"
+ 

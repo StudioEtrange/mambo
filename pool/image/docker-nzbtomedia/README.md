@@ -1,5 +1,5 @@
 
-# [studioetrange/nzbtomedia](https://github.com/studioetrange/nzbtomedia)
+# [studioetrange/nzbtomedia](https://github.com/studioetrange/docker-nzbtomedia)
 
 [nzbToMedia](https://github.com/clinton-hall/nzbToMedia) provides an efficient way to handle postprocessing for CouchPotatoServer and SickBeard (and its forks) when using one of the popular NZB download clients like SABnzbd and NZBGet.
 
@@ -48,14 +48,12 @@ docker run \
   -e PUID=1000 \
   -e PGID=1000 \
   -e TZ=Europe/London \
-  -v /path/to/nzbtomedia:/app \
+  -v <path to data>:/app \
   studioetrange/nzbtomedia
 ```
 
 &nbsp;
 ## Parameters
-
-Container images are configured using parameters passed at runtime (such as those above). These parameters are separated by a colon and indicate `<external>:<internal>` respectively. For example, `-p 8080:80` would expose port `80` from inside the container to be accessible from the host's IP on port `8080` outside the container.
 
 | Parameter | Function |
 | :----: | --- |
@@ -65,6 +63,13 @@ Container images are configured using parameters passed at runtime (such as thos
 | `-e ERASE=1` | will remove existing install from /app/VERSION #optional |
 | `-e TZ=Europe/London` | Specify a timezone to use EG Europe/London. |
 | `-v /app` | Local path for nzbtomedia files. nzbtomediafiles will be isntalled in /app/VERSION |
+
+&nbsp;
+## Umask for running applications
+
+For all of our images we provide the ability to override the default umask settings for services started within the containers using the optional `-e UMASK=022` setting.
+Keep in mind umask is not chmod it subtracts from permissions based on it's value it does not add. Please read up [here](https://en.wikipedia.org/wiki/Umask) before asking for support.
+
 
 &nbsp;
 ## User / Group Identifiers

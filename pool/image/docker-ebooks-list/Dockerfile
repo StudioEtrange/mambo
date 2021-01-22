@@ -1,7 +1,5 @@
 FROM lsiobase/ubuntu:bionic
-#FROM almir/webhook:2.8
-# docker run -it -e PUID=$(id -u) -e PGID=$(id -g) -e DOCKER_MODS=studioetrange/calibre-mod:v5.9.0 --volume $HOME/testconfig:/config --volume $HOME/testnews:/newsletter --volume /mnt/NEON_EBOOKS/books:/calibredb/books i bash
-# docker run -it -e PUID=$(id -u) -e PGID=$(id -g) -e DOCKER_MODS=studioetrange/calibre-mod:v5.9.0 --volume $HOME/testconfig:/config --volume $HOME/testnews:/newsletter --volume /mnt/NEON_EBOOKS/books:/calibredb/books i bash
+
 LABEL maintainer "StudioEtrange <sboucault@gmail.com>"
 
 # environment settings
@@ -43,8 +41,6 @@ COPY root/ /
 # ports and volumes
 # will contain config
 VOLUME /config
-# will contain generated files
-VOLUME /newsletter
 # where to mount different calibre database
 # if you have several you should mount all of them into /calibredb
 # example : --volume $HOME/ebooks:/calibredb/ebooks
@@ -52,6 +48,4 @@ VOLUME /newsletter
 VOLUME /calibredb
 
 
-# https://github.com/adnanh/webhook
-# https://hub.docker.com/r/almir/webhook
 EXPOSE 9000

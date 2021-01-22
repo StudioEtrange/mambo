@@ -780,6 +780,16 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     docker run --name lazylibrarian -d -v ${MAMBO_HOME}/data/lazylibrarian:/config -v /media/MEDIA/EBOOKS:/books  -v ${MAMBO_HOME}/download:/downloads -p 8020:5299 -e PUID="$(id -u)" -e PGID="$(id -g)" -e TZ="Europe/Paris" -e DOCKER_MODS="studioetrange/calibre-mod:${CALIBRE_RELEASE_DOCKERMOD_VERSION}" linuxserver/lazylibrarian:${LAZYLIBRARIAN_DOCKER_VERSION}
     ```
 
+## newzgroup
+
+
+### sabnzbd
+
+* api
+    * sabnzbd api documentation : https://thezoggy.github.io/sabnzbd/api/
+    * api request sample :  https://sabnzbd.domain.org/api?apikey=XXXXXXXXXXXXXXX&mode=queue
+* sabnzbd needs a hosts_whitelist parameter and only authorize dns names in this list to connect to ui
+* to bypass wizard, fill at least a newzgroup server in sabnzbd.ini
 
 
 ## Torrent

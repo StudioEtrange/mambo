@@ -1,11 +1,16 @@
 # MAMBO - An opiniated docker based media stack - WIP - do not use YET
 
-A central portal for all your media services.
+* WIP - do not use YET*
+A central portal for all your media content movies, tv show, ebooks
+
+## Features
 
 * Based on organizr2
 * SSO for all service using plex authentification
 * Access level managed and centralized in organizr2 (dynamic synced between organizr2 and traefik2)
-* Generate an ebook newsletter section into tautulli
+* Generate an ebook newsletter section into tautulli newsletter
+* Add newsletter functionnality for ebooks
+* Direct API access to sabnzbd
 * Highly based on traefik2 for internal routing
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
@@ -22,7 +27,7 @@ If you want to use hardware transcode on nvidia gpu :
 
 * nvidia-docker
 
-NOTE : mambo will auto install all other required tools like docker-compose
+NOTE : mambo will auto install all other required tools like docker-compose inside of its tree folder
 
 ## Services included
 
@@ -340,16 +345,26 @@ Into Organizr2
 * Then after setup finished, in settings
     * Web interface / advanced settings / Enable HTTP Proxy : `enabled`
     * Web interface / advanced settings / Enable HTTPS" : `disabled`
-    * Web interface / advanced settings / Public Tautulli Domain : `http://web.mydomain.com` (usefull for newsletters and images - newsletters are exposed through mambo service `web`)
+    * Web interface / advanced settings / Public Tautulli Domain : `https://web.mydomain.com` (usefull for newsletters and images - newsletters are exposed through mambo service `web`)
 
 ### Tautulli newsletter
 
 * TODO : mail setup
 
-* NOTE : To edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
+* Settings / Notifications & Newsletters / Show Advanced
+* Settings / Notifications & Newsletters / Newsletters
+    * Self-Hosted Newsletters : checked
+    * Use Inline Styles Templates : checked
+    * Newsletter Output Directory : `/newsletters`
+    * Custom newsletter Templates Folder : `/default_template`
+        * if you want to customize the default newsletter template edit in your data folder `ebooks_list/recently_added.mtml` following `mambo/ebooks/recently_added.html` (the default one) as guide. And set inside tautulli the default template folder as `/custom_template/templates`
+        * if you want a real preview of your newsletter with your custom template use : `https://tautulli.domain.com/real_newsletter?newsletter_id=1&preview=true` instead of this proposed url `https://tautulli.domain.com/newsletter_preview?newsletter_id=1`
+
+* TIPS : Inside newsletter configuration; to edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
     ```
     Newsletter url : {newsletter_url} 
     ```
+
 
 
 
@@ -435,6 +450,13 @@ go to sabnzbd through organizr
 * SABconnect++ (chrome plugin)
     * SABnzbd URL : https://sabnzbd.domain.com
     * SABnzbd API Key : get API key with ./mambo info sabnzbd or from within sabnzbd admin panel by generating a QRCode
+
+* SabNzbd Remote 2.0 (android app)
+    * URL : sabnzbd.domain.com
+    * Port: 443
+    * Use SSL
+    * Authentification Method : use api key
+    * API Key : get API key with ./mambo info sabnzbd or from within sabnzbd admin panel by generating a QRCode 
 
 
 ----

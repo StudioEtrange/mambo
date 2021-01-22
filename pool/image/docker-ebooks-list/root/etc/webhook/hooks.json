@@ -1,0 +1,63 @@
+[
+    {
+      "id": "render",
+      "execute-command": "/app/calibrectg_render_template.sh",
+      "command-working-directory": "/tmp",
+      "include-command-output-in-response": true,
+      "response-headers":
+      [
+        {
+          "name": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ],
+      "pass-arguments-to-command":
+      [
+        {
+        "source": "url",
+        "name": "calibredb"
+        },
+        {
+        "source": "url",
+        "name": "template_file"
+        },
+        {
+        "source": "url",
+        "name": "items_name"
+        },
+        {
+        "source": "url",
+        "name": "title"
+        },
+        {
+        "source": "url",
+        "name": "limit"
+        },
+        {
+        "source": "url",
+        "name": "random_order"
+        },
+        {
+        "source": "url",
+        "name": "days_old_filter"
+        },
+        {
+        "source": "url",
+        "name": "debug"
+        }
+      ],
+      "trigger-rule":
+      {
+        "match":
+        {
+          "type": "regex",
+          "regex": ".*text/html.*",
+          "parameter":
+          {
+            "source": "header",
+            "name": "Accept"
+          }
+        }
+      }
+    }
+]

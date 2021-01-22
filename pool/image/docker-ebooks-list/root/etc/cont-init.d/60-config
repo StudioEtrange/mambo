@@ -1,0 +1,15 @@
+#!/usr/bin/with-contenv bash
+
+
+mkdir -p /config/output /config/templates
+
+if [ ! -f "/config/templates/tautulli_ebooks.html" ]; then
+    echo "> Installing default templates"
+    cp /etc/templates/* /config/templates/
+fi
+
+
+# Set Permissions
+chown -R abc:abc \
+	/app \
+	/config
