@@ -19,17 +19,17 @@ __sabnzbd_set_context() {
 
 
 __sabnzbd_init() {
-    __sabnzbd_first_launch
-    __sabnzbd_settings
-    # we need to reread some values, because sabnzbd may have generate values like api key
-    __sabnzbd_set_context
-
-    __tango_log "INFO" "mambo" "we have tweaked some sabnzbd values, you should start/restart it"
+    if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "sabnzbd"; then
+        __sabnzbd_init_files
+        # configure
+        __sabnzbd_settings
+        # we need to reread some values, because sabnzbd may have generate values like api key
+        __sabnzbd_set_context
+    fi
 }
 
 # sabnzbd auto generate api keys at first launch
-__sabnzbd_first_launch() {
-
+__sabnzbd_init_files() {
     if [ ! -f "${SABNZBD_INI_PATH}" ]; then
         # generate settings file
         __tango_log "DEBUG" "sabnzbd" "Creating settings file"
@@ -40,7 +40,6 @@ __sabnzbd_first_launch() {
         sleep 4
         __service_down "sabnzbd" "NO_DELETE"
         sleep 4
-
     fi
 }
 
@@ -51,6 +50,7 @@ __sabnzbd_settings() {
     else
         $STELLA_API ansible_play_localhost "$TANGO_APP_ROOT/pool/ansible/ansible-playbook.yml" "$TANGO_APP_ROOT/pool/ansible/roles" "TAGS sabnzbd"
     fi
+    __tango_log "INFO" "mambo" "we have tweaked some sabnzbd values, you should start/restart it"
 }
 
 

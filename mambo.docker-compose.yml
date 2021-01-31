@@ -42,13 +42,13 @@ volumes:
       o: bind
       device: ${ORGANIZR2_DATA_PATH}
     name: ${TANGO_APP_NAME}_organizr2_data
-  o3_data:
+  organizrtest_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${O3_DATA_PATH}
-    name: ${TANGO_APP_NAME}_o3_data
+      device: ${ORGANIZRTEST_DATA_PATH}
+    name: ${TANGO_APP_NAME}_organizrtest_data
   plex_data:
     driver: local
     driver_opts:
@@ -160,6 +160,7 @@ volumes:
 # NOTE : yaml do not support array merge, so we cannot factorize volume or labels declaration here
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
 # https://github.com/linuxserver/docker-calibre-web
+# https://hub.docker.com/r/linuxserver/calibre-web
 x-calibreweb: &default-calibreweb
   image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
   depends_on: 
@@ -180,10 +181,11 @@ x-calibreweb: &default-calibreweb
     - default
   expose:
     - 8083
-  build:
-    context: https://github.com/linuxserver/docker-calibre-web.git
-    args:
-      - CALIBREWEB_RELEASE=${CALIBREWEB_VERSION}
+  # need this only if we want a non existing docker calibreweb versions
+  # build:
+  #   context: https://github.com/linuxserver/docker-calibre-web.git
+  #   args:
+  #     - CALIBREWEB_RELEASE=${CALIBREWEB_VERSION}
 
 
 
@@ -196,6 +198,8 @@ services:
 
   # Main mambo portal
   # https://github.com/Organizr/docker-organizr
+  # https://github.com/causefx/Organizr
+  # https://organizr.app/
   organizr2:
     image: organizr/organizr
     container_name: ${TANGO_APP_NAME}_organizr2
@@ -209,7 +213,7 @@ services:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
       # use 'manual' as branch value to disable code update installed into /config folder
-      - branch=${ORGANIZR2_VERSION:-v2-master}
+      - branch=${ORGANIZR2_BRANCH:-v2-master}
       - fpm=true
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
@@ -263,42 +267,42 @@ services:
     expose:
       - 80
       
-  o3:
-    image: organizr/organizr
-    container_name: ${TANGO_APP_NAME}_o3
+  organizrtest:
+    image: ghcr.io/organizr/organizr
+    container_name: ${TANGO_APP_NAME}_organizrtest
     depends_on: 
       - service_init
     restart: unless-stopped
     volumes:
-      # will contain organizr2 configuration
-      - o3_data:/config
+      # will contain configuration
+      - organizrtest_data:/config
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
       # use 'manual' as branch value to disable code update installed into /config folder
-      - branch=${O3_VERSION:-v2-master}
+      - branch=${ORGANIZRTEST_BRANCH:-v2-master}
       - fpm=true
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
       # service
-      - "traefik.http.services.o3.loadbalancer.server.port=80"
-      - "traefik.http.services.o3.loadbalancer.server.scheme=http"
-      - "traefik.http.services.o3.loadbalancer.passhostheader=true"
+      - "traefik.http.services.organizrtest.loadbalancer.server.port=80"
+      - "traefik.http.services.organizrtest.loadbalancer.server.scheme=http"
+      - "traefik.http.services.organizrtest.loadbalancer.passhostheader=true"
       # routers
-      - "traefik.http.routers.o3.entrypoints=${O3_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.o3.rule=HostRegexp(`{subdomain:${O3_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
-      - "traefik.http.routers.o3.service=o3"
-      - "traefik.http.routers.o3.priority=${O3_PRIORITY}"
-      - "traefik.http.routers.o3-secure.entrypoints=${O3_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.o3-secure.rule=HostRegexp(`{subdomain:${O3_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
-      - "traefik.http.routers.o3-secure.priority=${O3_PRIORITY}"
-      - "traefik.http.routers.o3-secure.service=o3"
-      - "traefik.http.routers.o3-secure.tls=true"
-      - "traefik.http.routers.o3-secure.tls.domains[0].main=${O3_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      - "traefik.http.routers.organizrtest.entrypoints=${ORGANIZRTEST_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.organizrtest.rule=HostRegexp(`{subdomain:${ORGANIZRTEST_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizrtest.service=organizrtest"
+      - "traefik.http.routers.organizrtest.priority=${ORGANIZRTEST_PRIORITY:-}"
+      - "traefik.http.routers.organizrtest-secure.entrypoints=${ORGANIZRTEST_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.organizrtest-secure.rule=HostRegexp(`{subdomain:${ORGANIZRTEST_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"      
+      - "traefik.http.routers.organizrtest-secure.priority=${ORGANIZRTEST_PRIORITY:-}"
+      - "traefik.http.routers.organizrtest-secure.service=organizrtest"
+      - "traefik.http.routers.organizrtest-secure.tls=true"
+      - "traefik.http.routers.organizrtest-secure.tls.domains[0].main=${ORGANIZRTEST_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
       # routers middleware
-      - "traefik.http.routers.o3.middlewares=error-middleware"
-      - "traefik.http.routers.o3-secure.middlewares=error-middleware"
+      - "traefik.http.routers.organizrtest.middlewares=error-middleware"
+      - "traefik.http.routers.organizrtest-secure.middlewares=error-middleware"
     networks:
       - default
     expose:
@@ -482,7 +486,7 @@ services:
     networks:
       - default
     build:
-      context: ./pool/image/docker-nzbtomedia
+      context: ./pool/artefacts/docker-nzbtomedia
 
 
   # Media server
@@ -647,8 +651,9 @@ services:
   # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
   transmission:
     # TODO wait for PRs https://github.com/linuxserver/docker-transmission/pull/140 https://github.com/linuxserver/docker-transmission/pull/141
-    #image: linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
-    image: studioetrange/transmission:latest
+    image: ghcr.io/linuxserver/transmission:version-3.00-r0
+    #${TRANSMISSION_VERSION:-latest}
+    #image: studioetrange/transmission:latest ghcr.io/linuxserver/transmission:version-3.00-r0
     container_name: ${TANGO_APP_NAME}_transmission
     depends_on: 
       - service_init
@@ -843,7 +848,7 @@ services:
     expose:
       - 9000
     build:
-      context: ./pool/image/docker-ebooks-list
+      context: ./pool/artefacts/docker-ebooks-list
 
    
   # Audiobook and podcast streamer
@@ -966,6 +971,7 @@ services:
     
   # Calibre
   # https://github.com/linuxserver/docker-calibre
+  # https://github.com/kovidgoyal/calibre
   calibre:
     image: ghcr.io/linuxserver/calibre:${CALIBRE_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_calibre

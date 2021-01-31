@@ -3,7 +3,7 @@
 # API documentation http://organizr2.mydomain.com/api/docs/
 
 
-
+# API v1
 # get user and group list 
 # http://organizr2.mydomain.com/api/?v1/user/list
 
@@ -210,30 +210,52 @@ declare -A ORGANIZR2_AUTH_GROUP_BY_SERVICE
 # hash table : give group name for each group id
 declare -A ORGANIZR2_AUTH_GROUP_NAME_BY_ID
 
-# TODO migrate to apiv2
-#ORGANIZR2_INTERNAL_CONTAINER_API_URL="http://organizr2/api/v2"
-#ORGANIZR2_API_URL="${O3_HTTP_URL_DEFAULT_SECURE}/api/v2"
+
 __organizr2_api_url() {
     # NOTE http://localhost from inside organizr itself
-    ORGANIZR2_INTERNAL_CONTAINER_API_URL="http://organizr2/api/?v1"
-    ORGANIZR2_API_URL="${ORGANIZR2_HTTP_URL_DEFAULT_SECURE}/api/?v1"
+
+    __o_api="/api/?v1"
+    case $ORGANIZR2_API_VERSION in
+        2 )
+            __o_api="/api/v2"
+        ;;
+        1 )
+            __o_api="/api/?v1"
+        ;;
+    esac
+
+    export ORGANIZR2_INTERNAL_CONTAINER_API_URL="http://${ORGANIZR2_INSTANCE}${__o_api}"
+    __tmp="${ORGANIZR2_INSTANCE^^}_HTTP_URL_DEFAULT_SECURE"
+    export ORGANIZR2_API_URL="${!__tmp}${__o_api}"
 }
-__organizr2_api_url
 
 
+__organizr2_init() {
+    if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
+        __organizr2_init_files
+    fi
+}
 
 
 
 
 # declare variables
 __organizr2_set_context() {
+
+    # default organizr2 instance
+    [ "$ORGANIZR2_INSTANCE" = "" ] && export ORGANIZR2_INSTANCE="organizr2"
+
     __add_declared_associative_array "ORGANIZR2_AUTH_GROUP_BY_SERVICE"
     __add_declared_associative_array "ORGANIZR2_AUTH_GROUP_NAME_BY_ID"
     
+    __organizr2_api_url
+    __add_declared_variables "ORGANIZR2_API_URL"
+    __add_declared_variables "ORGANIZR2_INTERNAL_CONTAINER_API_URL"
 
     # init auth group by requesting organizr2 and load current permissions
     export ORGANIZR2_DEFAULT_GROUP=
     __add_declared_variables "ORGANIZR2_DEFAULT_GROUP"
+
 
     if [ "${ORGANIZR2_AUTHORIZATION}" = "OFF" ]; then
         __tango_log "DEBUG" "organizr2" "Organizr2 authorization system is disabled"
@@ -246,10 +268,11 @@ __organizr2_set_context() {
     fi
 
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
-        __tango_log "DEBUG" "organizr2" "Organizr2 authorization is enabled"
-        if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "organizr2"; then
+        __tango_log "DEBUG" "organizr2" "Organizr2 authorization is enabled - organizr2 instance used : ${ORGANIZR2_INSTANCE}"
+        if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
+        
             if __is_docker_client_available; then
-                if $(__container_is_healthy "${TANGO_APP_NAME}_organizr2"); then
+                if $(__container_is_healthy "${TANGO_APP_NAME}_${ORGANIZR2_INSTANCE}"); then
                     # init ORGANIZR2_AUTH_GROUP_BY_SERVICE
                     __organizr2_auth_group_by_service_all
                     # init ORGANIZR2_AUTH_GROUP_NAME_BY_ID
@@ -277,6 +300,62 @@ __organizr2_set_context() {
 }
 
 
+
+# install / update version
+# organizr2 docker image have an auto update mechanism
+# we disable it, and fully download the wanted version each time we init organizr2
+# https://github.com/Organizr/docker-organizr/blob/master/root/etc/cont-init.d/40-install
+__organizr2_init_files() {
+    local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
+    __data_path="${!__data_path}"
+    local __branch_var="${ORGANIZR2_INSTANCE^^}_BRANCH"
+    __branch="${!__branch_var}"
+    local __commit="${ORGANIZR2_INSTANCE^^}_COMMIT"
+    __commit="${!__commit}"
+
+    # Use 'manual' as branch value to disable automatic code update at container launch
+    # and have the hability to choose a specific commit
+    local __manual_update_mode
+    [ "${__branch}" = "manual" ] && __manual_update_mode="1"
+
+
+    __tango_log "INFO" "organizr2" "Installing Organizr2 (instance : $ORGANIZR2_INSTANCE - branch version : $__branch - commit version : $__commit)"
+
+
+    if [ "$__manual_update_mode" = "1" ]; then
+        # remove organizr2 files
+        rm -Rf ${__data_path}/www/organizr
+
+        # override branch to v2-master to get organizr code source
+        # with "manual" no code is downloaded
+        eval export $__branch_var="v2-master"
+    fi
+
+    # install organizr2 files from scratch
+    __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
+    __service_up "$ORGANIZR2_INSTANCE"
+    # wait for files to be installed
+    sleep 4
+    __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
+
+
+    if [ "$__manual_update_mode" = "1" ]; then
+        if [ ! "$__commit" = "" ]; then
+            __tango_log "INFO" "organizr2" "Switching to Organizr commit $__commit"
+            cd "${__data_path}/www/organizr"
+            __tango_git checkout "${__commit}"
+            # get last commit
+            git rev-parse HEAD >"${__data_path}/www/organizr/Github.txt"
+        fi
+
+        # restore branch value
+        eval export $__branch_var="$__branch"
+    fi
+
+
+    
+}
+
 # set permission on each service by syncing traefik and organizr2 api
 # in PRINT mode - show some output
 __organizr2_auth() {
@@ -295,7 +374,7 @@ __organizr2_auth() {
     fi
 
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
-        if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "organizr2"; then
+        if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
             if [ "${__mode}" = "PRINT" ]; then
                 echo " * ORGANIZR2 AUTH"
                 echo L-- manage mambo services authorization with organizr : $([ "${ORGANIZR2_AUTHORIZATION}" = "ON" ] && echo "ON" || echo "OFF")
@@ -314,27 +393,41 @@ __organizr2_auth() {
 # manage crontab job
 # launched each 30 seconds
 __organizr2_scheduler_set() {
+    local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
-        $STELLA_API crontab_add "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-        $STELLA_API crontab_add "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_add "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_add "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
     else
-        $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-        $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
+        $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
     fi
 }
 __organizr2_scheduler_shutdown() {
-    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-    $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${ORGANIZR2_DATA_PATH}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
+    __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
+    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
 }
 
 
 
-# TODO : migration to organizr2 api v2 https://docs.organizr.app/books/setup-features/page/api-v2-webserver-changes-needed
-# __organizr2_api_request "GET" "tab/list"
-# NOTE : API respond error if organizr2 not yet setted in configuration panel
+# request organizr API
+#       sample : __organizr2_api_request "GET" "tab/list"
+# NOTE : API respond error if organizr2 is not yet configured in configuration panel
 __organizr2_api_request() {
-    __organizr2_api_url
-    local __result="$(__organizr2_apiv1_request "$1" "$2")"
+    #__organizr2_api_url
+    local __result
+    
+    case $ORGANIZR2_API_VERSION in
+        1 ) 
+            __result="$(__organizr2_apiv1_request "$1" "$2")"
+        ;;
+        2 ) 
+            __result="$(__organizr2_apiv2_request "$1" "$2")"
+        ;;
+    esac
+    
     case "$__result" in
         *nginx*|*html*|"" )
         __tango_log "WARN" "organizr2" "API result : $__result";;
@@ -357,6 +450,15 @@ __organizr2_apiv1_request() {
     __tango_curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
 }
 
+# request organizr2 API v2
+__organizr2_apiv2_request() {
+    local __http_command="$1"
+    local __request="$2"
+
+    [ "${__http_command}" = "" ] && __http_command="GET"
+    __tango_curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+}
+
 
 # tabs name from organizr will be matched with docker compose service names. Ignoring case.
 # If a docker compose service name contains a "_", only the part after "_" will be used for a match
@@ -370,7 +472,7 @@ __organizr2_auth_group_by_service_all() {
 
         case "$__tab_list" in
             *nginx*|*html*|"" ) echo "$__tab_list";;
-            *error* ) echo "$__tab_list"; exit;;
+            *error* ) echo "$__tab_list"; return;;
             * )
                 # get organizr tab name list
                 for i in $(echo "$__tab_list" | jq -r '.data.tabs[] | .name + "#" + (.group_id|tostring)'); do
@@ -414,7 +516,7 @@ __organizr2_auth_group_name_by_id_all() {
         local __name=
         case "$__user_list" in
             *nginx*|*html*|"" ) echo "$__user_list" ;;
-            *error* ) echo "$__user_list"; exit;;
+            *error* ) echo "$__user_list"; return;;
             * )
                 for i in $(echo $__user_list | jq -r '.data.groups[] | .id'); do
                     __group_id="$(echo $__user_list | jq -r '.data.groups[] | select(.id=='$i') | (.group_id|tostring)')"
@@ -447,9 +549,6 @@ __organizr2_set_auth_service_all() {
 
 
 
-
-# TODO migrate organizr2 API v1 to v2
-#__traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_API_URL}'/auth?group='${__group_id}'"'
 # add traefik authentification system for a service to traefik API
 __organizr2_traefik_api_set_auth_service() {
     local __service="$1"
@@ -459,11 +558,19 @@ __organizr2_traefik_api_set_auth_service() {
     local __midname="${__service}-auth"
     local __body=
 
-    __organizr2_api_url
+    #__organizr2_api_url
 
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.tls.insecureSkipVerify = true'
-    #__traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_INTERNAL_CONTAINER_API_URL}'/auth&group='${__group_id}'"'
-    __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_API_URL}'/auth&group='${__group_id}'"'
+
+    case $ORGANIZR2_API_VERSION in
+        1 )
+            __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_API_URL}'/auth&group='${__group_id}'"'
+        ;;
+        2 )
+            __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.address = "'${ORGANIZR2_API_URL}'/auth?group='${__group_id}'"'
+        ;;
+    esac
+    
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.trustforwardheader = true'
     # X-Organizr-User is the header returned by organizr when used
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.authResponseHeaders = ["X-Organizr-User"]'

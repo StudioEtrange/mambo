@@ -1,108 +1,77 @@
 
 # NEED to be connected with PIA vpn
+# NEED jq
+# NEED curl
+
 # WAIT for vpn service up
-# NEED PIA_FOLDER defined
 
-# about forwarding port with PIA
-#   only some PIA VPN server allow port forwarding, list here : https://www.privateinternetaccess.com/helpdesk/kb/articles/can-i-use-port-forwarding-without-using-the-pia-client
-#   https://www.privateinternetaccess.com/helpdesk/kb/articles/can-i-use-port-forwarding-without-using-the-pia-client
-#   https://www.privateinternetaccess.com/installer/port_forwarding.sh
-# sample to forward port with PIA in shell and set transmission (torrent) service
-#   https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/updatePort.sh
+# script that get a forwarding port with PIA VPN provider
+#   all PIA VPN server allow port forwarding except from USA
+#   PIA reference scripts : https://github.com/pia-foss/manual-connections
 
 
-pia_new_client_id() {
-    local pia_client_id_file="$1"
-    head -n 100 /dev/urandom | sha256sum | tr -d " -" | tee ${pia_client_id_file}
+pia_install_script() {
+    export PIA_FOLDER="${1}"
+
+    if [ -f "${PIA_FOLDER}/manual-connections/LICENSE" ]; then
+        echo "  + ${PLUGIN} already installed in ${PIA_FOLDER}/manual-connections"
+    else
+        mkdir -p "${PIA_FOLDER}/manual-connections"
+        #cp -Rf "/pool/mambo/artefacts/manual-connections" "${PIA_FOLDER}/"
+        curl -fksL "https://github.com/StudioEtrange/manual-connections/archive/master.tar.gz" -o "/tmp/manual-connections.tar.gz"
+        cd "${PIA_FOLDER}/manual-connections"
+        tar xvzf "/tmp/manual-connections.tar.gz" --strip-components=1
+    fi
 }
 
-# NOTE : ask to open a port to private internet access vpn (PIA) provider and set a global var with it
+
+
+pia_setup_script() {
+    # change default path used by pia provided scripts
+    find "${PIA_FOLDER}/manual-connections" -type f -exec sed -i s,/opt/piavpn-manual,/plugins_data/transmission_pia_port,g {} \;
+    # do not verify certificate because there seems to have a problem with crt file provided by pia scritps
+    # https://github.com/pia-foss/manual-connections/issues/85
+    sed -i "s,curl -,curl -k -,g" ${PIA_FOLDER}/manual-connections/port_forwarding.sh
+}
+
 export PIA_FORWARD_PORT=
 pia_get_port() {
-    local pia_data_folder="$1"
-    mkdir -p "${pia_data_folder}"
-    pia_client_id_file="${pia_data_folder}/pia_client_id"
-    pia_port_file="${pia_data_folder}/pia_open_port"
-
-    local new_port=
+    # get PF_GATEWAY
+    echo "  - get PF_GATEWAY"
+    export PF_GATEWAY="$(ip route | head -1 | grep tun | awk '{ print $3 }')"
+    echo "  - get PF_GATEWAY : $PF_GATEWAY"
 
 
-    # doc says : "Within two minutes of connecting the VPN"
-    # vpn docker container should have healthy status
-    wait_time=30
-    echo "  + Wait for tunnel to be fully initialized and PIA is ready to give us a port ($wait_time sec.)"
-    sleep $wait_time
+    # get PIA_TOKEN
+    echo "  - get PIA_TOKEN"
+    rm -f "${PIA_FOLDER}/token"
+    auth_var="VPN_${VPN_ID}_VPN_AUTH"
+    auth_string="${!auth_var}"
+    auth_string=(${auth_string//;/ })
+    export PIA_USER"=${auth_string[0]}"
+    export PIA_PASS="${auth_string[1]}"
+    ${PIA_FOLDER}/manual-connections/get_token.sh
+    export PIA_TOKEN="$( awk 'NR == 1' ${PIA_FOLDER}/token )"
+    echo "  - get PIA_TOKEN : $PIA_TOKEN"
 
-    # NOTE we should always generate a new id to try to force obtain a new port 
-    #       to really obtain a new port we must down the vpn connection first AND generate a new id 
-    #pia_client_id="$(cat ${pia_client_id_file} 2>/dev/null)"
-    pia_client_id=
+    
+    # get PF_HOSTNAME
+    echo "  - get PF_HOSTNAME"
+    files_var="VPN_${VPN_ID}_VPN_FILES"
+    files_var="${!files_var}"
+    files_var="${files_var/%;*}"
+    files_var="${files_var[0]}"
+    file_ovpn="/vpn/${files_var}"
+    export PF_HOSTNAME="$(awk -F ' ' '/^remote\ / {print $2}' $file_ovpn)"
+    echo "  - get PF_HOSTNAME : $PF_HOSTNAME"
 
-    if [[ -z "${pia_client_id}" ]]; then
-        echo -n "  + Generating new client id for PIA : "
-        pia_client_id=$(pia_new_client_id ${pia_client_id_file})
-        echo "${pia_client_id}"
-    else
-        echo "  + Using existing client id for PIA : ${pia_client_id}"
-    fi
 
-    # Get the port
-    port_assignment_url="http://209.222.18.222:2000/?client_id=$pia_client_id"
 
-    echo "  + Requesting a port"
-    # if type curl 1>/dev/null 2>&1; then
-    #     pia_response=$(curl -s -f "$port_assignment_url")
-    # else
-    #     pia_response=$(wget -q -O - "$port_assignment_url")
-    # fi
-    pia_response=$(__tango_curl -s -f "$port_assignment_url")
 
-    pia_curl_exit_code=$?
-    echo "  + Raw response : ${pia_response}"
-
-    old_port="$(cat ${pia_port_file} 2>/dev/null)"
-
-    if [[ -z "$pia_response" ]]; then
-        echo "  + Port forwarding is already activated on this connection, has expired, or you are not connected to a PIA region that supports port forwarding"
-    fi
-
-    # Check for curl error (curl will fail on HTTP errors with -f flag)
-    if [[ ${pia_curl_exit_code} -ne 0 ]]; then
-        echo "  + curl/wget encountered an error looking up new port: $pia_curl_exit_code"
-        if [[ -z "$old_port" ]]; then
-            echo "  + no previously reserved port found"
-            PIA_FORWARD_PORT=
-            return $pia_curl_exit_code
-        else
-            echo "  + using previous port $old_port"
-            PIA_FORWARD_PORT=$old_port
-            return 0
-        fi
-    fi
-
-    # Check for errors in PIA response
-    error=$(echo "  + $pia_response" | grep -oE "\"error\".*\"")
-    if [[ ! -z "$error" ]]; then
-        echo "  + PIA returned an error: $error"
-        PIA_FORWARD_PORT=
-        return 1
-    fi
-
-    # Get new port, check if empty
-    new_port=$(echo "  + $pia_response" | grep -oE "[0-9]+")
-    if [[ -z "$new_port" ]]; then
-        echo "  + Could not find new port from PIA"
-        if [[ -z "$old_port" ]]; then
-            echo "  + No old previously reserved port found"
-            PIA_FORWARD_PORT=
-            return 1
-        else
-            echo "  + using previous port $old_port"
-            return 0
-        fi
-    fi
-    echo "  + Got new port $new_port from PIA"
-    PIA_FORWARD_PORT=$new_port
-    echo $new_port > $pia_port_file
-    return 0
+    # ask PIA vpn provider to forward a port
+    # launch background task to keep port open
+    nohup -- ${PIA_FOLDER}/manual-connections/port_forwarding.sh 1>${PIA_FOLDER}/log.log 2>&1 &
+    
+    sleep 7
+    [ -f "${PIA_FOLDER}/port" ] && export PIA_FORWARD_PORT="$( awk 'NR == 1' ${PIA_FOLDER}/port )"
 }

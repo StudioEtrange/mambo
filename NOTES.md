@@ -26,6 +26,21 @@ Various notes, test, links, code... made while designing Mambo
 
 
 
+### Mambo notes on adding new user
+
+* Plex
+    * settings/users and sharing/add a friend : send an invit to an existing user or not with its email
+
+* tautulli
+    * users/refresh users
+    * click on new user/edit detail/check allow guest access
+    * settings/notification agents/email modify email list
+* ombi
+    * Parameters/configuration/user importer/run importer
+
+
+
+
 ### File management tools
 
 * FileBot - The ultimate TV and Movie Renamer filebot ansible role https://github.com/Cloudbox/Community/blob/master/roles/filebot/tasks/main.yml
@@ -50,7 +65,7 @@ Various notes, test, links, code... made while designing Mambo
     ./youtube-dl -f best --audio-format best --write-sub --all-subs --sub-format srt --convert-subs srt --embed-subs -o "%(title)s.%(ext)s" --recode-video mkv <URL>
     ```
 
-### various
+### various tools
 
 * Varken - monitoring dashboard
     * https://github.com/Boerderij/Varken
@@ -61,6 +76,187 @@ Various notes, test, links, code... made while designing Mambo
 * Graphics themas
     * CSS changes to many popular web services https://github.com/Archmonger/Blackberry-Themes
     * A collection of themes/skins for your favorite apps https://github.com/gilbN/theme.park
+    * Plex Theme for organizr https://github.com/Burry/Organizr-Plex-Theme
+
+* Bazarr (subtitles tool)
+    * https://github.com/morpheus65535/bazarr
+    * Bazarr is a companion application to Sonarr and Radarr. It manages and downloads subtitles
+
+* Full list of various tools and other links : https://github.com/Igglybuff/awesome-piracy
+
+## newzgroup
+
+
+### sabnzbd
+
+* api
+    * sabnzbd api documentation : https://thezoggy.github.io/sabnzbd/api/
+    * api request sample :  https://sabnzbd.domain.org/api?apikey=XXXXXXXXXXXXXXX&mode=queue
+* sabnzbd needs a hosts_whitelist parameter and only authorize dns names in this list to connect to ui
+* to bypass wizard, fill at least a newzgroup server in sabnzbd.ini
+
+### Tools
+
+* Spotweb
+    * https://github.com/spotweb/spotweb
+    * decentralized usenet community based on the Spotnet protocol.
+    * can work as a newznab provider (= as a newzgroup indexer like newznab)
+    * web -based version of spotnet (Spotnet is a protocol for a decentralized community for index usenet newzgroup) https://github.com/spotnet/spotnet)
+
+### nzbtomedia
+
+nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
+
+* fix to a problem meets once : 
+    * https://github.com/clinton-hall/nzbToMedia/issues/1614
+    Error AttributeError 'module' object has no attribute 'InitialSchema'
+    ```
+    cd ${MAMBO_HOME]/scripts/nzbToMedia
+    python -c "import cleanup; cleanup.force_clean_folder('libs', cleanup.FOLDER_STRUCTURE['libs'])"
+    python -c "import cleanup; cleanup.force_clean_folder('core', cleanup.FOLDER_STRUCTURE['core'])"
+    ```
+## Torrent
+
+
+* opening ports 
+    * For better download/upload torrent client should be an active node by opening its port. Else less client
+    can connect directly to your torrent client. So you may need to open this port on your router. check with https://canyouseeme.org/
+    * In case of using VPN, most VPN provider do not offer port forwarding and your torrent client may not be reacheable.
+    * Having a good upload rate is usefull with private tracker with quota rules or test for direct connection capability.
+    But for such private trackers the VPN may have limited benefit (?) as long as the transfer traffic itself is encrypted, only the members can see what you download and upload and in private trackers.
+    https://superuser.com/a/1053429/486518
+    https://dietpi.com/phpbb/viewtopic.php?p=17692#p17692
+    * to check if your IP have been detected using torrent : https://iknowwhatyoudownload.com
+    * PIA vpn provider provide port forwarding on some server : https://www.privateinternetaccess.com/helpdesk/kb/articles/can-i-use-port-forwarding-without-using-the-pia-client
+
+* transmission family setup
+    * docker images with openvpn client
+        * docker bundle transmission with openvpn client, stop transmission when openvpn down, dinamucly configure remote port for pia (private internet access) and perfectprivacy vpn providers (see https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/start.sh)
+        https://github.com/haugene/docker-transmission-openvpn
+
+
+* rtorrent family setup
+    * installation
+        * install on debian for rutorrent, rtorrent  with configuration detail https://terminal28.com/how-to-install-and-configure-rutorrent-rtorrent-debian-9-stretch/
+        * install ansible role for rutorrent, rtorrent with complete dynamic rtorrent configuration https://github.com/Cloudbox/Cloudbox/tree/master/roles/rutorrent
+
+    * samples
+        * docker-compose sample with transmission torrent client, traefik2 and dperson openvpn client
+        https://www.reddit.com/r/docker/comments/daahlq/anybody_have_openvpn_any_torrent_client_and/
+        * docker-compose sample with rutorrent and dperson openvpn client
+        https://community.containo.us/t/rutorrent-is-not-displaying-correctly-after-adding-path-rule/1987
+
+    * docker images
+        * docker bundle rtorrent, flood (web ui) - from code source
+        https://github.com/Wonderfall/docker-rtorrent-flood
+        https://hub.docker.com/r/wonderfall/rtorrent-flood/dockerfile
+        * docker bundle rtorrent, rutorrent (webui), flood (web ui), autodl-irssi - based on linuxserver distribution - plugins : logoff fileshare filemanager pausewebui mobile ratiocolor force_save_session showip
+        https://github.com/romancin/rutorrent-flood-docker
+        https://hub.docker.com/r/romancin/rutorrent-flood
+        * docker bundle rtorrent from package, rutorrent from source
+        https://github.com/linuxserver/docker-rutorrent
+    
+    * docker images with openvpn client
+        * docker bundle rTorrent-ps (bitorrent client : rtorrent extended distribution), ruTorrent (web front end), autodl-irssi (scan irc and download torrent), openvpn client, Privoxy (web proxy allow unfiltered access to index sites)
+        https://github.com/binhex/arch-rtorrentvpn
+        * docker bundle rtorrent, flood (web ui), openvpn client - with detailed rtorrent configuration
+        https://github.com/h1f0x/rtorrent-flood-openvpn
+
+
+### Torrent tools
+
+* Jackket
+    * https://github.com/Jackett/Jackett
+    * centralize torrent trackers and tranlate queries from torrent app  (Sonarr, Radarr, SickRage, CouchPotato, Mylar, Lidarr, DuckieTV, qBittorrent, Nefarious ...) into specific tracker queries
+
+
+
+## Music
+
+
+### Tools
+
+* Server
+    * plays music from local disk, Spotify, SoundCloud, Google Play Music, and more.
+    * https://github.com/mopidy/mopidy
+
+* Player
+    * Modipy web client https://github.com/martijnboland/moped (inactive)
+    * Modipy web client https://github.com/dirkgroenen/mopidy-mopify (active)
+    * Modipy web client https://github.com/jaedb/Iris (active) (best ?)
+    * Modipy client https://github.com/pimusicbox/mopidy-musicbox-webclient (active)
+    * Plexamp - A beautiful Plex music player for audiophiles, curators, and hipsters
+        * https://plexamp.com/
+        * ios/android/macos/windows/linux
+        * need plex pass
+
+* Download
+    * Lidarr - for Usenet and BitTorrent users : https://lidarr.audio/
+
+* Metadata
+    * Picard - cross-platform (Linux/Mac OS X/Windows) application written in Python and is the official MusicBrainz tagger.
+        * https://picard.musicbrainz.org/
+        * https://github.com/metabrainz/picard
+
+
+
+
+## Network topics
+
+* SMB vs NFS and SMB optimization : https://www.reddit.com/r/linuxquestions/comments/b5ba8t/nfs_vs_samba_whats_the_trend_nowadays/
+
+* sniff network TCP network inside a container/service
+    ```
+    # sniff service organizr2 which internally listen on port 80
+    docker exec -it -u 0:0 mambo_organizr2
+    # install tcpdump
+    apk add tcpdump
+    # listen network trafic
+    tcpdump -A -s 0 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
+    ```
+
+* CIFS/samba mounts and apache httpd : mounted folder/files have problem to be served by apache httpd
+    * https://stackoverflow.com/a/22104947
+    * http://httpd.apache.org/docs/current/en/mod/core.html#EnableSendfile
+    * Use ```EnableSendfile On```
+
+
+### Game Streaming
+
+* moonlight
+    * https://moonlight-stream.org/
+    * https://github.com/moonlight-stream
+    * open source implementation nvidia gamestream protocol
+    * client android, iOS , win, linux,Mac, web chrome, PS Vita, raspberry Pi
+    * non multitenant
+
+* parsec
+    * https://parsecgaming.com/ 
+    * https://github.com/parsec-cloud/web-client
+    * stream a game from a PC
+    * client mac/win/linux/web
+    * server Hosting is only available for Windows 8.1+
+    * use H265 for encoding video
+    * setup with VM on unraid and parsec : https://www.reddit.com/r/unRAID/comments/d2fgv8/my_experience_with_cloud_gaming_and_an_allinone/
+
+* rainway
+    * https://github.com/RainwayApp
+    * https://rainway.com
+    * server windows 10
+    * client web https://play.rainway.com/
+    * multitenant : non
+    * stream the game (an non the entire pc)
+
+
+### Game : Sync game library
+
+* FSCache linux + CIFS or NFS
+
+* rclone sync OR rclone Union or rclone Mount
+
+* Frontend launchbox on windows play machine + games in cloud + rclone to mount folder on windows play machine + script to download game with rclone at game launch https://www.reddit.com/r/launchbox/comments/i6wnfi/launchbox_rclonegsuite_for_unlimited_game_storage/
+
+
 
 
 ## Plex
@@ -75,7 +271,8 @@ Various notes, test, links, code... made while designing Mambo
 
 * freebox revolution plex client : https://www.freenews.fr/freenews-edition-nationale-299/apps-jeux-177/on-a-teste-p2f-client-plex-freebox-revolution
 
-* plex management scripts : https://github.com/blacktwin/JBOPS
+* plex management scripts : https://github.com/blacktwin/
+    * include compare plex content with netflix script
 
 * webtool plugin ansible installation : https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks/main.yml
 
@@ -119,6 +316,17 @@ Various notes, test, links, code... made while designing Mambo
     ```
 
 
+## Tautulli
+
+* tautulli newsletter
+    * doc : https://github.com/Tautulli/Tautulli-Wiki/wiki/Frequently-Asked-Questions#q-i-want-to-customize-the-newsletter
+    * default template : https://raw.githubusercontent.com/Tautulli/Tautulli/master/data/interfaces/newsletters/recently_added.html
+    * get newsletter json data : http://localhost:8181/newsletter_preview?newsletter_id=1&raw=true
+    * template engine used :  https://www.makotemplates.org/
+        * https://github.com/Tautulli/Tautulli/blob/master/plexpy/newsletters.py#L469
+        * https://github.com/Tautulli/Tautulli/blob/97f80adf0bd5364ae9ef27598a9668f183c3b28c/plexpy/newsletters.py#L321
+
+
 ## Organizr
 
 ### Links
@@ -148,6 +356,8 @@ Various notes, test, links, code... made while designing Mambo
     * Radarr : ```Host(`radarr.domain.com`) && (Headers(`X-Api-Key`, `$RADARR_API_KEY`) || Query(`apikey=$RADARR_API_KEY `))```
     * Sabnzbd : ```Host(`sabnzbd.$DOMAINNAME`) && Query(`apikey=$SABNZBD_API_KEY`)```
     * Bazaar : ```Host(`bazarr.$DOMAINNAME`) && (Headers(`X-Api-Key`, `$BAZARR_API_KEY`) || Query(`apikey`, `$BAZARR_API_KEY`))```
+    * nzbget : ```Host(`nzbget.$DOMAINNAME`) && PathPrefix(`/{[A-Za-z0-9]+}:{[A-Za-z0-9]+}/{xml|jsonp?}rpc`,`/{xml|jsonp?}rpc`)```
+
 
 ### organizr and reverse proxy interaction
 
@@ -300,16 +510,6 @@ Into Organizr2
         * https://github.com/hjone72/LDAP-for-Plex
         * https://github.com/Starbix/docker-plex-ldap
 
-
-### tautulli
-
-* tautulli newsletter
-    * doc : https://github.com/Tautulli/Tautulli-Wiki/wiki/Frequently-Asked-Questions#q-i-want-to-customize-the-newsletter
-    * default template : https://raw.githubusercontent.com/Tautulli/Tautulli/master/data/interfaces/newsletters/recently_added.html
-    * get newsletter json data : http://localhost:8181/newsletter_preview?newsletter_id=1&raw=true
-    * template engine used :  https://www.makotemplates.org/
-        * https://github.com/Tautulli/Tautulli/blob/master/plexpy/newsletters.py#L469
-        * https://github.com/Tautulli/Tautulli/blob/97f80adf0bd5364ae9ef27598a9668f183c3b28c/plexpy/newsletters.py#L321
 
 
 ## ebooks
@@ -676,7 +876,7 @@ Proposal of a comic metadata auto workflow
 
 * For guide and layout : https://vaemendis.github.io/ubooquity-doc/pages/tutorials/add-metadata-with-comicrack.html
     * 1/ scrap metadata with comicrack - it will embed metadata in ComicInfo.xml file into cbz
-    * 2/ FOR CALIBRE : Import metadata from cbz inside calibre with  EmbedComicMetadata plugin https://github.com/dickloraine/EmbedComicMetadata
+    * 2/ FOR CALIBRE : Import metadata from cbz inside calibre with  EmbedComicMetadata plugin https://github.com/dickloraine/EmbedComicMetadata (Embed Comic Metadata is a  calibre Plugin to manage comic metadata in calibre)
     * 3/ FOR Ubooquity : ubooquity read automaticly ComicInfo.xml
 
 ### Calibre metadata management
@@ -780,93 +980,7 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     docker run --name lazylibrarian -d -v ${MAMBO_HOME}/data/lazylibrarian:/config -v /media/MEDIA/EBOOKS:/books  -v ${MAMBO_HOME}/download:/downloads -p 8020:5299 -e PUID="$(id -u)" -e PGID="$(id -g)" -e TZ="Europe/Paris" -e DOCKER_MODS="studioetrange/calibre-mod:${CALIBRE_RELEASE_DOCKERMOD_VERSION}" linuxserver/lazylibrarian:${LAZYLIBRARIAN_DOCKER_VERSION}
     ```
 
-## newzgroup
-
-
-### sabnzbd
-
-* api
-    * sabnzbd api documentation : https://thezoggy.github.io/sabnzbd/api/
-    * api request sample :  https://sabnzbd.domain.org/api?apikey=XXXXXXXXXXXXXXX&mode=queue
-* sabnzbd needs a hosts_whitelist parameter and only authorize dns names in this list to connect to ui
-* to bypass wizard, fill at least a newzgroup server in sabnzbd.ini
-
-
-## Torrent
-
-
-* opening ports 
-    * For better download/upload torrent client should be an active node by opening its port. Else less client
-    can connect directly to your torrent client. So you may need to open this port on your router. check with https://canyouseeme.org/
-    * In case of using VPN, most VPN provider do not offer port forwarding and your torrent client may not be reacheable.
-    * Having a good upload rate is usefull with private tracker with quota rules or test for direct connection capability.
-    But for such private trackers the VPN may have limited benefit (?) as long as the transfer traffic itself is encrypted, only the members can see what you download and upload and in private trackers.
-    https://superuser.com/a/1053429/486518
-    https://dietpi.com/phpbb/viewtopic.php?p=17692#p17692
-    * to check if your IP have been detected using torrent : https://iknowwhatyoudownload.com
-    * PIA vpn provider provide port forwarding on some server : https://www.privateinternetaccess.com/helpdesk/kb/articles/can-i-use-port-forwarding-without-using-the-pia-client
-
-* transmission family setup
-    * docker images with openvpn client
-        * docker bundle transmission with openvpn client, stop transmission when openvpn down, dinamucly configure remote port for pia (private internet access) and perfectprivacy vpn providers (see https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/start.sh)
-        https://github.com/haugene/docker-transmission-openvpn
-
-
-* rtorrent family setup
-    * installation
-        * install on debian for rutorrent, rtorrent  with configuration detail https://terminal28.com/how-to-install-and-configure-rutorrent-rtorrent-debian-9-stretch/
-        * install ansible role for rutorrent, rtorrent with complete dynamic rtorrent configuration https://github.com/Cloudbox/Cloudbox/tree/master/roles/rutorrent
-
-    * samples
-        * docker-compose sample with transmission torrent client, traefik2 and dperson openvpn client
-        https://www.reddit.com/r/docker/comments/daahlq/anybody_have_openvpn_any_torrent_client_and/
-        * docker-compose sample with rutorrent and dperson openvpn client
-        https://community.containo.us/t/rutorrent-is-not-displaying-correctly-after-adding-path-rule/1987
-
-    * docker images
-        * docker bundle rtorrent, flood (web ui) - from code source
-        https://github.com/Wonderfall/docker-rtorrent-flood
-        https://hub.docker.com/r/wonderfall/rtorrent-flood/dockerfile
-        * docker bundle rtorrent, rutorrent (webui), flood (web ui), autodl-irssi - based on linuxserver distribution - plugins : logoff fileshare filemanager pausewebui mobile ratiocolor force_save_session showip
-        https://github.com/romancin/rutorrent-flood-docker
-        https://hub.docker.com/r/romancin/rutorrent-flood
-        * docker bundle rtorrent from package, rutorrent from source
-        https://github.com/linuxserver/docker-rutorrent
     
-    * docker images with openvpn client
-        * docker bundle rTorrent-ps (bitorrent client : rtorrent extended distribution), ruTorrent (web front end), autodl-irssi (scan irc and download torrent), openvpn client, Privoxy (web proxy allow unfiltered access to index sites)
-        https://github.com/binhex/arch-rtorrentvpn
-        * docker bundle rtorrent, flood (web ui), openvpn client - with detailed rtorrent configuration
-        https://github.com/h1f0x/rtorrent-flood-openvpn
-
-
-## Music
-
-
-### Tools
-
-* Server
-    * plays music from local disk, Spotify, SoundCloud, Google Play Music, and more.
-    * https://github.com/mopidy/mopidy
-
-* Player
-    * Modipy web client https://github.com/martijnboland/moped (inactive)
-    * Modipy web client https://github.com/dirkgroenen/mopidy-mopify (active)
-    * Modipy web client https://github.com/jaedb/Iris (active) (best ?)
-    * Modipy client https://github.com/pimusicbox/mopidy-musicbox-webclient (active)
-    * Plexamp - A beautiful Plex music player for audiophiles, curators, and hipsters
-        * https://plexamp.com/
-        * ios/android/macos/windows/linux
-        * need plex pass
-
-* Download
-    * Lidarr - for Usenet and BitTorrent users : https://lidarr.audio/
-
-* Metadata
-    * Picard - cross-platform (Linux/Mac OS X/Windows) application written in Python and is the official MusicBrainz tagger.
-        * https://picard.musicbrainz.org/
-        * https://github.com/metabrainz/picard
-
 
 ## Games
 
@@ -1156,59 +1270,35 @@ A frontend is a launcher of emulators
     * https://isoroms.com/category/3ds/
 
 
+## GPU
+ 
+* NVIDIA GPU unlock non-pro cards : https://github.com/keylase/nvidia-patch
 
-
-## Network topics
-
-* SMB vs NFS and SMB optimization : https://www.reddit.com/r/linuxquestions/comments/b5ba8t/nfs_vs_samba_whats_the_trend_nowadays/
-
-* sniff network TCP network inside a container/service
+* show gpu usage stat
     ```
-    # sniff service organizr2 which internally listen on port 80
-    docker exec -it -u 0:0 mambo_organizr2
-    # install tcpdump
-    apk add tcpdump
-    # listen network trafic
-    tcpdump -A -s 0 'tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)'
+    /usr/lib/plexmediaserver/Plex\ Transcoder -codecs
+    /usr/lib/plexmediaserver/Plex\ Transcoder -encoders
+    nvidia-smi -q -g 0 -d UTILIZATION -l
+    ```
+* show plex transcode custom ffmpeg
+
+    ```
+    /usr/lib/plexmediaserver/Plex\ Transcoder 
+    -formats            show available formats
+    -muxers             show available muxers
+    -demuxers           show available demuxers
+    -devices            show available devices
+    -codecs             show available codecs
+    -decoders           show available decoders
+    -encoders           show available encoders
+    -bsfs               show available bit stream filters
+    -protocols          show available protocols
+    -filters            show available filters
+    -pix_fmts           show available pixel formats
+    -layouts            show standard channel layouts
+    -sample_fmts        show available audio sample formats
+    -colors             show available color names
+    -hwaccels           show available HW acceleration methods
+
     ```
 
-* CIFS/samba mounts and apache httpd : mounted folder/files have problem to be served by apache httpd
-    * https://stackoverflow.com/a/22104947
-    * http://httpd.apache.org/docs/current/en/mod/core.html#EnableSendfile
-    * Use ```EnableSendfile On```
-
-
-### Game Streaming
-
-* moonlight
-    * https://moonlight-stream.org/
-    * https://github.com/moonlight-stream
-    * open source implementation nvidia gamestream protocol
-    * client android, iOS , win, linux,Mac, web chrome, PS Vita, raspberry Pi
-    * non multitenant
-
-* parsec
-    * https://parsecgaming.com/ 
-    * https://github.com/parsec-cloud/web-client
-    * stream a game from a PC
-    * client mac/win/linux/web
-    * server Hosting is only available for Windows 8.1+
-    * use H265 for encoding video
-    * setup with VM on unraid and parsec : https://www.reddit.com/r/unRAID/comments/d2fgv8/my_experience_with_cloud_gaming_and_an_allinone/
-
-* rainway
-    * https://github.com/RainwayApp
-    * https://rainway.com
-    * server windows 10
-    * client web https://play.rainway.com/
-    * multitenant : non
-    * stream the game (an non the entire pc)
-
-
-### Game : Sync game library
-
-* FSCache linux + CIFS or NFS
-
-* rclone sync OR rclone Union or rclone Mount
-
-* Frontend launchbox on windows play machine + games in cloud + rclone to mount folder on windows play machine + script to download game with rclone at game launch https://www.reddit.com/r/launchbox/comments/i6wnfi/launchbox_rclonegsuite_for_unlimited_game_storage/

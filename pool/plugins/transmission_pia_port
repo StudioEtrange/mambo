@@ -22,14 +22,17 @@ DATA="/plugins_data/${PLUGIN}"
 echo "* Plugin : ${PLUGIN}"
 
 echo "L-- STEP : install plugin"
+pia_install_script "${DATA}"
+
 echo "  -"
 echo "L-- STEP : setup plugin"
+pia_setup_script
+
 echo "  -"
 echo "L-- STEP : run plugin"
 
-# ask PIA vpn provider to forward a port
-pia_get_port "${DATA}"
-if [ $? -eq 0 ]; then
+pia_get_port
+if [ ! "$PIA_FORWARD_PORT" = "" ]; then
 	echo "  - we use port $PIA_FORWARD_PORT, setting transmission with it"
 	# set transmission with this port
  	__transmission_set_port "$PIA_FORWARD_PORT"

@@ -13,7 +13,11 @@ echo generic web folder \(including newsletters,...\) [$WEB_PATH] {/data/web}
 
 echo "---------==---- AUTH SERVICES ----==---------"
 echo " * ORGANIZR2 API"
-echo L-- API documentation : ${ORGANIZR2_HTTP_URL_DEFAULT}/api/docs
+__tmp="${ORGANIZR2_INSTANCE^^}_HTTP_URL_DEFAULT_SECURE"
+echo L-- API endpoint : ${ORGANIZR2_API_URL}
+echo L-- API documentation : ${!__tmp}/api/docs
+echo L-- API version : ${ORGANIZR2_API_VERSION}
+echo L-- API docker service instance : ${ORGANIZR2_INSTANCE}
 echo " * ORGANIZR2 AUTH"
 echo L-- manage mambo services authorization with organizr : $([ "${ORGANIZR2_AUTHORIZATION}" = "ON" ] && echo "ON" || echo "OFF")
 # cannot launch docker client from a shell container

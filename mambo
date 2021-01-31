@@ -215,10 +215,17 @@ case ${ACTION} in
                 __tango_log "INFO" "mambo" "Init service nzbtomedia"
                 __nzbtomedia_init
             ;;
+            organizr2 )
+                __tango_log "INFO" "mambo" "Init service organizr2 (instance : $ORGANIZR2_INSTANCE)"
+                __organizr2_init
+            ;;
             "" )
                 __tango_log "INFO" "mambo" "Init service Plex"
                 __plex_init
                 [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring plex" && exit 1
+                __tango_log "INFO" "mambo" "Init service Plex"
+                __organizr2_init
+                [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring organizr2" && exit 1
                 __tango_log "INFO" "mambo" "Init service sabnzbd"
                 __sabnzbd_init
                 [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring sabnzbd" && exit 1

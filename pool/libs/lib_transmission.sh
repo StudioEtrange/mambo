@@ -1,13 +1,11 @@
 
 
 
-# FUNCTION USED IN PLUGIN
+# FUNCTION USED INSIDE PLUGIN
 # NEED transmission volumes
 # WAIT for transmission service up
-
 # sample to forward port with PIA in shell and set transmission (torrent) service
 #   https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/updatePort.sh
-
 __transmission_set_port() {
     local new_port="$1"
     
@@ -78,7 +76,7 @@ __transmission_set_context() {
 
     [ "$TRANSMISSION_AUTH_ENABLED" = "true" ] && __tango_log "DEBUG" "transmission" "Transmission auth basic is enabled in settings"
     
-    if ! $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "organizr2"; then
+    if ! $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
         __tango_log "DEBUG" "transmission" "Organizr2 is not declared as an active service in TANGO_SERVICES_ACTIVE. Disable auto login to internal transmission url"
         TRANSMISSION_AUTH_ENABLED="false"
     fi

@@ -269,7 +269,19 @@ Into Organizr2
 * a guide https://smarthomepursuits.com/install-organizr-v2-windows/
 * api documentation : https://organizr2.mydomain.com/api/docs/
 
-### Organizr2 configuration
+
+
+### Auto configuration
+
+* Auto configuration steps :
+    `./mambo init organizr2`
+
+* Start service
+    `./mambo up organizr2`
+
+### Manual configuration
+
+got to https://organizr2.domain.com (check ORGANIZR2_SUBDOMAIN value)
 
 * Initial Setup
     * License : personal
@@ -513,6 +525,17 @@ Into Medusa, deactivate login because access is protected with organizr2
     * General / Interface / Web Interface / HTTP username : blank
     * General / Interface / Web Interface / HTTP password : blank
 
+
+---
+
+## nzbToMedia
+
+* Special tool used to connect medusa and sabnzbd
+* https://github.com/clinton-hall/nzbToMedia
+
+* Usage
+    * Only init it after sabnzbd and medusa init once with  `./mambo init nzbtomedia`
+
 ----
 ## Ombi
 
@@ -634,11 +657,11 @@ Into Organizr2
       
 
 ----
-## transmission
+## Transmission
 
 * Direct UI Access through https://internal-transmission.mydomain.com
     * protected by organizr auth and will auto login with a transmission auth basic
-* Third tools access through https://transmission.mydomain.com
+* Third tools access through https://transmission.mydomain.com using credentials defined by `TRANSMISSION_USER` and `TRANSMISSION_PASSWORD`
 * NOTE : when modify settings from webui, they are saved only when transmission is stopped
 
 ### Transmission and Organizr2 
@@ -762,6 +785,8 @@ WARN
 
 # Calibre
 
+NOTE : to copy/paste inside calibre web page use Ctrl+shift+alt
+
 Into Organizr2
 
     * Add a tab in Organizr2 menu
@@ -779,14 +804,21 @@ Into Organizr2
 Into Calibre
 
     * recommended action to add to toolbar
-        * "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
-        * "Polish book" action (FR : "polir livres") - for ePub and AZW3 files
+        * Preferences / Toolbars & menus / main toolbar
+            * "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
+            * "Polish book" action (FR : "polir livres") - for ePub and AZW3 files
+                * Update metadata in ebook
+                * Update the cover in ebook
+                * Remove unused CSS
+                * Losslessly compress image
+                * to not keep an original file : Preferences / Tweaks / Save origin file when... / False (Click on restart calibre)
     * recommended plugins
-        * "Modify ePub" - for ePub files
-        * "Quality check" - for ePub files
-        * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421
+        * Preferences / Advanced / Plugins / Get new plugins
+            * "Modify ePub" - for ePub files
+            * "Quality check" - for ePub files
+            * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421 (Load plugin from file : babelio_calibre.zip)
 
-    * all calibre database are in folder `/calibredb`
+    * all calibre database folders are in folder `/calibredb` (i.e /calibredb/books, /Calibredb/comics)
 
 ----
 # Network Configuration
@@ -834,19 +866,37 @@ List of available plugins
 
 * Plugin name : transmission_pia_port
 
-* sample
+* Allow port forwarding with PIA vpn provider
+    * first, ask for an open port to enter your vpn on the active VPN connexion
+    * second, set transmission with this remote port
 
+* This plugin is by default declared as active into mambo and attached to transmission
+    * see declaration in mambo.env : `TANGO_PLUGINS=transmission_pia_port%!transmission`
+    * launch this plugin to set transmission remote port : `./mambo plugins exec-service transmission`
+
+### Usage
+
+* Declare a vpn connection provided by PIA and attached it to transmission services
+    * choose a server. All servers support port forwarding except from USA
+    ```
+    VPN_1_PATH=../mambo-data/vpn/pia_ovpn_default_recommended_conf_20200509
+    VPN_1_VPN_FILES=Switzerland.ovpn
+    VPN_1_VPN_AUTH=user;password
+    VPN_1_DNS=1
+    VPN_1_SERVICES=transmission
+    ```
+    * To get PIA ovpn configuration files : https://www.privateinternetaccess.com/helpdesk/kb/articles/where-can-i-find-your-ovpn-files
+
+    * restart
     ```
     # must stop vpn and transmission to remove containers
-    ./mambo down <attached vpn>
+    ./mambo down <vpn_id>
     ./mambo down transmission
     ./mambo up transmission
-    # wait for <attached vpn> docker container to be healthy
+    # wait for transmission docker container to be healthy then launch plugin execution - NOTE : <vpn_id> is auto launched because is is declared as attached to transmission (see VPN_1_SERVICES)
     ./mambo plugins exec-service transmission
     ```
 
+curl: (60) SSL certificate problem: unable to get local issuer certificate
 
-## nzbToMedia - TODO not a plugin anymore
-
-* Use to connect medusa and sabnzbd
-* https://github.com/clinton-hall/nzbToMedia
+* Check setting in transmission : Config / Network / port
