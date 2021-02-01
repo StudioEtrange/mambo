@@ -662,6 +662,17 @@ Into Organizr2
 * Direct UI Access through https://internal-transmission.mydomain.com
     * protected by organizr auth and will auto login with a transmission auth basic
 * Third tools access through https://transmission.mydomain.com using credentials defined by `TRANSMISSION_USER` and `TRANSMISSION_PASSWORD`
+* P2P network traeffik use port defined by `TRANSMISSION_PORT` env var
+
+* vpn
+    * you may want to attach this service to a vpn, if so see VPN section and if you have PIA provider the plugin Transmission PIA port
+    * Test P2P traffic really use VPN : 
+        * http://checkmyip.torrentprivacy.com/
+        * http://ipmagnet.services.cbcdn.com/
+    * when transmission is attached to a VPN all port declaration in compose-file are removed, TRANSMISSION_PORT env var is not used anymore
+
+
+
 * NOTE : when modify settings from webui, they are saved only when transmission is stopped
 
 ### Transmission and Organizr2 
@@ -687,9 +698,21 @@ Into Organizr2
 * Integration to Homepage :
     * Tab Editor / Homepage Items / Transmission
         * Enable, Minimum Authentication : Co-Admin
-        * Connection / Url : http://transmission:9091
+        * Connection / Url : `https://transmission.mydomain.com/transmission/rpc/` (We can not use internal network alias http://transmission if transmission is tied to a vpn service)
         * Connection / User and password : fill with correct values
 
+
+### Third party tools
+
+* Transmission Easy Client 
+    * https://chrome.google.com/webstore/detail/transmission-easy-client/cmkphjiphbjkffbcbnjiaidnjhahnned
+    * user/pass : use `TRANSMISSION_USER` and `TRANSMISSION_PASSWORD` values
+    * IP : transmission.mydomain.com
+    * Port 443
+    * Auth required
+    * WebUI : /transmission/web
+    * Use SSL
+    * Path : /transmission/rpc
 ----
 ## Calibre Web for Books
 
@@ -844,7 +867,7 @@ Into Calibre
 |admin|web_admin_secure|HTTPS|9443|NETWORK_PORT_ADMIN_SECURE|
 
 ----
-## HTTP/HTTPS CONFIGURATION
+## HTTP/HTTPS Configuration
 
 HTTPS redirection
 
@@ -856,6 +879,11 @@ HTTPS redirection
     ```
     NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
     ```
+
+
+## VPN
+
+* see documentation in tango https://github.com/StudioEtrange/tango/blob/master/README.md
 
 ----
 # Mambo Plugins
@@ -897,6 +925,5 @@ List of available plugins
     ./mambo plugins exec-service transmission
     ```
 
-curl: (60) SSL certificate problem: unable to get local issuer certificate
+* Check settings in transmission : Config / Network / port
 
-* Check setting in transmission : Config / Network / port

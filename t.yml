@@ -153,14 +153,11 @@ volumes:
       o: bind
       device: ${CALIBREDB_BOOKS_MEDIA_PATH}
     name: ${TANGO_APP_NAME}_calibredb_books_media
-
-
-
 # NOTE : yaml do not support array merge, so we cannot factorize volume or labels declaration here
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
 # https://github.com/linuxserver/docker-calibre-web
 # https://hub.docker.com/r/linuxserver/calibre-web
-x-calibreweb: &default-calibreweb
+x-calibreweb:
   image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
   depends_on:
     - service_init
@@ -185,7 +182,6 @@ services:
   service_init:
     volumes:
       - download:/download
-     
   # Main mambo portal
   # https://github.com/Organizr/docker-organizr
   # https://github.com/causefx/Organizr
@@ -340,8 +336,6 @@ services:
       - default
     expose:
       - 8181
-
-
   # Manage movie/tv show requests
   ombi:
     image: studioetrange/docker-ombi:${OMBI_VERSION:-latest}
@@ -381,8 +375,6 @@ services:
       - 5000
     build:
       context: https://github.com/StudioEtrange/docker-ombi.git#:ver/${OMBI_VERSION:-latest}
-
-
   # Newzgroup downloader
   # https://hub.docker.com/r/hotio/sabnzbd
   # https://github.com/hotio/sabnzbd
@@ -452,8 +444,6 @@ services:
       - 8080
       # HTTPS port
       - 8081
-
-
   # nzbtomedia : sync nzb software
   # https://github.com/clinton-hall/nzbToMedia
   nzbtomedia:
@@ -474,8 +464,6 @@ services:
       - default
     build:
       context: ./pool/artefacts/docker-nzbtomedia
-
-
   # Media server
   plex:
     image: plexinc/pms-docker:${PLEX_VERSION:-latest}
@@ -533,8 +521,6 @@ services:
       - 32412/udp
       - 32413/udp
       - 32414/udp
-
-
   # Tv show download manager
   medusa:
     image: studioetrange/docker-medusa:${MEDUSA_VERSION:-latest}
@@ -626,8 +612,6 @@ services:
       - default
     expose:
       - 5800/tcp
-
-
   # https://github.com/linuxserver/docker-transmission
   # NOTE : there is 2 subservices transmission_internal and transmission_external which wrap transmission webui and rpc
   #     transmission_internal (http://internal-transmission.domain.com) is protected by organizr auth and will auto login with transmission auth basic --> Use this from portal access (organizr)
@@ -707,8 +691,6 @@ services:
       - ${TRANSMISSION_PORT}:51413/udp
     build:
       context: https://github.com/StudioEtrange/docker-transmission.git#mambo
-
-
   # https://github.com/jlesage/docker-makemkv
   # # NOTE : VNC not open
   # makemkv:
@@ -754,7 +736,6 @@ services:
   #     - default
   #   expose:
   #     - 5800/tcp
-
 
   # web area
   web:
@@ -808,8 +789,6 @@ services:
       - default
     expose:
       - 8080
-
-
   # ebook newsletter
   # not exposed through traefik
   ebooks_list:
@@ -836,8 +815,6 @@ services:
       - 9000
     build:
       context: ./pool/artefacts/docker-ebooks-list
-
-
   # Audiobook and podcast streamer
   # https://booksonic.org/
   # https://github.com/popeen/Booksonic-Air
@@ -908,8 +885,6 @@ services:
       - "traefik.enable=false"
     networks:
       - default
-
-
   # Lazylibrarian
   # https://github.com/linuxserver/docker-lazylibrarian
   # https://hub.docker.com/r/linuxserver/lazylibrarian
@@ -953,8 +928,6 @@ services:
       - default
     expose:
       - 5299/tcp
-
-
   # Calibre
   # https://github.com/linuxserver/docker-calibre
   # https://github.com/kovidgoyal/calibre
@@ -998,10 +971,7 @@ services:
       - default
     expose:
       - 8080/tcp
-
-
   calibreweb_books:
-    !!merge <<: *default-calibreweb
     container_name: ${TANGO_APP_NAME}_calibreweb_books
     volumes:
       # will contain calibre-web configuration
@@ -1036,4 +1006,22 @@ services:
       - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
       #- "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
       #- "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
-  
+    image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      # NOTE : you can choose a calibre binary version to inject with a linuxserver docker mod 'CALIBRE_MOD_VERSION' or just use a latest version available
+      #       a linuxserver docker mod must be used from docker hub repository only, it is downloaded.
+      #       a linuxserver docker mod cannot be used from a local build because it is downloaded as a tar
+      #       https://github.com/StudioEtrange/docker-calibre-mod
+      #       https://hub.docker.com/repository/docker/studioetrange/calibre-mod
+      #       linux docker mod logic : https://github.com/linuxserver/docker-baseimage-ubuntu/blob/bionic/root/docker-mods#L119
+      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+      - AUTO_CREATE_DB=/books
+    networks:
+      - default
+    expose:
+      - 8083

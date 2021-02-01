@@ -36,16 +36,6 @@ __transmission_set_port() {
     # get current listening port
     transmission_peer_port=$(transmission-remote $myauth -si | grep Listenport | grep -oE '[0-9]+')
     if [[ "$new_port" != "$transmission_peer_port" ]]; then
-        #   if [[ "true" = "$ENABLE_UFW" ]]; then
-        #     echo "  + Update UFW rules before changing port in Transmission"
-
-        #     echo "  + denying access to $transmission_peer_port"
-        #     ufw deny "$transmission_peer_port"
-
-        #     echo "  + allowing $new_port through the firewall"
-        #     ufw allow "$new_port"
-        #   fi
-
         echo "  + setting transmission port to $new_port"
         transmission-remote ${myauth} -p "$new_port"
 

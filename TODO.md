@@ -32,7 +32,7 @@
     * dont need linuxserver/sabnzbd already have multicore par2
     * hotio/sabnzbd do not have par2 multicore
 
-* [ ] nzbmedia : ansible generate autoProcessMedia.cfg 
+* [ ] nzbtomedia : ansible generate autoProcessMedia.cfg 
     * configure autoProcessMedia.cfg
         ```
         [General]
@@ -61,7 +61,7 @@
             ###### Enter the default path to your default download directory (non-category downloads). this directory is protected by safe>
             default_downloadDirectory = /download/complete
         ```
-
+    * nzbtomedia medusa : finish nzbtomedia_medusa_settings
 
 
 * description about the difference between a module, a plugin and a script (scripts_info, scripts_init, ...) are too complex

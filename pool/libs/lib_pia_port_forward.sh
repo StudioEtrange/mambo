@@ -8,6 +8,7 @@
 # script that get a forwarding port with PIA VPN provider
 #   all PIA VPN server allow port forwarding except from USA
 #   PIA reference scripts : https://github.com/pia-foss/manual-connections
+#        sample for transmission + PIA vpn : https://github.com/haugene/docker-transmission-openvpn/blob/master/openvpn/pia/update-port.sh
 
 
 pia_install_script() {
