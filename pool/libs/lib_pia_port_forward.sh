@@ -74,5 +74,5 @@ pia_get_port() {
     nohup -- ${PIA_FOLDER}/manual-connections/port_forwarding.sh 1>${PIA_FOLDER}/log.log 2>&1 &
     
     sleep 7
-    [ -f "${PIA_FOLDER}/port" ] && export PIA_FORWARD_PORT="$( awk 'NR == 1' ${PIA_FOLDER}/port )"
+    [ -f "${PIA_FOLDER}/port_forwarding" ] && export PIA_FORWARD_PORT="$( awk 'NR == 1' ${PIA_FOLDER}/port_forwarding )"
 }

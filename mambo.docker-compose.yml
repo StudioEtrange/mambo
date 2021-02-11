@@ -153,6 +153,20 @@ volumes:
       o: bind
       device: ${CALIBREDB_BOOKS_MEDIA_PATH}
     name: ${TANGO_APP_NAME}_calibredb_books_media
+  calibreweb_press_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREWEB_PRESS_DATA_PATH}
+    name: ${TANGO_APP_NAME}_calibreweb_press_data
+  calibredb_press_media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREDB_PRESS_MEDIA_PATH}
+    name: ${TANGO_APP_NAME}_calibredb_press_media
 
 
 
@@ -165,21 +179,12 @@ x-calibreweb: &default-calibreweb
   depends_on:
     - service_init
   restart: unless-stopped
-  environment:
-    - PUID=${TANGO_USER_ID:-0}
-    - PGID=${TANGO_GROUP_ID:-0}
-    # NOTE : you can choose a calibre binary version to inject with a linuxserver docker mod 'CALIBRE_MOD_VERSION' or just use a latest version available
-    #       a linuxserver docker mod must be used from docker hub repository only, it is downloaded.
-    #       a linuxserver docker mod cannot be used from a local build because it is downloaded as a tar
-    #       https://github.com/StudioEtrange/docker-calibre-mod
-    #       https://hub.docker.com/repository/docker/studioetrange/calibre-mod
-    #       linux docker mod logic : https://github.com/linuxserver/docker-baseimage-ubuntu/blob/bionic/root/docker-mods#L119
-    - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
-    - AUTO_CREATE_DB=/books
   networks:
     - default
   expose:
     - 8083
+
+
 services:
   # NOTE : service_init will be merged with service_init from tango compose file
   service_init:
@@ -213,8 +218,11 @@ services:
       - "traefik.http.services.organizr2.loadbalancer.server.scheme=http"
       - "traefik.http.services.organizr2.loadbalancer.passhostheader=true"
       # middlewares
-      # generic middleware - force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
-      - 'traefik.http.middlewares.xframe-allow-all.headers.customFrameOptionsValue=allow-from *'
+      # X-Frame-Options: allow-from * is DEPRECATED
+      # force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
+      #- 'traefik.http.middlewares.xframe-allow-all.headers.customFrameOptionsValue=allow-from *'
+      # enpty any X-Frame-Options instead
+      - 'traefik.http.middlewares.xframe-allow-all.headers.customResponseHeaders.X-Frame-Options='
       # routers
       - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
@@ -636,10 +644,10 @@ services:
   #                                                         tested with chrome "Transmission easy client"
   # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
   transmission:
-    # TODO wait for PRs https://github.com/linuxserver/docker-transmission/pull/140 https://github.com/linuxserver/docker-transmission/pull/141
-    image: ghcr.io/linuxserver/transmission:version-3.00-r0
+    # TODO wait for PRs hhttps://github.com/linuxserver/docker-transmission/pull/146
+    #image: ghcr.io/linuxserver/transmission:version-3.00-r0
     #${TRANSMISSION_VERSION:-latest}
-    #image: studioetrange/transmission:latest ghcr.io/linuxserver/transmission:version-3.00-r0
+    image: studioetrange/transmission:latest
     container_name: ${TANGO_APP_NAME}_transmission
     depends_on:
       - service_init
@@ -706,7 +714,7 @@ services:
       - ${TRANSMISSION_PORT}:51413/tcp
       - ${TRANSMISSION_PORT}:51413/udp
     build:
-      context: https://github.com/StudioEtrange/docker-transmission.git#mambo
+      context: https://github.com/StudioEtrange/docker-transmission.git#master
 
 
   # https://github.com/jlesage/docker-makemkv
@@ -768,6 +776,7 @@ services:
       - web_data:/app/web
       # allow to expose books cover
       - calibredb_books_media:/app/calibredb/books
+      - calibredb_press_media:/app/calibredb/press
       - ${TANGO_APP_ROOT}/pool/ebooks/calibredb_cover.htaccess:/app/calibredb/.htaccess
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
@@ -821,6 +830,7 @@ services:
     volumes:
       - ebooks_list_data:/config
       - calibredb_books_media:/calibredb/books
+      - calibredb_press_media:/calibredb/press
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -925,6 +935,7 @@ services:
       # different paths used by lazylibrarian
       - download:/download
       - calibredb_books_media:/calibredb/books
+      - calibredb_press_media:/calibredb/press
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -970,6 +981,7 @@ services:
       # different paths used by calibre
       - download:/download
       - calibredb_books_media:/calibredb/books
+      - calibredb_press_media:/calibredb/press
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1009,6 +1021,11 @@ services:
       # different paths used by calibreweb
       - download:/download
       - calibredb_books_media:/books
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+      - AUTO_CREATE_DB=/books
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
       - "traefik.enable=true"
@@ -1016,16 +1033,12 @@ services:
       - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
       - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
       - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
-      # middleware
-      #- "traefik.http.middlewares.calibreweb_books-stripprefix.stripprefix.prefixes=/${CALIBREWEB_BOOKS_SUBPATH}, /${CALIBREWEB_BOOKS_SUBPATH}/"
       # routers
       - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS:-web_main}"
-      #- "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
       - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.calibreweb_books.priority=${CALIBREWEB_BOOKS_PRIORITY}"
       - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
       - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS_SECURE:-web_main_secure}"
-      #- "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`) || HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/${CALIBREWEB_BOOKS_SUBPATH}`)"
       - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
       - "traefik.http.routers.calibreweb_books-secure.priority=${CALIBREWEB_BOOKS_PRIORITY}"
       - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
@@ -1034,6 +1047,42 @@ services:
       # routers middleware
       - "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
       - "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
-      #- "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
-      #- "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-stripprefix,calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
+  
+
+  
+  calibreweb_press:
+    !!merge <<: *default-calibreweb
+    container_name: ${TANGO_APP_NAME}_calibreweb_press
+    volumes:
+      # will contain calibre-web configuration
+      - calibreweb_press_data:/config
+      # different paths used by calibreweb
+      - download:/download
+      - calibredb_press_media:/press
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+      - AUTO_CREATE_DB=/press
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service
+      - "traefik.http.services.calibreweb_press.loadbalancer.server.port=8083"
+      - "traefik.http.services.calibreweb_press.loadbalancer.server.scheme=http"
+      - "traefik.http.services.calibreweb_press.loadbalancer.passhostheader=true"
+      # routers
+      - "traefik.http.routers.calibreweb_press.entrypoints=${CALIBREWEB_PRESS_ENTRYPOINTS:-web_main}"
+      - "traefik.http.routers.calibreweb_press.rule=HostRegexp(`{subdomain:${CALIBREWEB_PRESS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.calibreweb_press.priority=${CALIBREWEB_PRESS_PRIORITY}"
+      - "traefik.http.routers.calibreweb_press.service=calibreweb_press"
+      - "traefik.http.routers.calibreweb_press-secure.entrypoints=${CALIBREWEB_PRESS_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.calibreweb_press-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_PRESS_SUBDOMAIN}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.calibreweb_press-secure.priority=${CALIBREWEB_PRESS_PRIORITY}"
+      - "traefik.http.routers.calibreweb_press-secure.service=calibreweb_press"
+      - "traefik.http.routers.calibreweb_press-secure.tls=true"
+      - "traefik.http.routers.calibreweb_press-secure.tls.domains[0].main=${CALIBREWEB_PRESS_SUBDOMAIN}${TANGO_DOMAIN:-.*}"
+      # routers middleware
+      - "traefik.http.routers.calibreweb_press.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
+      - "traefik.http.routers.calibreweb_press-secure.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
   

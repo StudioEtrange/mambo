@@ -719,9 +719,9 @@ Into Organizr2
     SMTP hostname : smtp.gmail.com
     SMTP port : 465
     Encryption : SSL/TLS
-    SMTP login : info.mambo.media@gmail.com
+    SMTP login : xxxxx@gmail.com
     SMTP Password: xxxx
-    From e-mail : Chimere & Harpie <info.mambo.media@gmail.com>
+    From e-mail : My Platform <XXXX@gmail.com>
     * USER who want to use send to kindle MUST have download permission
     ```
 

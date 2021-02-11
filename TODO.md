@@ -99,3 +99,6 @@
     * ENV CALIBRE_CONFIG_DIRECTORY="/config/calibre/"
     * ENV CALIBRE_TEMP_DIR="/config/calibre/tmp/"
     * ENV CALIBRE_CACHE_DIRECTORY="/config/cache/calibre/"
+
+* [ ] backup mambo-data
+    * [ ] specific saves of calibredb files

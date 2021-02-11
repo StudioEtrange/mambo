@@ -10,7 +10,7 @@ A central portal for all your media content movies, tv show, ebooks
 * Access level managed and centralized in organizr2 (dynamic synced between organizr2 and traefik2)
 * Generate an ebook newsletter section into tautulli newsletter
 * Add newsletter functionnality for ebooks
-* Direct API access to sabnzbd
+* API access to sabnzbd
 * Highly based on traefik2 for internal routing
 * Support nvidia transcoding for plex
 * Support Let's encrypt for HTTPS certificate generation
@@ -430,7 +430,7 @@ Into Organizr2
 
 ### Sabnzbd and Organizr2 
 
-Into Sabnzbd
+Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
@@ -443,6 +443,15 @@ Into Sabnzbd
         * Refresh your browser page
     * Tab editor / Tabs list
         * Group : Co-Admin
+
+
+* Integration to Homepage :
+    * Tab Editor / Homepage Items / sabnzbd
+        * Check Enable
+        * Minimum Authentication : Co-Admin
+        * Connection / Url : http://sabnzbd:8080
+        * Connection / Token : gget API key with `./mambo info sabnzbd` or from within sabnzbd admin panel (you can get also from here a QRCode)
+        
 
 ### Manual configuration
 
@@ -461,14 +470,17 @@ go to sabnzbd through organizr
 
 * SABconnect++ (chrome plugin)
     * SABnzbd URL : https://sabnzbd.domain.com
-    * SABnzbd API Key : get API key with ./mambo info sabnzbd or from within sabnzbd admin panel by generating a QRCode
+    * SABnzbd API Key : get API key with `./mambo info sabnzbd` or from within sabnzbd admin panel (you can get also from here a QRCode)
 
 * SabNzbd Remote 2.0 (android app)
     * URL : sabnzbd.domain.com
     * Port: 443
     * Use SSL
     * Authentification Method : use api key
-    * API Key : get API key with ./mambo info sabnzbd or from within sabnzbd admin panel by generating a QRCode 
+    * API Key : get API key with `./mambo info sabnzbd` or from within sabnzbd admin panel (you can get also from here a QRCode)
+
+
+
 
 
 ----
@@ -638,6 +650,11 @@ access through https://lazylibrarian.domain.com
 
 * Config / Processing
     * Folders / eBook Library Folder : `/calibredb/books`
+    * Filename formatting
+        * Magazine Foldername Pattern : `/calibredb/press/$Title`
+        * Magazine Filename Pattern: `$Title - $IssueDate`
+        * Uncheck Magazines inside book folder
+
 
 ### Lazylibrarian Web and Organizr2
 
@@ -714,9 +731,17 @@ Into Organizr2
     * Use SSL
     * Path : /transmission/rpc
 ----
-## Calibre Web for Books
+## Calibre Web for books
+
 
 Calibre-web will print ebooks registerd in calibre database. When configured, it can send to kindle a converted ebook. Each converted created file is updated with metadata from its metadata.opf file and added to calibre database
+
+About sending to kindle and format :
+    * https://github.com/janeczku/calibre-web/blob/34a474101fa2b3dd97046f5febc84cb10ac9c27b/cps/helper.py#L211
+    * If Mobi file is existing, it's directly send to kindle email,
+    * If Epub file is existing, it's converted and send to kindle email,
+    * If Pdf file is existing, it's directly send to kindle email
+
 
 Into Calibre web `https://books.mydomain.com`
 
@@ -724,15 +749,23 @@ Into Calibre web `https://books.mydomain.com`
     * Location of Calibre database : /books
     * Connexion : admin/admin123
 
-* Admin / Users / admin user
-    * Password : change password to anything you want
-    * Mail/... : anything you want
+* Admin / Configuration / Edit UI Configuration
+    * Default Settings for New Users
+        * Allow Downloads (needed to get send to kindle feature)
+        * Allow eBook Viewer
+    * Remove view by author and publisher
+ 
 
 * Admin / Users / Add New user
     * Username : same as your plex admin user
     * Password : change password to anything you want
     * Mail/... : anything you want
     * Admin User
+
+* Admin / Users / 
+    * Select admin user
+        * Password : change password to anything you want
+        * Mail/... : anything you want
 
 * Admin / Configuration / Edit Basic Configuration
     * Feature Configuration : Enable Uploads
@@ -752,31 +785,21 @@ Into Calibre web `https://books.mydomain.com`
         * SMTP Password: xxxx
         * From e-mail : My Name
 
+
 * Admin / Configuration / Edit UI Configuration
-    * Default Settings for New Users
-        * Allow Downloads (needed to get send to kindle feature)
-        * Allow eBook Viewer
     * View Configuration 
         * Title : choose a title
         * Theme : caliblur
         * sort regexp : tweak it if needed
 
-
-### Calibre Web new users
-
-To add a matching plex user to Calibre web, 
-you can check registerd plex username/mail in Ombi user list
-
-* Admin / Users / Add New user
-    * Username : same as plex username
-    * Password : anything you want
-    * Mail : same as plex mail
-    * Language : choose a language for UI
-
-
-Each user can set himself it's kindle mail. Calibre-web convert on the fly the sent ebook as mobo format for kindle if necessary.
-
 ### Calibre Web and Organizr2
+
+
+Into Calibre web
+
+* Admin-Settings / Configuration / Edit Basic Configuration / Feature Configuration
+    * Allow Reverse Proxy Authentication : enable
+    * Reverse Proxy Header Name : `X-Organizr-User`
 
 Into Organizr2
 
@@ -793,22 +816,42 @@ Into Organizr2
         * Group : User
         * Type : New window
 
-Into Calibre web
 
-* Admin-Settings / Configuration / Edit Basic Configuration / Feature Configuration
-    * Allow Reverse Proxy Authentication : enable
-    * Reverse Proxy Header Name : `X-Organizr-User`
 
 WARN
 
-* with this system you cannot logout of calibreweb but only by logout from organizr2. And you can not to login as a different user into calibreweb for debug or test purpose
-* to debug/test add a direct access port to calibre web dedicated to your media : `CALIBREWEB_BOOKS_DIRECT_ACCESS_PORT=22222` and access it through `http://localhost:22222`
+* when setting is done, you cannot logout of calibreweb but only by logout from organizr2. And you can not to login as a different user into calibreweb for debug or test purpose
+* to debug/test add a direct access port to calibreweb dedicated to your media : `CALIBREWEB_BOOKS_DIRECT_ACCESS_PORT=22222` and access it through `http://localhost:22222`
 
+
+### Calibre Web new users
+
+To add a matching plex user to Calibre web, 
+you can check registerd plex username/mail in Ombi user list
+
+* Admin / Users / Add New user
+    * Username : same as plex username
+    * Password : anything you want
+    * Mail : same as plex mail
+    * Language : choose a language for UI
+
+
+Each user can set himself it's kindle mail. Calibre-web convert on the fly the sent ebook as mobo format for kindle if necessary.
+
+
+
+## Calibre Web for press
+
+*For press, do the same than books but replace `books` by `press`*
+
+
+* Admin / Configuration / Edit UI Configuration
+    * Remove view by author and publisher
 
 
 # Calibre
 
-NOTE : to copy/paste inside calibre web page use Ctrl+shift+alt
+NOTE : to copy/paste inside calibre use Ctrl+shift+alt
 
 Into Organizr2
 
@@ -840,8 +883,8 @@ Into Calibre
             * "Modify ePub" - for ePub files
             * "Quality check" - for ePub files
             * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421 (Load plugin from file : babelio_calibre.zip)
-
-    * all calibre database folders are in folder `/calibredb` (i.e /calibredb/books, /Calibredb/comics)
+            * "Mass Search/Replace" - Usefull to take care of press/magazines
+    * all calibre database folders are in folder `/calibredb` (i.e /calibredb/books, /calibredb/press)
 
 ----
 # Network Configuration
@@ -898,9 +941,10 @@ List of available plugins
     * first, ask for an open port to enter your vpn on the active VPN connexion
     * second, set transmission with this remote port
 
-* This plugin is by default declared as active into mambo and attached to transmission
+* This plugin is by declared as active into mambo and declared as attached to transmission but must be manually launched
     * see declaration in mambo.env : `TANGO_PLUGINS=transmission_pia_port%!transmission`
     * launch this plugin to set transmission remote port : `./mambo plugins exec-service transmission`
+    * To declare it as aut launched at each transmission launch set in your pwn mambo.env file `TANGO_PLUGINS=transmission_pia_port%transmission`
 
 ### Usage
 
