@@ -12,6 +12,8 @@ RUN \
  apt-get install -y \
 	python3 \
 	python3-distutils \
+	nano \
+	moreutils \
     unzip \
 	jq && \
  echo "**** install pip ****" && \

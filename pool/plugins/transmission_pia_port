@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-# FEATURES : this plugun set remote transmission port according to PIA vpn provider
+# FEATURES : this plugin set remote transmission port according to PIA vpn provider
 
 
 # NEED transmission volumes

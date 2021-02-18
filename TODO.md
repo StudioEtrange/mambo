@@ -68,8 +68,8 @@
 
 * scripts_info / scripts_init : transform into plugins ?
 
-* plex : acces port to webtools (by default 33400)
-
+* webtool plugin : acces port to webtools (by default 33400) - deprecate webtools : it do not work
+    * https://github.com/Cloudbox/Cloudbox/blob/c9c0f6e096370ac0dd153a289e783346be0448e7/roles/webtools-plugin/tasks/main.yml
 
 * booksonic 
 ** API https://airsonic.github.io/docs/api/

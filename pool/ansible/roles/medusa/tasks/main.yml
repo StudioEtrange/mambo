@@ -1,0 +1,14 @@
+---
+- debug: 
+    msg: 
+      - "MEDUSA_DATA_PATH: {{ lookup('env','MEDUSA_DATA_PATH') }}"
+      - "MEDUSA_INI_PATH: {{ lookup('env','MEDUSA_INI_PATH') }}"
+
+- name: Register medusa_ini
+  stat:
+    path: "{{ medusa.ini }}"
+  register: medusa_ini
+
+- name: Settings Tweaks
+  include_tasks: "subtasks/medusa_settings.yml"
+  when: medusa_ini.stat.exists

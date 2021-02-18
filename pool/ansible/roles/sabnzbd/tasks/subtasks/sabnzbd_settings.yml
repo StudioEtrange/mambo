@@ -79,12 +79,11 @@
     line: 'script_dir = /scripts'
     state: present
 
-# TODO change path when switching to linuxserver image
 - name: Change logs directory
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
     regexp: '^log_dir\s?=.*'
-    line: 'log_dir = /config/app/logs'
+    line: 'log_dir = /config/logs'
     state: present
 
 

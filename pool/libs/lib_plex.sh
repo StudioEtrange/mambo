@@ -6,6 +6,7 @@
 __plex_set_context() {
 	export PLEX_PREFERENCES_PATH="${PLEX_DATA_PATH}/Library/Application Support/Plex Media Server/Preferences.xml"
 	__add_declared_variables "PLEX_PREFERENCES_PATH"
+
 }
 
 __plex_init() {
@@ -123,29 +124,42 @@ __get_plex_claim_token() {
 
 
 # OWN : print only server own by plex token
+# NON_OWN : print non own server
 __print_plex_server_registered() {
 	local __x_plex_token="$1"
 	local __OPT="$2"
 
 	local __own=
+	local __non_own=
 	for o in ${__OPT}; do
 		[ "$o" = "OWN" ] && __own="1"
+		[ "$o" = "NON_OWN" ] && __non_own="1"
 	done
 
 	local __response="$(__tango_curl -kLs -X GET "https://plex.tv/api/servers?X-Plex-Token=${__x_plex_token}")"
 	
 	# eval will declare an array called result
 	if [ "${__own}" = "1" ]; then
-		eval $(echo "${__response}" | xidel -s -e '//Server[@accessToken="'${__x_plex_token}'"]/(@name|@machineIdentifier|@scheme|@address|@port)' --output-format=bash -)
+		eval $(echo "${__response}" | xidel -s -e '//Server[@owned="1"]/(@name|@machineIdentifier|@scheme|@address|@port|@version)' --output-format=bash -)
 	else
-		eval $(echo "${__response}" | xidel -s -e '//Server/(@name|@machineIdentifier|@scheme|@address|@port)' --output-format=bash -)
+		if [ "${__non_own}" = "1" ]; then
+			eval $(echo "${__response}" | xidel -s -e '//Server[@owned="0"]/(@name|@machineIdentifier|@scheme|@address|@port|@version|@sourceTitle)' --output-format=bash -)
+		else
+			eval $(echo "${__response}" | xidel -s -e '//Server/(@name|@machineIdentifier|@scheme|@address|@port|@version|@sourceTitle)' --output-format=bash -)
+		fi
 	fi
 
-
-	local __table="NAME|URL|MACHINE IDENTIFIER"
-	for (( i=0; i<${#result[@]}; i+=5 )); do
-		__table="${__table}\n${result[$i]}|${result[$i + 3]}://${result[$i + 1]}:${result[$i + 2]}|${result[$i + 4]}"
-	done
+	local __table="NAME|URL|MACHINE IDENTIFIER|PLEX VERSION"
+	if [ "${__own}" = "1" ]; then
+		for (( i=0; i<${#result[@]}; i+=6 )); do
+			__table="${__table}\n${result[$i]}|${result[$i + 4]}://${result[$i + 1]}:${result[$i + 2]}|${result[$i + 5]}|${result[$i + 3]}"
+		done
+	else
+		__table="$__table|OWNER"
+		for (( i=0; i<${#result[@]}; i+=7 )); do
+			__table="${__table}\n${result[$i]}|${result[$i + 4]}://${result[$i + 1]}:${result[$i + 2]}|${result[$i + 5]}|${result[$i + 3]}|${result[$i + 6]}"
+		done
+	fi
 
 	printf "${__table}" | $STELLA_API format_table "SEPARATOR |"
 }
@@ -154,7 +168,7 @@ __print_plex_server_registered() {
 __get_plex_server_identifier() {
 	local __x_plex_token="$1"
 
-	# There is json API for this request, only XML
+	# There is no json API for this request, only XML
 	# https://forums.plex.tv/t/api-is-there-a-way-to-use-pms-servers-and-get-a-json-response/281134
 
 	__tango_curl -kLs -X GET https://plex.tv/api/servers?X-Plex-Token="${__x_plex_token}"
@@ -217,7 +231,7 @@ __plex_settings() {
 
 
 		# activate hardware transcoding
-		[ ! "${PLEX_HARDWARE_TRANSCODE}" = "" ] && __xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "HardwareAcceleratedCodecs" "1" \
+		[ ! "${PLEX_GPU}" = "" ] && __xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "HardwareAcceleratedCodecs" "1" \
 												|| __xml_set_attribute_value "${PLEX_PREFERENCES_PATH}" "/Preferences" "Preferences" "HardwareAcceleratedCodecs" "0" \
 
 	fi

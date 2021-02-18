@@ -63,13 +63,18 @@ TARGET=										'target' 			s				''	'0'
 ARGUMENT=									'argument' 			s				''	'0'
 "
 
+OPTIONS="$OPTIONS
+CLAIM=''				    ''				''					b			0		''			  will force to claim plex server even it is already registred.
+"
+
+
 usage() {
 	echo "USAGE :"
 	echo "----------------"
 	echo "o-- commands :"
 	echo "L     install : deploy this app."
 	echo "L     init plex [--claim] : init plex service. Do it at least once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred"
-	echo "L     init [sabnzbd] : init all or one services. Will stop service if running and configure some default settings without modifying other settings."
+	echo "L     init [sabnzbd|medusa|nzbtomedia] : init all or one services. Will stop service if running and configure some default settings without modifying other settings."
     echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
 	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
@@ -151,6 +156,7 @@ case ${ACTION} in
         __organizr2_set_context
         __transmission_set_context
         __sabnzbd_set_context
+        __medusa_set_context
         __plex_set_context
     ;;
 esac
@@ -211,6 +217,12 @@ case ${ACTION} in
                 __tango_log "INFO" "mambo" "Init service sabnzbd"
                 __sabnzbd_init
             ;;
+            medusa )
+                # we compute this only if we need it because it take times
+                export PLEX_AUTH_TOKEN="$(__get_plex_x_plex_auth_token ${PLEX_USER} ${PLEX_PASSWORD})"
+                __tango_log "INFO" "mambo" "Init service medusa"
+                __medusa_init
+            ;;
             nzbtomedia )
                 __tango_log "INFO" "mambo" "Init service nzbtomedia"
                 __nzbtomedia_init
@@ -229,6 +241,11 @@ case ${ACTION} in
                 __tango_log "INFO" "mambo" "Init service sabnzbd"
                 __sabnzbd_init
                 [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring sabnzbd" && exit 1
+                __tango_log "INFO" "mambo" "Init service medusa"
+                # we compute this only if we need it because it take times
+                export PLEX_AUTH_TOKEN="$(__get_plex_x_plex_auth_token ${PLEX_USER} ${PLEX_PASSWORD})"
+                __medusa_init
+                [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring medusa" && exit 1
                 __tango_log "INFO" "mambo" "Init service nzbtomedia"
                 __nzbtomedia_init
                 [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring nzbtomedia" && exit 1
@@ -265,8 +282,10 @@ case ${ACTION} in
                 echo "L-- Password : ${PLEX_PASSWORD}"
                 __token="$(__get_plex_x_plex_auth_token "${PLEX_USER}" "${PLEX_PASSWORD}")"
                 echo "L-- X-Plex-Token : ${__token}"
-                echo "L-- Owned server"
+                echo "L-- Owned servers"
                 __print_plex_server_registered "${__token}" "OWN"
+                echo "L-- Other known servers"
+                __print_plex_server_registered "${__token}" "NON_OWN"
             ;;
 
             sabnzbd )
@@ -275,6 +294,12 @@ case ${ACTION} in
                 echo "L-- Password : ${SABNZBD_PASSWORD}"
                 echo "L-- API KEY : ${SABNZBD_API_KEY}"
                 echo "L-- NZB KEY : ${SABNZBD_NZB_KEY}"
+            ;;
+            medusa )
+                echo "---------==---- MEDUSA ----==---------"
+                echo "L-- User : ${MEDUSA_USER}"
+                echo "L-- Password : ${MEDUSA_PASSWORD}"
+                echo "L-- API KEY : ${MEDUSA_API_KEY}"
             ;;
         esac
     ;;

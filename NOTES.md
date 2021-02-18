@@ -276,6 +276,16 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
 
 * webtool plugin ansible installation : https://github.com/Cloudbox/Cloudbox/blob/master/roles/webtools-plugin/tasks/main.yml
 
+* Plex Remote transcoder - Unicorn
+    * https://github.com/UnicornTranscoder/UnicornTranscoder
+        * client plex -> UnicornLoadBalancer -> HTTP 302 to UnicornTranscoder
+        * client plex <-> UnicornTranscoder <-> plex server
+    * do not support hardware (GPU) transcoding https://github.com/UnicornTranscoder/UnicornTranscoder/issues/24
+
+* Routing plex traffic through an SSH tunnel
+    * client plex -> cloud machine (ssh tunnel)->(ssh tunnel) plex server
+    * https://gist.github.com/MarMed/94b5537a9fb61cf7212808692bbef14d
+
 ### Plex Auth
 
 * PHP based Plex authentification https://github.com/hjone72/PlexAuth

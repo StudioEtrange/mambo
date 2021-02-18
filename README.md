@@ -23,9 +23,6 @@ A central portal for all your media content movies, tv show, ebooks
 * git
 * docker
 
-If you want to use hardware transcode on nvidia gpu :
-
-* nvidia-docker
 
 NOTE : mambo will auto install all other required tools like docker-compose inside of its tree folder
 
@@ -257,6 +254,11 @@ Into Organizr2
             * Misc Options / Url : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
             * The Plex Tab Name and Plex Tab WAN URL are used to configure the homepage items to open up inside the Plex Tab you have setup
 
+### Plex and GPU
+
+* First, you will need nvidia-docker2 or nvidia-container-toolkit depending on your docker version
+* To enable GPU transcoding into plex declare `PLEX_GPU=INTEL_QUICKSYNC|NVIDIA`
+
 
 
 ----
@@ -267,11 +269,11 @@ Into Organizr2
 * github project https://github.com/causefx/Organizr/
 * docker github project https://github.com/Organizr/docker-organizr
 * a guide https://smarthomepursuits.com/install-organizr-v2-windows/
-* api documentation : https://organizr2.mydomain.com/api/docs/
+* api documentation : https://organizr.mydomain.com/api/docs/
 
 
 
-### Auto configuration
+### 1.Auto configuration
 
 * Auto configuration steps :
     `./mambo init organizr2`
@@ -279,9 +281,9 @@ Into Organizr2
 * Start service
     `./mambo up organizr2`
 
-### Manual configuration
+### 2.Manual configuration
 
-got to https://organizr2.domain.com (check ORGANIZR2_SUBDOMAIN value)
+go to https://organizr.domain.com (check ORGANIZR2_SUBDOMAIN value)
 
 * Initial Setup
     * License : personal
@@ -368,8 +370,8 @@ got to https://organizr2.domain.com (check ORGANIZR2_SUBDOMAIN value)
     * Self-Hosted Newsletters : checked
     * Use Inline Styles Templates : checked
     * Newsletter Output Directory : `/newsletters`
-    * Custom newsletter Templates Folder : `/default_template`
-        * if you want to customize the default newsletter template edit in your data folder `ebooks_list/recently_added.mtml` following `mambo/ebooks/recently_added.html` (the default one) as guide. And set inside tautulli the default template folder as `/custom_template/templates`
+    * Custom newsletter Templates Folder : set value `/default_template`
+        * if you want to customize the default newsletter template : set value folder as `/custom_template/templates` and edit in your data folder `ebooks_list/recently_added.mtml` following `mambo/ebooks/recently_added.html` (the default one) as guide. And
         * if you want a real preview of your newsletter with your custom template use : `https://tautulli.domain.com/real_newsletter?newsletter_id=1&preview=true` instead of this proposed url `https://tautulli.domain.com/newsletter_preview?newsletter_id=1`
 
 * TIPS : Inside newsletter configuration; to edit subject and message in default newsletter you can use theses variables https://github.com/Tautulli/Tautulli/blob/master/plexpy/common.py 
@@ -419,7 +421,7 @@ Into Organizr2
 * Free and easy binary newsreader
 * https://sabnzbd.org/
 
-### Auto configuration
+### 1.Auto configuration
 
 * Auto configuration steps :
     `./mambo init sabnzbd`
@@ -428,7 +430,7 @@ Into Organizr2
 * Start service
     `./mambo up sabnzbd`
 
-### Sabnzbd and Organizr2 
+### 2.Sabnzbd and Organizr2 
 
 Into Organizr2
 
@@ -450,17 +452,17 @@ Into Organizr2
         * Check Enable
         * Minimum Authentication : Co-Admin
         * Connection / Url : http://sabnzbd:8080
-        * Connection / Token : gget API key with `./mambo info sabnzbd` or from within sabnzbd admin panel (you can get also from here a QRCode)
+        * Connection / Token : get API key with `./mambo info sabnzbd` or from within sabnzbd admin panel (you can get also from here a QRCode)
         
 
-### Manual configuration
+### 3.Manual configuration
 
-go to sabnzbd through organizr
+go to sabnzbd through organizr https://organizr.mydomain.com/#Sabnzbd
 
 * Sabnzbd Config 
     * Servers
         * Add your newsgroup servers
-    * Categories : Create categories for kind of media files in folder/path `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
+    * Categories : Create categories for each kind of media files in `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
         * tv / script : nzbToSickBeard.sh
     * Switches
         * enable Direct Unpack
@@ -486,27 +488,19 @@ go to sabnzbd through organizr
 ----
 ## Medusa
 
-Into Medusa
 
-* Medusa configuration :
-    * General / Misc
-        * Show root directories : add each tv media folders from `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
+### 1.Auto configuration
 
-* Sabnzbd configuration :
-    * Search settings/NZB Search
-        * Enable nzb search providers
-        * Send .nzb files : `SABnzbd`
-        * SABnzbd server url : `http://sabnzbd:8080`
-        * Set sabnzbd user/password and api key
+* Auto configuration steps :
+    `./mambo init medusa`
+    `./mambo init nzbtomedia`
 
-* Plex configuration:
-    * Notifications/Plex Media Server
-        * get Auth token with `./mambo info plex`
-        * set plex media server ip:port : `plex:32400`
-        * HTTPS : `enabled`
+* Start service
+    `./mambo up medusa`
 
 
-### Medusa and Organizr2 
+
+### 2.Medusa and Organizr2 
 
 Into Organizr2
 
@@ -527,7 +521,7 @@ Into Organizr2
     * Tab Editor / Homepage Items / Sickrage
         * Enable, Minimum Authentication : User
         * Connection / Url : http://medusa:8081
-        * Connection / API : get api key from medusa
+        * Connection / API : get api key from medusa (./mambo info medusa)
         * Personalize all viewing options - recommended : 
             *  Misc Options / Default view : week
             *  Misc Options / Items by day : 7
@@ -537,6 +531,31 @@ Into Medusa, deactivate login because access is protected with organizr2
     * General / Interface / Web Interface / HTTP username : blank
     * General / Interface / Web Interface / HTTP password : blank
 
+
+### 3.Manual configuration
+
+go to sabnzbd through organizr https://medusa.mydomain.com/#Mabnzbd
+
+Into Medusa
+
+* Medusa configuration :
+    * General / Misc
+        * Show root directories : add each tv media folders from `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
+
+* Sabnzbd configuration :
+    * Search settings/NZB Search
+        * Enable nzb search providers
+        * Send .nzb files : `SABnzbd`
+        <---* SABnzbd server url : `http://sabnzbd:8080`
+        * Set sabnzbd user/password and api key-->
+
+<---
+* Plex configuration:
+    * Notifications/Plex Media Server
+        * get Auth token with `./mambo info plex`
+        * set plex media server ip:port : `plex:32400`
+        * HTTPS : `enabled`
+-->
 
 ---
 
@@ -573,7 +592,7 @@ Into Medusa, deactivate login because access is protected with organizr2
         * Click on Load Libraries and select libraries in which content will look for user request
     * Configuration / Customization
         * Application Name : Your App
-        * Application URL : https://organizr2.domain.com/ (portail URL)
+        * Application URL : https://organizr.domain.com/ (portail URL)
     * Notifications / Email
         * settings based on your mail provider, sample for mymail@gmail.com :
         * Enable SMTP Authentification
@@ -971,3 +990,14 @@ List of available plugins
 
 * Check settings in transmission : Config / Network / port
 
+## Troubleshooting
+
+
+* Problem with a volume
+    * May occurs when you move some folder with your data
+    * FIX : delete docker volume with `docker volume rm <volumename>`
+    * Sample
+    ```
+       ERROR: Configuration for volume tango_shared_internal_data specifies "device" driver_opt /foo/folder/tango_shared, but a volume with the same name uses a different "device" driver_opt (/foo/bar/tango_shared). If you wish to use the new configuration, please remove the existing volume "tango_shared_internal_data" first:
+        $ docker volume rm tango_shared_internal_data
+    ```

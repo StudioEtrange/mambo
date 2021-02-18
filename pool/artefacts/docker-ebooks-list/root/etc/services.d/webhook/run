@@ -6,7 +6,7 @@ UMASK_SET=${UMASK_SET:-022}
 umask "$UMASK_SET"
 
 
-# NOTE : we do not use hotrelad option on webhook, (https://github.com/almir/docker-webhook)
+# NOTE : we do not use hotreload option on webhook, (https://github.com/almir/docker-webhook)
 #       because we dont need it AND because it throw an arror
 #           2021-02-05T02:31:40.705054794Z [webhook] 2021/02/05 03:31:40 setting up file watcher for /etc/webhook/hooks.json
 #           2021-02-05T02:31:40.705071108Z [webhook] 2021/02/05 03:31:40 error adding hooks file to the watcher

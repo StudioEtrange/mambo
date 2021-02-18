@@ -91,10 +91,23 @@ GENERATED_HTML_FILE="/config/output/${ITEMS_NAME}_$(date +"%s_%N")_${RANDOM}${RA
 GENERATED_XML_FILE="/config/output/${ITEMS_NAME}_$(date +"%s_%N")_${RANDOM}${RANDOM}.xml"
 GENERATED_JSON_FILE="/config/output/${ITEMS_NAME}_$(date +"%s_%N")_${RANDOM}${RANDOM}.json"
 
+
+# copy calibre files to avoid access files problems like database lock or samba mounted files problem
+tmp="$(mktemp --directory)"
+cp "${CALIBREDB_PATH}"/metadata* "${tmp}/"
+
+# ie : /calibredb/books -> books
+database_name="$(basename ${CALIBREDB_PATH})"
+
 # generate an xml list
-calibredb catalog "${GENERATED_XML_FILE}" -v --search="${DAYS_OLD_FILTER}" --library-path="${CALIBREDB_PATH}" 1>/dev/null
+calibredb catalog "${GENERATED_XML_FILE}" -v --search="${DAYS_OLD_FILTER}" --library-path="${tmp}" 1>/dev/null
 [ ! -f "${GENERATED_XML_FILE}" ] && echo " ** WARN ${GENERATED_XML_FILE} file do not exist -  ${DAYS_OLD_FILTER} may have no matching books into $CALIBREDB_PATH" && exit
-cat "${GENERATED_XML_FILE}" | xq -r . >${GENERATED_JSON_FILE}
+cat "${GENERATED_XML_FILE}" | xq -r 'if .calibredb!=null then . else .calibredb="" end'>${GENERATED_JSON_FILE}
+
+# replace tmp folder reference
+#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then (.calibredb["record"]) | .[].library_name=$database_name | .[].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
+cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name=$database_name | .calibredb["record"][].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
+
 
 # render template
 python - "${TEMPLATE_FILE}" "${GENERATED_JSON_FILE}" "${GENERATED_HTML_FILE}" "${LIMIT}" "${RANDOM_ORDER}" "${TITLE}" "${ITEMS_NAME}" "${DEBUG}" <<-EOF
@@ -164,5 +177,7 @@ if [ "$DEBUG" = "0" ]; then
     rm -f "${GENERATED_HTML_FILE}" 2>/dev/null
     rm -f "${GENERATED_XML_FILE}" 2>/dev/null
     rm -f "${GENERATED_JSON_FILE}" 2>/dev/null
+    # remove database copied files
+    rm -Rf "${tmp}" 2>/dev/null
 fi
 

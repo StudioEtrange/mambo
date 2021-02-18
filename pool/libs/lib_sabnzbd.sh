@@ -3,9 +3,7 @@ __sabnzbd_set_context() {
     export SABNZBD_DATA_PATH="$APP_DATA_PATH/sabnzbd"
     __add_declared_variables "SABNZBD_DATA_PATH"
 
-    # this path depend on the docker image used
-    # TODO change path when switching to linuxserver image
-    export SABNZBD_INI_PATH="$APP_DATA_PATH/sabnzbd/app/sabnzbd.ini"
+    export SABNZBD_INI_PATH="$APP_DATA_PATH/sabnzbd/sabnzbd.ini"
     __add_declared_variables "SABNZBD_INI_PATH"
 
     export SABNZBD_API_KEY="$(__sabnzbd_get_key "API")"

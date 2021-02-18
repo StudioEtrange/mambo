@@ -26,6 +26,5 @@ __nzbtomedia_settings() {
     else
         $STELLA_API ansible_play_localhost "$TANGO_APP_ROOT/pool/ansible/ansible-playbook.yml" "$TANGO_APP_ROOT/pool/ansible/roles" "TAGS nzbtomedia"
     fi
-    __tango_log "INFO" "mambo" "we have tweaked some sabnzbd and medusa values, you should start/restart them"
 }
 

@@ -205,7 +205,7 @@
 # }
 
 # global variables - init at phase PREPARE ACTION before loading env files
-# hash table : give group id access for each service
+# hash table : give group id access for each service or subservices
 declare -A ORGANIZR2_AUTH_GROUP_BY_SERVICE
 # hash table : give group name for each group id
 declare -A ORGANIZR2_AUTH_GROUP_NAME_BY_ID
@@ -356,7 +356,7 @@ __organizr2_init_files() {
     
 }
 
-# set permission on each service by syncing traefik and organizr2 api
+# set permission on each service and subservice by syncing traefik and organizr2 api
 # in PRINT mode - show some output
 __organizr2_auth() {
     local __mode="$1"
@@ -461,8 +461,8 @@ __organizr2_apiv2_request() {
 
 
 # tabs name from organizr will be matched with docker compose service names. Ignoring case.
-# If a docker compose service name contains a "_", only the part after "_" will be used for a match
-#           'Books' (organizr tab name) will match 'calibreweb_boobs' (docker compose service name)
+# If a docker compose service name (or a subservice) contains a "_", only the part after "_" will be used for a match
+#           'Books' (organizr tab name) will match 'calibreweb_books' (docker compose service name)
 # http://organizr2.mydomain.com/api/?v1/tab/list
 __organizr2_auth_group_by_service_all() {
     
@@ -481,7 +481,7 @@ __organizr2_auth_group_by_service_all() {
                     __tab_name="${__tab_name,,}"
 
                     __found=0
-                    for s in ${TANGO_SERVICES_ACTIVE}; do
+                    for s in ${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER}; do
                         # try to match tab name with a service name
                         case $s in
                             ${__tab_name} ) 
@@ -532,10 +532,9 @@ __organizr2_auth_group_name_by_id_all() {
 __organizr2_set_auth_service_all() {
     local __default_group="${1}"
 
-   
     [ "${__default_group}" == "" ] && __default_group="999"
     local __group_id=
-    for s in ${TANGO_SERVICES_ACTIVE}; do
+    for s in ${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER}; do
         __group_id="${ORGANIZR2_AUTH_GROUP_BY_SERVICE[${s}]}"
         if [ "${__group_id}" = "" ]; then 
             # this service have not any authorised group to protect it - so use default

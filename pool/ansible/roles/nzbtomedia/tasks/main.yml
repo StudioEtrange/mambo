@@ -12,7 +12,17 @@
     path: "{{ sabnzbd.ini }}"
   register: sabnzbd_ini
 
+- name: Register medusa_ini
+  stat:
+    path: "{{ medusa.ini }}"
+  register: medusa_ini
 
-- name: Settings sabznbd Tweaks
+
+- name: Settings sabznbd nzbtomedia
   include_tasks: "subtasks/nzbtomedia_sabnzbd_settings.yml"
   when: nzbtomedia_cfg.stat.exists and sabnzbd_ini.stat.exists
+
+
+- name: Settings medusa nzbtomedia
+  include_tasks: "subtasks/nzbtomedia_medusa_settings.yml"
+  when: nzbtomedia_cfg.stat.exists and medusa_ini.stat.exists

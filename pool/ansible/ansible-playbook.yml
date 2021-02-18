@@ -4,4 +4,6 @@
     - ['defaults.yml']
   roles:
     - { role: sabnzbd, tags: ['sabnzbd'] }
+    - { role: medusa, tags: ['medusa'] }
     - { role: nzbtomedia, tags: ['nzbtomedia'] }
+    

@@ -7,6 +7,15 @@ sabnzbd:
   host_whitelist: "sabnzbd, {{ lookup('env','SABNZBD_SUBDOMAIN') }}{{ lookup('env','TANGO_DOMAIN') }}, {{ lookup('env','SABNZBD_ADDITIONAL_DOMAIN') }}, {{ lookup('env','TANGO_HOSTNAME') }}, {{ lookup('env','TANGO_HOSTNAME') }}.{{ lookup('env','TANGO_DOMAIN') }}"
   ini: "{{ lookup('env','SABNZBD_INI_PATH') }}"
 
+medusa:
+  user: "{{ lookup('env','MEDUSA_USER') }}"
+  pass: "{{ lookup('env','MEDUSA_PASSWORD') }}"
+  api_key: "{{ lookup('env','MEDUSA_API_KEY') | default('', true) }}"
+  ini: "{{ lookup('env','MEDUSA_INI_PATH') }}"
+
+plex:
+  auth_token: "{{ lookup('env','PLEX_AUTH_TOKEN') | default('', true) }}"
+
 nzbtomedia:
   cfg: "{{ lookup('env','NZBTOMEDIA_DATA_PATH') }}/autoProcessMedia.cfg"
 
