@@ -282,9 +282,10 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
         * client plex <-> UnicornTranscoder <-> plex server
     * do not support hardware (GPU) transcoding https://github.com/UnicornTranscoder/UnicornTranscoder/issues/24
 
-* Routing plex traffic through an SSH tunnel
+* Routing plex traffic through an SSH tunnel from another host
     * client plex -> cloud machine (ssh tunnel)->(ssh tunnel) plex server
     * https://gist.github.com/MarMed/94b5537a9fb61cf7212808692bbef14d
+    * https://mondedie.fr/d/11116-choix-dun-serveur-de-rebond-pour-plex
 
 ### Plex Auth
 

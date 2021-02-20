@@ -1,13 +1,6 @@
 ---
-# TODO MEDUSA
 - name: Set medusa settings
   replace:
     path: "{{ nzbtomedia_cfg.stat.path }}"
     regexp: '(\[SickBeard\][^\[]*\[\[tv\]\]$)([^\#]*)###'
-    replace: '\1\n        enabled = 1\n        host = medusa\n        port = 8081\n        apikey = {{ medusa.api_key }}\n        username = \n        password = \n###'
-
-# - name: Set medusa settings
-#   replace:
-#     path: "{{ nzbtomedia_cfg.stat.path }}"
-#     regexp: '(\[SickBeard\][^\[]*^\[\[tv\]\]$)([^\#]*)###'
-#     replace: '\1        enabled = 1\\n        host = medusa\\n        port = 8081\\n        apikey = {{ medusa.api_key }}\\n        username = \\n        password = \\n###'
+    replace: '\1\n        enabled = 1\n        host = medusa\n        port = 8081\n        apikey = {{ medusa.api_key }}\n        username = {{ medusa.user }}\n        password = {{ medusa.pass }}\n###'

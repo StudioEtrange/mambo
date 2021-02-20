@@ -133,7 +133,7 @@ case ${ACTION} in
     ;;
     info )
         case ${TARGET} in
-            plex|sabnzbd )
+            plex|sabnzbd|medusa )
                 __action_done_by_mambo="1"
             ;;
         esac

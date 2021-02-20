@@ -493,8 +493,9 @@ go to sabnzbd through organizr https://organizr.mydomain.com/#Sabnzbd
 
 * Auto configuration steps :
     `./mambo init medusa`
+        * will set plex notification
+        * will set sabnzbd as search provider
     `./mambo init nzbtomedia`
-
 * Start service
     `./mambo up medusa`
 
@@ -541,21 +542,6 @@ Into Medusa
 * Medusa configuration :
     * General / Misc
         * Show root directories : add each tv media folders from `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
-
-* Sabnzbd configuration :
-    * Search settings/NZB Search
-        * Enable nzb search providers
-        * Send .nzb files : `SABnzbd`
-        <---* SABnzbd server url : `http://sabnzbd:8080`
-        * Set sabnzbd user/password and api key-->
-
-<---
-* Plex configuration:
-    * Notifications/Plex Media Server
-        * get Auth token with `./mambo info plex`
-        * set plex media server ip:port : `plex:32400`
-        * HTTPS : `enabled`
--->
 
 ---
 
@@ -774,7 +760,6 @@ Into Calibre web `https://books.mydomain.com`
         * Allow eBook Viewer
     * Remove view by author and publisher
  
-
 * Admin / Users / Add New user
     * Username : same as your plex admin user
     * Password : change password to anything you want
@@ -835,7 +820,8 @@ Into Organizr2
         * Group : User
         * Type : New window
 
-
+* Settings / System Settings / Main / Security
+    * Iframe sandbox : add `Allow Downloads` to authorize ebooks downloading from within organizr window
 
 WARN
 

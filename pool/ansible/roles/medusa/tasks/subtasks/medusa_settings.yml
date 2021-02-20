@@ -21,7 +21,6 @@
     line: 'api_key = "{{ medusa.api_key }}"'
     state: present
 
-
 - name: Do not check ssl
   lineinfile:
     path: "{{ medusa_ini.stat.path }}"
@@ -51,8 +50,6 @@
     regexp: '^nzb_method\s?=.*'
     line: 'nzb_method = sabnzbd'
     state: present
-
-
 
 - name: Set sabnzbd username
   lineinfile:
