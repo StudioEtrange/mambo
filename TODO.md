@@ -93,8 +93,8 @@
 
 * [ ] allow api access to service without organizr auth https://github.com/htpcBeginner/docker-traefik/issues/27#issuecomment-743916338 (api access for sabnzbd, lazylibrarian... like transmission)
 
-* [ ] calibre env var TODO ?
-    * for calibre and or calibrewdb wich use calibre binary
+* [X] calibre env var
+    * for calibre and or calibreweb wich use calibre binary
     * taken from https://github.com/Thraxis/docker-lazylibrarian-calibre/blob/22db28939571b6a1b3416e3774b7c93807175976/Dockerfile#L10
     * ENV CALIBRE_CONFIG_DIRECTORY="/config/calibre/"
     * ENV CALIBRE_TEMP_DIR="/config/calibre/tmp/"

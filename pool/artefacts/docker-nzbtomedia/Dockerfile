@@ -19,10 +19,10 @@ RUN \
  echo "**** install pip ****" && \
  curl -fkSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
  python3 get-pip.py && \
- echo "**** cleanup ****" && \
  ln -s \
 	/usr/bin/python3 \
 	/usr/bin/python && \
+ echo "**** cleanup ****" && \
  apt-get clean && \
  rm -rf \
 	/tmp/* \

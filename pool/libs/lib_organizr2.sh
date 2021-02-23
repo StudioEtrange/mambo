@@ -2,6 +2,191 @@
 # API ORGANIZR2------------------------
 # API documentation http://organizr2.mydomain.com/api/docs/
 
+# API v2
+# get users
+# http://organizr2.mydomain.com/api/v2/users
+# {
+#     "response": {
+#         "result": "success",
+#         "message": null,
+#         "data": [
+#             {
+#                 "id": 1,
+#                 "username": "xxxx",
+#                 "password": "xxxxxxxxxx",
+#                 "email": "xxxx@gmail.com",
+#                 "plex_token": null,
+#                 "group": "Admin",
+#                 "group_id": 0,
+#                 "locked": null,
+#                 "image": "https://www.gravatar.com/avatar/e564570c599b871059233ccf80289c04?s=100&d=mm",
+#                 "register_date": "2021-02-23T01:05:58Z",
+#                 "auth_service": "internal"
+#             }
+#         ]
+#     }
+# }
+
+# API v2
+# get groups
+# http://organizr2.mydomain.com/api/v2/groups
+# {
+#     "response": {
+#         "result": "success",
+#         "message": null,
+#         "data": [
+#             {
+#                 "id": 1,
+#                 "group": "Admin",
+#                 "group_id": 0,
+#                 "image": "plugins/images/groups/admin.png",
+#                 "default": 0
+#             },
+#             {
+#                 "id": 2,
+#                 "group": "Co-Admin",
+#                 "group_id": 1,
+#                 "image": "plugins/images/groups/coadmin.png",
+#                 "default": 0
+#             },
+#             {
+#                 "id": 3,
+#                 "group": "Super User",
+#                 "group_id": 2,
+#                 "image": "plugins/images/groups/superuser.png",
+#                 "default": 0
+#             },
+#             {
+#                 "id": 4,
+#                 "group": "Power User",
+#                 "group_id": 3,
+#                 "image": "plugins/images/groups/poweruser.png",
+#                 "default": 0
+#             },
+#             {
+#                 "id": 5,
+#                 "group": "User",
+#                 "group_id": 4,
+#                 "image": "plugins/images/groups/user.png",
+#                 "default": 1
+#             },
+#             {
+#                 "id": 6,
+#                 "group": "Guest",
+#                 "group_id": 999,
+#                 "image": "plugins/images/groups/guest.png",
+#                 "default": 0
+#             }
+#         ]
+#     }
+# }
+
+# API v2
+# get authorization by tab (a tab is a service in the point of view of tango)
+# http://organizr2.mydomain.com/api/v2/tabs
+# {
+#     "response": {
+#         "result": "success",
+#         "message": null,
+#         "data": {
+#             "tabs": [
+#                 {
+#                     "id": 1,
+#                     "order": 1,
+#                     "category_id": 0,
+#                     "name": "Settings",
+#                     "url": "api/v2/page/settings",
+#                     "url_local": null,
+#                     "default": 0,
+#                     "enabled": 1,
+#                     "group_id": 1,
+#                     "image": "fontawesome::cog",
+#                     "type": 0,
+#                     "splash": null,
+#                     "ping": null,
+#                     "ping_url": null,
+#                     "timeout": null,
+#                     "timeout_ms": null,
+#                     "preload": null
+#                 },
+#                 {
+#                     "id": 2,
+#                     "order": 2,
+#                     "category_id": 0,
+#                     "name": "Homepage",
+#                     "url": "api/v2/page/homepage",
+#                     "url_local": null,
+#                     "default": 1,
+#                     "enabled": 1,
+#                     "group_id": 4,
+#                     "image": "fontawesome::home",
+#                     "type": 0,
+#                     "splash": null,
+#                     "ping": null,
+#                     "ping_url": null,
+#                     "timeout": null,
+#                     "timeout_ms": null,
+#                     "preload": null
+#                 }
+#             ],
+#             "categories": [
+#                 {
+#                     "id": 1,
+#                     "order": 1,
+#                     "category": "Unsorted",
+#                     "category_id": 0,
+#                     "image": "fontawesome::question",
+#                     "default": 1
+#                 }
+#             ],
+#             "groups": [
+#                 {
+#                     "id": 1,
+#                     "group": "Admin",
+#                     "group_id": 0,
+#                     "image": "plugins/images/groups/admin.png",
+#                     "default": 0
+#                 },
+#                 {
+#                     "id": 2,
+#                     "group": "Co-Admin",
+#                     "group_id": 1,
+#                     "image": "plugins/images/groups/coadmin.png",
+#                     "default": 0
+#                 },
+#                 {
+#                     "id": 3,
+#                     "group": "Super User",
+#                     "group_id": 2,
+#                     "image": "plugins/images/groups/superuser.png",
+#                     "default": 0
+#                 },
+#                 {
+#                     "id": 4,
+#                     "group": "Power User",
+#                     "group_id": 3,
+#                     "image": "plugins/images/groups/poweruser.png",
+#                     "default": 0
+#                 },
+#                 {
+#                     "id": 5,
+#                     "group": "User",
+#                     "group_id": 4,
+#                     "image": "plugins/images/groups/user.png",
+#                     "default": 1
+#                 },
+#                 {
+#                     "id": 6,
+#                     "group": "Guest",
+#                     "group_id": 999,
+#                     "image": "plugins/images/groups/guest.png",
+#                     "default": 0
+#                 }
+#             ]
+#         }
+#     }
+# }
+
 
 # API v1
 # get user and group list 
@@ -244,7 +429,6 @@ __organizr2_set_context() {
 
     # default organizr2 instance
     [ "$ORGANIZR2_INSTANCE" = "" ] && export ORGANIZR2_INSTANCE="organizr2"
-
     __add_declared_associative_array "ORGANIZR2_AUTH_GROUP_BY_SERVICE"
     __add_declared_associative_array "ORGANIZR2_AUTH_GROUP_NAME_BY_ID"
     
@@ -327,7 +511,7 @@ __organizr2_init_files() {
         rm -Rf ${__data_path}/www/organizr
 
         # override branch to v2-master to get organizr code source
-        # with "manual" no code is downloaded
+        # if value was "manual" no code is downloaded
         eval export $__branch_var="v2-master"
     fi
 
@@ -405,9 +589,9 @@ __organizr2_scheduler_set() {
 }
 __organizr2_scheduler_shutdown() {
     # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
-    __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
-    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-    $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
+    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
 }
 
 
@@ -416,47 +600,31 @@ __organizr2_scheduler_shutdown() {
 #       sample : __organizr2_api_request "GET" "tab/list"
 # NOTE : API respond error if organizr2 is not yet configured in configuration panel
 __organizr2_api_request() {
-    #__organizr2_api_url
     local __result
-    
-    case $ORGANIZR2_API_VERSION in
-        1 ) 
-            __result="$(__organizr2_apiv1_request "$1" "$2")"
-        ;;
-        2 ) 
-            __result="$(__organizr2_apiv2_request "$1" "$2")"
-        ;;
-    esac
-    
+
+    __result="$(__organizr2_api_launch_request "$1" "$2")"
+
     case "$__result" in
-        *nginx*|*html*|"" )
+        *nginx*|*\<html\>*|"" )
         __tango_log "WARN" "organizr2" "API result : $__result";;
         *error* )
         __tango_log "ERROR" "organizr2" "API result : $__result"
         __tango_log "ERROR" "organizr2" "If error is invalid TOKEN API, then fix it in mambo.env file ORGANIZR2_API_TOKEN_PASSWORD variable"
         ;;
     esac
+
     echo $__result
-
 }
 
-# request organizr2 API v1
-__organizr2_apiv1_request() {
-    local __http_command="$1"
-    local __request="$2"
-    
-    [ "${__http_command}" = "" ] && __http_command="GET"
-    #docker run --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
-    __tango_curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
-}
-
-# request organizr2 API v2
-__organizr2_apiv2_request() {
+__organizr2_api_launch_request() {
     local __http_command="$1"
     local __request="$2"
 
+    local __token_password="${ORGANIZR2_INSTANCE^^}_API_TOKEN_PASSWORD"
+
     [ "${__http_command}" = "" ] && __http_command="GET"
-    __tango_curl -X ${__http_command} -skL -H "token: ${ORGANIZR2_API_TOKEN_PASSWORD}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+    #docker run --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 curl -X ${__http_command} -skL -H "token: ${!__token_password}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+    __tango_curl -X ${__http_command} -skL -H "token: ${!__token_password}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
 }
 
 
@@ -464,18 +632,31 @@ __organizr2_apiv2_request() {
 # If a docker compose service name (or a subservice) contains a "_", only the part after "_" will be used for a match
 #           'Books' (organizr tab name) will match 'calibreweb_books' (docker compose service name)
 # http://organizr2.mydomain.com/api/?v1/tab/list
+# http://organizr2.mydomain.com/api/v2/tabs
 __organizr2_auth_group_by_service_all() {
-    
-        local __tab_list="$(__organizr2_api_request "GET" "tab/list")"
+        case $ORGANIZR2_API_VERSION in
+            1 ) 
+                local __tab_list="$(__organizr2_api_request "GET" "tab/list")"
+            ;;
+            2 )
+                local __tab_list="$(__organizr2_api_request "GET" "tabs")"               
+            ;;
+        esac
+
         local __group_id=
         local __tab_name=
 
         case "$__tab_list" in
-            *nginx*|*html*|"" ) echo "$__tab_list";;
+            *nginx*|*\<html\>*|"" ) echo "$__tab_list";;
             *error* ) echo "$__tab_list"; return;;
             * )
                 # get organizr tab name list
-                for i in $(echo "$__tab_list" | jq -r '.data.tabs[] | .name + "#" + (.group_id|tostring)'); do
+                case $ORGANIZR2_API_VERSION in
+                    1 ) __tree=".data.tabs[]";;
+                    2 ) __tree=".response.data.tabs[]";;
+                esac
+                for i in $(echo "$__tab_list" | jq -r ${__tree}' | .name + "#" + (.group_id|tostring)'); do
+
                     __group_id="${i//*#}"
                     __tab_name="${i//#*}"
                     __tab_name="${__tab_name,,}"
@@ -511,20 +692,43 @@ __organizr2_auth_group_by_service_all() {
 
 
 __organizr2_auth_group_name_by_id_all() {
-        local __user_list="$(__organizr2_api_request "GET" "user/list")"
-        local __group_id=
-        local __name=
-        case "$__user_list" in
-            *nginx*|*html*|"" ) echo "$__user_list" ;;
-            *error* ) echo "$__user_list"; return;;
-            * )
-                for i in $(echo $__user_list | jq -r '.data.groups[] | .id'); do
-                    __group_id="$(echo $__user_list | jq -r '.data.groups[] | select(.id=='$i') | (.group_id|tostring)')"
-                    __name="$(echo $__user_list | jq -r '.data.groups[] | select(.id=='$i') | (.group|tostring)')"           
-                    ORGANIZR2_AUTH_GROUP_NAME_BY_ID["${__group_id}"]="${__name}"
-                done
+
+        case $ORGANIZR2_API_VERSION in
+            1 ) 
+                local __user_list="$(__organizr2_api_request "GET" "user/list")"
+                local __group_id=
+                local __name=
+                case "$__user_list" in
+                    *nginx*|*\<html\>*|"" ) echo "$__user_list" ;;
+                    *error* ) echo "$__user_list"; return;;
+                    * )
+                        for i in $(echo $__user_list | jq -r '.data.groups[] | .id'); do
+                            __group_id="$(echo $__user_list | jq -r '.data.groups[] | select(.id=='$i') | (.group_id|tostring)')"
+                            __name="$(echo $__user_list | jq -r '.data.groups[] | select(.id=='$i') | (.group|tostring)')"           
+                            ORGANIZR2_AUTH_GROUP_NAME_BY_ID["${__group_id}"]="${__name}"
+                        done
+                    ;;
+                esac
+            ;;
+            2 )
+                local __group_list="$(__organizr2_api_request "GET" "groups")"
+                local __group_id=
+                local __name=
+                case "$__group_list" in
+                    *nginx*|*\<html\>*|"" ) echo "$__group_list" ;;
+                    *error* ) echo "$__group_list"; return;;
+                    * )
+                        for i in $(echo $__group_list | jq -r '.response.data[] | .id'); do
+                            __group_id="$(echo $__group_list | jq -r '.response.data[] | select(.id=='$i') | (.group_id|tostring)')"
+                            __name="$(echo $__group_list | jq -r '.response.data[] | select(.id=='$i') | (.group|tostring)')"           
+                            ORGANIZR2_AUTH_GROUP_NAME_BY_ID["${__group_id}"]="${__name}"
+                        done
+                    ;;
+                esac
             ;;
         esac
+
+
 }
 
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This script is a wrapper around ebook-convert calibre tool
 # it can be combined with calibre-web to empower calibre-web convert to kindle feature
@@ -41,13 +41,14 @@ metadata_path="${files_path}/metadata.opf"
 [ ! -f "${ebook_convert_tool_path}" ] && echo " ** ERROR [$0] : ebook-convert tool ${ebook_convert_tool_path} do not exist" && exit 1
 
 
-
 case $mode in
     ADD_CALIBREDB )
         [ ! -d "${calibredb_path}" ] && echo " ** ERROR [$0] : calibredb folder ${calibredb_path} do not exist" &&  exit 1
         [ ! -f "${calibredb_tool_path}" ] && echo " ** ERROR [$0] : calibredb tool ${calibredb_tool_path} do not exist" && exit 1
 
+        echo "** Converting ebook"
         ${ebook_convert_tool_path} "${source_file}" "${target_file}" $@
+        echo "** Done"
 
         # get book calibre id        
         book_id=$(dirname "${target_file}")
@@ -57,15 +58,28 @@ case $mode in
         [ "${book_id}" = "" ] && echo " ** ERROR [$0] : can not find book id for ${source_file}" && exit 1
 
         if [ -f "${target_file}" ]; then
+            echo "** Checking library"
+            ${calibredb_tool_path} check_library --with-library="${calibredb_path}/"
+            echo "** Done"
+
+            echo "** Adding converted file to library"
             ${calibredb_tool_path} add_format --with-library="${calibredb_path}/" ${book_id} "${target_file}"
-            [ $? -ne 0 ] && echo " ** ERROR [$0] : error while adding to ${target_file} calibredb ${calibredb_path}" && exit 1
+            error=$?
+            if [ $error -ne 0 ]; then
+                echo " ** ERROR [$0] : ERROR num $error -- error while adding file : ${target_file} to calibredb : ${calibredb_path}" 
+                echo " ** ERROR [$0] : ${calibredb_tool_path} add_format --with-library="${calibredb_path}/" ${book_id} "${target_file}""
+                exit 1
+            fi
+            echo "** Done"
         fi
 
         ;;
 
     METADATA_FROM_OPF )
         [ ! -f "${metadata_path}" ] && echo " ** ERROR [$0] : no metadata.opf file found here ${metadata_path}" && exit 1
+        echo "** Converting ebook"
         ${ebook_convert_tool_path} "${source_file}" "${target_file}" --read-metadata-from-opf "${metadata_path}" $@
+        echo "** Done"
         ;;
         
     ADD_CALIBREDB_AND_METADATA_FROM_OPF )
@@ -73,8 +87,10 @@ case $mode in
         [ ! -f "${calibredb_tool_path}" ] && echo " ** ERROR [$0] : calibredb tool ${calibredb_tool_path} do not exist" && exit 1
         [ ! -f "${metadata_path}" ] && echo " ** ERROR [$0] : no metadata.opf file found here ${metadata_path}" && exit 1
 
+        echo "** Converting ebook"
         ${ebook_convert_tool_path} "${source_file}" "${target_file}" --read-metadata-from-opf "${metadata_path}" $@
-
+        echo "** Done"
+        
         # get book calibre id        
         book_id=$(dirname "${target_file}")
         book_id="${book_id%\)}"
@@ -82,15 +98,29 @@ case $mode in
 
         [ "${book_id}" = "" ] && echo " ** ERROR [$0] : can not find book id for ${source_file}" && exit 1
 
+ 
         if [ -f "${target_file}" ]; then
+            echo "** Checking library"
+            ${calibredb_tool_path} check_library --with-library="${calibredb_path}/"
+            echo "** Done"
+
+            echo "** Adding converted file to library"
             ${calibredb_tool_path} add_format --with-library="${calibredb_path}/" ${book_id} "${target_file}"
-            [ $? -ne 0 ] && echo " ** ERROR [$0] : error while adding to ${target_file} calibredb ${calibredb_path}" && exit 1
+            error=$?
+            if [ $error -ne 0 ]; then
+                echo " ** ERROR [$0] : ERROR num $error -- error while adding file : ${target_file} to calibredb : ${calibredb_path}" 
+                echo " ** ERROR [$0] : ${calibredb_tool_path} add_format --with-library="${calibredb_path}/" ${book_id} "${target_file}""
+                exit 1
+            fi
+            echo "** Done"
         fi
         ;;
 
 
     STANDARD|* )
+        echo "** Converting ebook"
         ${ebook_convert_tool_path} "${source_file}" "${target_file}" $@
+        echo "** Done"
         ;;
 esac
 

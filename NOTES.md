@@ -169,7 +169,10 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
     * https://github.com/Jackett/Jackett
     * centralize torrent trackers and tranlate queries from torrent app  (Sonarr, Radarr, SickRage, CouchPotato, Mylar, Lidarr, DuckieTV, qBittorrent, Nefarious ...) into specific tracker queries
 
-
+* Autotorrent
+    * allow to rebuild a torrent from files splitted in other directories
+    * https://github.com/JohnDoee/autotorrent
+    * docker version : https://github.com/illallangi-docker/autotorrent https://github.com/claabs/autotorrent
 
 ## Music
 
@@ -576,7 +579,8 @@ Into Organizr2
 * DeDRM calibre plugin - remove DRM from amazon ebook
     * a docker version with calibre, plugin DeDRM, Kindle for PC (with wine) https://github.com/vace117/calibre-dedrm-docker-image
 
-* KCC - KCC is actually a comic/manga to EPUB converter
+* KCC - Kindle Comic Converter
+    * KCC is actually a comic/manga to EPUB converter (not the same than Amazon's Kindle Comic Creator)
     * KCC can understand and convert PNG, JPG, GIF or WebP files in folders, CBZ, ZIP, CBR, RAR , CB7, 7Z, PDF
     * https://github.com/ciromattia/kcc
     * ComicRack metadata : KCC read XML file called ComicInfo.xml in the root of the CBZ/CBR/CB7 archive (https://github.com/ciromattia/kcc/wiki/ComicRack-metadata)
@@ -876,8 +880,9 @@ Choose one of these options :
     * initialize an empty calibre database
     * TODO inject this code https://github.com/cgspeck/docker-rdp-calibre/blob/master/firstrun.sh into studioetrange/docker-calibre-mod ?
 
-* install kindlegen into calibre-mod ?
+* [ ] install kindlegen into calibre-mod ?
     * install method https://github.com/Technosoft2000/docker-calibre-web/blob/f074829ccac84a0b140b70701802548f83d4c90c/Dockerfile#L39
+    * kindlegen seems to be deprecated aswell as MOBI format by amazon : https://www.amazon.com/gp/feature.html?ie=UTF8&docId=1000765211
 
 
 

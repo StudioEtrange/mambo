@@ -133,7 +133,7 @@ case ${ACTION} in
     ;;
     info )
         case ${TARGET} in
-            plex|sabnzbd|medusa )
+            plex|sabnzbd|medusa|tautulli )
                 __action_done_by_mambo="1"
             ;;
         esac
@@ -157,6 +157,7 @@ case ${ACTION} in
         __transmission_set_context
         __sabnzbd_set_context
         __medusa_set_context
+        __tautulli_set_context
         __plex_set_context
     ;;
 esac
@@ -263,11 +264,11 @@ case ${ACTION} in
                 __organizr2_auth "PRINT"
             ;;
             disable )
-                __tango_log "INFO" "mambo" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
+                __tango_log "INFO" "mambo" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable to OFF"
                 __organizr2_scheduler_shutdown
             ;;
             enable )
-                __tango_log "INFO" "mambo" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable"
+                __tango_log "INFO" "mambo" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable to ON"
                 __organizr2_scheduler_set
             ;;
         esac
@@ -294,6 +295,10 @@ case ${ACTION} in
                 echo "L-- Password : ${SABNZBD_PASSWORD}"
                 echo "L-- API KEY : ${SABNZBD_API_KEY}"
                 echo "L-- NZB KEY : ${SABNZBD_NZB_KEY}"
+            ;;
+            tautulli )
+                echo "---------==---- Tautulli ----==---------"
+                echo "L-- API KEY : ${TAUTULLI_API_KEY}"
             ;;
             medusa )
                 echo "---------==---- MEDUSA ----==---------"

@@ -39,6 +39,7 @@ NOTE : mambo will auto install all other required tools like docker-compose insi
 * Calibre Web - web ebook reader and library
 * Calibre - ebook management
 * MKVToolNix - Matroska tools with WebGUI - Video Editing (Remuxing - changing media container while keeping original source quality)
+* Kindle Comic Converter - graphical tool and cli to manage/convert  ebook
 
 
 &nbsp;
@@ -221,8 +222,15 @@ NOTE : mambo will auto install all other required tools like docker-compose insi
 
 * TODO continue
 
+### 1.Auto configuration
 
-### Plex and Organizr2 
+* Auto configuration steps :
+    `./mambo init plex`
+
+* Start service
+    `./mambo up plex`
+
+### 2.Plex and Organizr2 
 
 Into Organizr2
 
@@ -230,29 +238,24 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Plex - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://plex.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
-        * Choose image : `ombi-plex`
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
+        * Choose image : `plex`
     * Tab editor / Tabs list 
         * Group : User
 
-* SSO : Allow to login only to organizr2, plex login is automatic
+* SSO : Delegate ombi authentification to organizr2
     * See Organizr2 settings
 
 * Integration to Homepage :
     * Tab Editor / Homepage Items / Plex (WARN : you should check every values you setted in every tab of this settings panel before save it)
         * Enable, Minimum Authentication : User
         * Connection / Url : http://plex:32400
-        * Connection / Token : get token with command `./mambo info plex`
+        * Connection / Token : get token (X-Plex-Token) with command `./mambo info plex`
         * Connection / Machine : get machine identifier with command `./mambo info plex`
         * Personalize all viewing options - recommended : 
             * Active Streams / Enable, Minimum Authentication : User
             * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
             * Misc Options / Plex Tab Name : Plex (Name of your plex tab in setted in tab editor)
             * Misc Options / Url : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
-            * The Plex Tab Name and Plex Tab WAN URL are used to configure the homepage items to open up inside the Plex Tab you have setup
 
 ### Plex and GPU
 
@@ -260,17 +263,15 @@ Into Organizr2
 * To enable GPU transcoding into plex declare `PLEX_GPU=INTEL_QUICKSYNC|NVIDIA`
 
 
-
 ----
 ## Organizr2
 
 * With organiz2, you could bring up a central portal for all your services
 
-* github project https://github.com/causefx/Organizr/
-* docker github project https://github.com/Organizr/docker-organizr
+* source code : https://github.com/causefx/Organizr/
+* docker image code : https://github.com/Organizr/docker-organizr
 * a guide https://smarthomepursuits.com/install-organizr-v2-windows/
 * api documentation : https://organizr.mydomain.com/api/docs/
-
 
 
 ### 1.Auto configuration
@@ -293,21 +294,23 @@ go to https://organizr.domain.com (check ORGANIZR2_SUBDOMAIN value)
     * api : do not change
     * db name : db
     * db path : /config/www/db
-    * In system settings, main, API : get API key and set `ORGANIZR2_API_TOKEN_PASSWORD` value in a mambo.env file
+    
+Into mambo.env
+    * set key `ORGANIZR2_API_TOKEN_PASSWORD` with value from system Settings / System Settings / main / API
 
-
-* Use plex authentification with organizr2 [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
+* To use plex authentification with organizr2 [https://docs.organizr.app/books/setup-features/page/plex-authentication] :
     * Settings / System Settings / Main / Authentication
         * Type : Organizr DB + Backend
         * Backend : plex
-        * Do get plex token / then save
-        * Do get plex machine (you can use command `./mambo info plex` to check some plex server info)
+        * Do get plex token / then [SAVE]
+        * Do get plex machine  / then [SAVE]
+            * you can use command `./mambo info plex` to check some plex server info but only if you have already configured plex service
         * Admin username : a plex user admin that will match admin organizr admin account
         * Strict plex friends : enabled (only plex friends are registered)
         * Enable Plex oAuth : enabled (active plex login to log into organizr)
 
     * Settings / System Settings / Main / Login
-        * Hide registration : enabled - if you wish to disable auto registration
+        * Hide registration : enabled
 
     * Settings / System Settings / Main / Security
         * Enable Traefik Auth Redirect - When accessing directly to a service and using forwardAuth to test user access, will redirect on organizr login page if user is not logged. (Will throw HTTP 401 if this option is disabled)
@@ -322,6 +325,7 @@ go to https://organizr.domain.com (check ORGANIZR2_SUBDOMAIN value)
         * Settings / Customize / Appearance / Login Page : 
             * use logo instead of Title on Login Page : disabled
             * minimal login screen : enable
+        * Settings / Customize / Appearance / Options :  Disable useless lings
         * Settings / Customize / Marketplace : install plex theme
         * Settings / Customize / Appearance / Colors & Themes : select theme plex, style dark
             (Theme URL is https://github.com/Burry/Organizr-Plex-Theme)
@@ -343,6 +347,35 @@ go to https://organizr.domain.com (check ORGANIZR2_SUBDOMAIN value)
         * service name : `ombi` organizr2 tab name : `ombi`
         * service name : `calibreweb_books` organizr2 tab name : `books`
 
+
+### Organizr2 : test another version
+
+* To test another version, referenced by its commit, tag or github branch, there is an inactive service `organizrtest` for this purpose
+    * Stop organizr main instance `./mambo down organizr2` and backup its data folder `mambo-data/oprganizr2`
+    * Add this section into your `mambo.env`
+    ```
+    ORGANIZR2_INSTANCE=organizrtest
+    ORGANIZR2_API_VERSION=2
+    TANGO_SERVICES_AVAILABLE+=organizrtest
+    TANGO_SUBSERVICES_ROUTER+=organizrtest_plex
+    NETWORK_SERVICES_AREA_MAIN+=organizrtest
+    NETWORK_SERVICES_REDIRECT_HTTPS+=organizrtest
+    LETS_ENCRYPT_SERVICES+=organizrtest
+    TANGO_TIME_VOLUME_SERVICES+=organizrtest
+    ORGANIZRTEST_API_TOKEN_PASSWORD=
+    APP_DATA_PATH_SUBPATH_LIST+=ORGANIZRTEST_DATA_PATH
+    ORGANIZRTEST_BRANCH=manual
+    ORGANIZRTEST_COMMIT=12357eeb0df0f97f8cc48de9208695fdd0b42e15
+    ORGANIZRTEST_SUBDOMAIN=organizrtest.
+    ORGANIZRTEST_DATA_PATH=organizrtest
+    ```
+    * Init & start test instance
+    ```
+    ./mambo init organizr2
+    ./mambo up organizrtest
+    ```
+    * see https://organizrtest.domain.com
+    * follow previous organizr2 configuration procedure
 
 ----
 ## Tautulli
@@ -387,6 +420,8 @@ go to https://organizr.domain.com (check ORGANIZR2_SUBDOMAIN value)
 * to add a new plex user just refresh user list
 * edit user and check "Allow guest access"
 
+* more info : `./mambo info tautulli`
+
 ### Tautulli and Organizr2 
 
 Into Organizr2
@@ -395,25 +430,22 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://tautulli.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : tautulli
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list
         * Group : User
         
 * SSO : Allow to login only to organizr2, tautulli login is automatic
-    * System Settings - Single Sign-On
-        * Tautulli Url : `http://tautulli:5000` (DO NOT CHANGE THIS : it is the local docker network url)
+    * System Settings / Single Sign-On / Tautulli
+        * Tautulli Url : `http://tautulli:8181` (DO NOT CHANGE THIS : it is the local docker network url)
         * `Enable` SSO
 
 * Integration to Homepage :
     * Tab Editor / Homepage Items / Taututlli
         * Enable, Minimum Authentication : User
-        * Connection / Url : http://tautulli:8181
-        * Connection / API : get api key from tautulli
         * Personalize all viewing options
+        * Connection / Url : http://tautulli:8181
+        * Connection / API : get api key from tautulli or from `./mambo info tautulli`
+        
 
 ----
 ## Sabnzbd
@@ -438,11 +470,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Sabnzbd - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://sabnzbd.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : sabnzbd
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list
         * Group : Co-Admin
 
@@ -482,7 +510,37 @@ go to sabnzbd through organizr https://organizr.mydomain.com/#Sabnzbd
     * API Key : get API key with `./mambo info sabnzbd` or from within sabnzbd admin panel (you can get also from here a QRCode)
 
 
+----
+## Kindle Comic Converter (KCC)
 
+* Kindle Comic Converter is a Python app to convert comic/manga files or folders to EPUB, Panel View MOBI or E-Ink optimized CBZ.
+* source code : https://github.com/StudioEtrange/kcc
+* docker image code : https://github.com/StudioEtrange/docker-kcc
+
+
+### 1.Manual Configuration
+
+* Start service
+    `./mambo up kcc`
+
+
+
+### 2.Manual configuration : KCC and Organizr2 
+
+Into Organizr2
+
+    
+    * Image manager
+        * Add image file `KCC_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
+
+
+    * Add a tab in Organizr2 menu
+        * Tab editor / add a tab ("plus" button)
+            * Tab name : KCC - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab Url : `https://kcc.mydomain.com`
+            * Choose image : KCC_logo.png
+        * Tab editor / Tabs list 
+            * Group : Co-Admin
 
 
 ----
@@ -509,11 +567,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Medusa - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://medusa.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : medusa
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list
         * Group : Co-Admin
 
@@ -532,16 +586,10 @@ Into Medusa, deactivate login because access is protected with organizr2
     * General / Interface / Web Interface / HTTP username : blank
     * General / Interface / Web Interface / HTTP password : blank
 
-
 ### 3.Manual configuration
 
-go to sabnzbd through organizr https://medusa.mydomain.com/#Mabnzbd
+TODO
 
-Into Medusa
-
-* Medusa configuration :
-    * General / Misc
-        * Show root directories : add each tv media folders from `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
 
 ---
 
@@ -551,12 +599,14 @@ Into Medusa
 * https://github.com/clinton-hall/nzbToMedia
 
 * Usage
-    * Only init it after sabnzbd and medusa init once with  `./mambo init nzbtomedia`
+    * Only init it after init of sabnzbd and medusa with  `./mambo init nzbtomedia`
 
 ----
 ## Ombi
 
 * Guide https://github.com/Cloudbox/Cloudbox/wiki/Install%3A-Ombi
+
+## 1. Manual Configuration
 
 * Parameters 
     * Ombi
@@ -573,7 +623,7 @@ Into Medusa
         * Hostname : `plex`
         * Port : `32400`
         * SSL : `enabled`
-        * Plex Authorization Token : get Auth token with `./mambo info plex`
+        * Plex Authorization Token (X-Plex-Token) : get Auth token with `./mambo info plex`
         * Click on Test Connectivity
         * Click on Load Libraries and select libraries in which content will look for user request
     * Configuration / Customization
@@ -591,12 +641,7 @@ Into Medusa
         * Password : xxxx
         
 
-### Ombi new users
-
-* To add users 
-    * Parameters / Configuration / User importer : Run importer
-
-### Ombi and Organizr2 
+### 2. Ombi and Organizr2 
 
 Into Organizr2
 
@@ -604,38 +649,46 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Ombi - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://ombi.mydomain.com/auth/cookie`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : `ombi-plex`
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list 
         * Group : User
 
-* SSO : Allow to login only to organizr2, ombi login is automatic
+* SSO : Delegate ombi authentification to organizr2
     * System Settings - Single Sign-On
-        * Ombi Url : `http://ombi:5000` (DO NOT CHANGE THIS : it is the local docker network url)
+        * Ombi Url : `http://ombi:5000`
         * Token : get API Key from Ombi settings / Ombi / Ombi Configuration
 
-* Integration to Homepage : TODO
+* Integration to Homepage : TODO ?
+
+### Ombi new users
+
+* To add users 
+    * Parameters / Configuration / User importer : Run importer
+
 ---
 ## MKVToolNix
 
-* Check it works at `https://mkvtoolnix.domain.com`
+* direct url : `https://mkvtoolnix.domain.com`
 
-### MKVToolNix and Organizr2 
+### 1.Manual Configuration
+
+* Start service
+    `./mambo up mkvtoolnix`
+
+
+
+### 2.MKVToolNix and Organizr2 
 
 Into Organizr2
+
+* Image manager
+    * Add image file `mkvtoolnix_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
         * Tab name : MKVToolNix - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://mkvtoolnix.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
-        * Image url : `https://img2.freepng.fr/20180609/ij/kisspng-matroska-mkvtoolnix-computer-software-5b1b5f16f14ec2.9703737815285204709884.jpg`
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
+        * Choose image : `mkvtoolsnix_logo`
     * Tab editor / Tabs list
         * Group : Co-Admin
 
@@ -649,9 +702,11 @@ Into Organizr2
 * you can see your instance at https://my.jdownloader.org/
 
 ----
-## Lazylibrarian
+## Lazylibrarian - WIP - Disabled
 
 access through https://lazylibrarian.domain.com
+
+### 1. Manual Configuration
 
 * Config / Processing
     * Folders / eBook Library Folder : `/calibredb/books`
@@ -661,7 +716,7 @@ access through https://lazylibrarian.domain.com
         * Uncheck Magazines inside book folder
 
 
-### Lazylibrarian Web and Organizr2
+### 2.Lazylibrarian and Organizr2
 
 Into Organizr2
 
@@ -669,11 +724,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Lazylibrarian - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://lazylibrarian.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : `lazylibrarian`
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list 
         * Group : Co-Admin
       
@@ -697,11 +748,15 @@ Into Organizr2
 
 * NOTE : when modify settings from webui, they are saved only when transmission is stopped
 
-### Transmission and Organizr2 
+### 1.Manual Configuration
 
 Into mambo.env 
-    
-* set TRANSMISSION_USER and TRANSMISSION_PASSWORD
+    * set TRANSMISSION_USER and TRANSMISSION_PASSWORD
+
+* Start service
+    `./mambo up transmission`
+
+### 2.Transmission and Organizr2
 
 Into Organizr2
     
@@ -709,11 +764,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Transmission - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://internal-transmission.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : `transmission`
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list
         * Group : Co-Admin
 
@@ -721,7 +772,7 @@ Into Organizr2
     * Tab Editor / Homepage Items / Transmission
         * Enable, Minimum Authentication : Co-Admin
         * Connection / Url : `https://transmission.mydomain.com/transmission/rpc/` (We can not use internal network alias http://transmission if transmission is tied to a vpn service)
-        * Connection / User and password : fill with correct values
+        * Connection / User and password : fill with correct values from TRANSMISSION_USER and TRANSMISSION_PASSWORD
 
 
 ### Third party tools
@@ -747,6 +798,11 @@ About sending to kindle and format :
     * If Epub file is existing, it's converted and send to kindle email,
     * If Pdf file is existing, it's directly send to kindle email
 
+### 1.Manual Configuration
+
+* Start service
+    `./mambo up calibreweb_books`
+
 
 Into Calibre web `https://books.mydomain.com`
 
@@ -756,7 +812,7 @@ Into Calibre web `https://books.mydomain.com`
 
 * Admin / Configuration / Edit UI Configuration
     * Default Settings for New Users
-        * Allow Downloads (needed to get send to kindle feature)
+        * Allow Downloads (needed by the feature : send to kindle)
         * Allow eBook Viewer
     * Remove view by author and publisher
  
@@ -774,8 +830,9 @@ Into Calibre web `https://books.mydomain.com`
 * Admin / Configuration / Edit Basic Configuration
     * Feature Configuration : Enable Uploads
     * External binaries
-        * Path to Calibre E-Book Converter : /pool/mambo/ebooks/ebook_convert_wrapper.sh
-        * Calibre E-Book Converter Settings : ADD_CALIBREDB_AND_METADATA_FROM_OPF /usr/bin /books -v
+        * Path to Calibre E-Book Converter : /pool/mambo/ebooks/ebook_convert_wrapper.sh      
+        * Calibre E-Book Converter Settings : METADATA_FROM_OPF /usr/bin /books -v 
+            * for calibre-web < v0.6.11 which fo not auto add the converted book to calibre library : Calibre E-Book Converter Settings : ADD_CALIBREDB_AND_METADATA_FROM_OPF /usr/bin /books -v
         * Path to Kepubify E-Book Converter : /usr/bin/kepubify
         * Location of Unrar binary : /usr/bin/unrar
 
@@ -796,8 +853,12 @@ Into Calibre web `https://books.mydomain.com`
         * Theme : caliblur
         * sort regexp : tweak it if needed
 
-### Calibre Web and Organizr2
+### 2.Calibre Web and Organizr2
 
+Into Organizr2
+
+    * Image manager
+        * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
 
 Into Calibre web
 
@@ -809,16 +870,12 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : books - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : books - MUST be same name as listed in `mambo services list` (after character _) - ignore case
         * Tab Url : `https://books.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
         * Choose image : `calibre-web`
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
     * Tab editor / Tabs list 
         * Group : User
-        * Type : New window
+
 
 * Settings / System Settings / Main / Security
     * Iframe sandbox : add `Allow Downloads` to authorize ebooks downloading from within organizr window
@@ -829,7 +886,7 @@ WARN
 * to debug/test add a direct access port to calibreweb dedicated to your media : `CALIBREWEB_BOOKS_DIRECT_ACCESS_PORT=22222` and access it through `http://localhost:22222`
 
 
-### Calibre Web new users
+### Guide : Calibre Web new users
 
 To add a matching plex user to Calibre web, 
 you can check registerd plex username/mail in Ombi user list
@@ -849,14 +906,28 @@ Each user can set himself it's kindle mail. Calibre-web convert on the fly the s
 
 *For press, do the same than books but replace `books` by `press`*
 
+Into Organizr2
 
-* Admin / Configuration / Edit UI Configuration
-    * Remove view by author and publisher
+    * Image manager
+        * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
+
+Into Calibre Web
+
+    * Admin / Configuration / Edit UI Configuration
+        * Remove view by author and publisher
 
 
 # Calibre
 
 NOTE : to copy/paste inside calibre use Ctrl+shift+alt
+
+
+### 1.Configuration
+
+* Start service
+    `./mambo up calibre`
+
+
 
 Into Organizr2
 
@@ -864,11 +935,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Calibre - MUST be same name as listed in `mambo services list` - ignore case
         * Tab Url : `https://calibre.mydomain.com`
-        * Local Url : not needed (or same as Tab Url)
-        * Choose image : any image
-        * Press 'Test tab' : it will indicate if we can use this tab as iframe
-        * Press 'Add tab'
-        * Refresh your browser page
+        * Choose image : cops
     * Tab editor / Tabs list 
         * Group : Co-Admin
 
