@@ -5,30 +5,8 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${APP_DATA_PATH}/${WEB2_ROOT_FOLDER}
+      device: ${WEB2_PATH}
     name: ${TANGO_APP_NAME}_web2_data
-  transmission_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${APP_DATA_PATH}/transmission_data
-    name: ${TANGO_APP_NAME}_transmission_data
-  transmission_download:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${APP_DATA_PATH}/transmission_download
-    name: ${TANGO_APP_NAME}_transmission_download
-  transmission_watch:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${APP_DATA_PATH}/transmission_watch
-    name: ${TANGO_APP_NAME}_transmission_watch
-
 
 services:
   
@@ -45,10 +23,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.web2.entrypoints=${WEB2_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.web2.rule=HostRegexp(`{subdomain:web2}.{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.web2.priority=${WEB2_PRIORITY:-200}"
+      - "traefik.http.routers.web2.priority=${WEB2_PRIORITY}"
       - "traefik.http.routers.web2.service=web2"
       - "traefik.http.routers.web2-secure.entrypoints=${WEB2_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.web2-secure.rule=HostRegexp(`{subdomain:web2}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.web2-secure.priority=${WEB2_PRIORITY}"
       - "traefik.http.routers.web2-secure.service=web2"
       - "traefik.http.routers.web2-secure.tls=true"
       - "traefik.http.routers.web2-secure.tls.domains[0].main=web2.${TANGO_DOMAIN:-.*}"
@@ -71,10 +50,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.entrypoints=${WHOAMI_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.whoami.rule=HostRegexp(`{subdomain:whoami}.{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.whoami.priority=${WWHOAMI_PRIORITY:-200}"
+      - "traefik.http.routers.whoami.priority=${WHOAMI_PRIORITY}"
       - "traefik.http.routers.whoami.service=whoami"
-      - "traefik.http.routers.whoami-secure.entrypoints=${WWHOAMI_ENTRYPOINTS_SECURE:-web_main_secure}"
+      - "traefik.http.routers.whoami-secure.entrypoints=${WHOAMI_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.whoami-secure.rule=HostRegexp(`{subdomain:whoami}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.whoami-secure.priority=${WHOAMI_PRIORITY}"
       - "traefik.http.routers.whoami-secure.service=whoami"
       - "traefik.http.routers.whoami-secure.tls=true"
       - "traefik.http.routers.whoami-secure.tls.domains[0].main=whoami.${TANGO_DOMAIN:-.*}"
@@ -107,10 +87,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.firefox.entrypoints=${FIREFOX_ENTRYPOINTS:-web_main}"
       - "traefik.http.routers.firefox.rule=HostRegexp(`{subdomain:firefox}.{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.firefox.priority=${FIREFOX_PRIORITY:-200}"
+      - "traefik.http.routers.firefox.priority=${FIREFOX_PRIORITY}"
       - "traefik.http.routers.firefox.service=firefox"
       - "traefik.http.routers.firefox-secure.entrypoints=${FIREFOX_ENTRYPOINTS_SECURE:-web_main_secure}"
       - "traefik.http.routers.firefox-secure.rule=HostRegexp(`{subdomain:firefox}.{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.firefox-secure.priority=${FIREFOX_PRIORITY}"
       - "traefik.http.routers.firefox-secure.service=firefox"
       - "traefik.http.routers.firefox-secure.tls=true"
       - "traefik.http.routers.firefox-secure.tls.domains[0].main=firefox.${TANGO_DOMAIN:-.*}"
@@ -119,50 +100,6 @@ services:
       - "traefik.http.services.firefox.loadbalancer.passhostheader=true"
     networks:
       - default
-    #network_mode: "service:vpn"
     expose:
       - 5000
     
-  # https://github.com/linuxserver/docker-transmission
-  transmission:
-    image: linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
-    container_name: ${TANGO_APP_NAME}_transmission
-    depends_on: 
-      - service_init
-    restart: unless-stopped
-    volumes:
-      - transmission_download:/config
-      - transmission_data:/downloads
-      - transmission_watch:/watch
-    environment:
-      - PUID=${TANGO_USER_ID:-0}
-      - PGID=${TANGO_GROUP_ID:-0}
-      # Specify an alternative UI options are /combustion-release/, /transmission-web-control/, and /kettu/
-      - TRANSMISSION_WEB_HOME=/transmission-web-control/
-      - USER=${TRANSMISSION_USER}
-      - PASS=${TRANSMISSION_PASSWORD}
-    labels:
-      - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.transmission.entrypoints=${TRANSMISSION_ENTRYPOINTS:-web_main}"
-      - "traefik.http.routers.transmission.rule=HostRegexp(`{subdomain:transmission}.{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.transmission.priority=${TRANSMISSION_PRIORITY:-200}"
-      - "traefik.http.routers.transmission.service=transmission"
-      - "traefik.http.routers.transmission-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-web_main_secure}"
-      - "traefik.http.routers.transmission-secure.rule=HostRegexp(`{subdomain:transmission}.{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.transmission-secure.service=transmission"
-      - "traefik.http.routers.transmission-secure.tls=true"
-      - "traefik.http.routers.transmission-secure.tls.domains[0].main=transmission.${TANGO_DOMAIN:-.*}"
-      - "traefik.http.services.transmission.loadbalancer.server.port=9091"
-      - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
-      - "traefik.http.services.transmission.loadbalancer.passhostheader=true"
-    networks:
-       - default
-    #network_mode: "service:vpn"
-    expose:
-      - 9091/tcp
-      - 51413/tcp
-      - 51413/udp
-    ports:
-      - ${TRANSMISSION_PORT}:51413/tcp
-      - ${TRANSMISSION_PORT}:51413/udp
