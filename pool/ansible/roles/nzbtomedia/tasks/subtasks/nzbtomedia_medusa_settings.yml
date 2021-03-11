@@ -1,6 +1,31 @@
+#    [[tv]]
+#        enabled = 1
+#        host = medusa.chimere-harpie.org
+#        port = 443
+#        apikey = pPZ3FLN2oPt3T3pkDVH4A1w2KSBiwiHn
+#        username = ""
+#        password = ""
+#        ###### ADVANCED USE - ONLY EDIT IF YOU KNOW WHAT YOU'RE DOING ######
+#        web_root = ""
+#        ssl = 1
+#        fork = medusa
 ---
+# medusa.host is used from other service (transmission, sabnbzd..) which may not know "medusa" hostname if they are connecter to a vpn
 - name: Set medusa settings
   replace:
     path: "{{ nzbtomedia_cfg.stat.path }}"
-    regexp: '(\[SickBeard\][^\[]*\[\[tv\]\]$)([^\#]*)###'
-    replace: '\1\n        enabled = 1\n        host = medusa\n        port = 8081\n        apikey = {{ medusa.api_key }}\n        username = {{ medusa.user }}\n        password = {{ medusa.pass }}\n###'
+    regexp: '(\[SickBeard\][^\[]*\[\[tv\]\]$)((\s*|.*)*)(fork\s?=.*)'
+    replace: '\1\n        enabled = 1\n        host = {{ medusa.host }}\n        port = {{ medusa.port }}\n        apikey = {{ medusa.api_key }}\n        username = {{ medusa.user }}\n        password = {{ medusa.pass }}\n        ###### ADVANCED USE - ONLY EDIT IF YOU KNOW WHAT YOU RE DOING ######\n        web_root = ""\n        ssl = 1\n        fork = Medusa-api'
+
+- name: Set medusa to force post processing
+  replace:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '(\[SickBeard\][^\[]*\[\[tv\]\]$)((\s*|.*)*)(force\s?=.*)'
+    replace: '\1\2force = 1'
+
+# seems to not work
+# - name: Ask medusa to delete after processing
+#   replace:
+#     path: "{{ nzbtomedia_cfg.stat.path }}"
+#     regexp: '(\[SickBeard\][^\[]*\[\[tv\]\]$)((\s*|.*)*)(delete_on\s?=.*)'
+#     replace: '\1\delete_on = 1'

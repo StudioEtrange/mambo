@@ -1,0 +1,36 @@
+---
+# plex settings
+- name: Enable plex features
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^use_plex_server\s?=.*'
+    line: 'use_plex_server = 1'
+    state: present
+
+- name: Update plex library
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^plex_update_library\s?=.*'
+    line: 'plex_update_library = 1'
+    state: present
+
+- name: Set plex host
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^plex_server_host\s?=.*'
+    line: 'plex_server_host = plex:32400,'
+    state: present
+
+- name: Set plex scheme
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^plex_server_https\s?=.*'
+    line: 'plex_server_https = 1'
+    state: present
+  
+- name: Set plex token
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^plex_server_token\s?=.*'
+    line: 'plex_server_token = {{ plex.auth_token }}'
+    state: present

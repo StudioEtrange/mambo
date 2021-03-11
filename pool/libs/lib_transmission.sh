@@ -50,6 +50,9 @@ __transmission_set_port() {
 # -----------------------------------------------------------------------------------------
 # declare variables
 __transmission_set_context() {
+    export TRANSMISSION_CFG_PATH="$TRANSMISSION_DATA_PATH/settings.json"
+    __add_declared_variables "TRANSMISSION_CFG_PATH"
+
     export TRANSMISSION_AUTH_ENABLED=
     __add_declared_variables "TRANSMISSION_AUTH_ENABLED"
 
@@ -109,4 +112,41 @@ __transmission_auth() {
         __tango_log "DEBUG" "transmission" "Auto login to internal transmission url in generated compose file stays active"
     fi
 
+}
+
+
+
+
+
+__transmission_init() {
+    if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "transmission"; then
+        __transmission_init_files
+        # configure
+        __transmission_settings
+    fi
+}
+
+# sabnzbd auto generate api keys at first launch
+__transmission_init_files() {
+    if [ ! -f "${TRANSMISSION_CFG_PATH}" ]; then
+        # generate settings file
+        __tango_log "DEBUG" "transmission" "Creating settings file"
+
+        __service_down "transmission" "NO_DELETE"
+        __service_up "transmission"
+        # wait for conf to be created
+        sleep 4
+        __service_down "transmission" "NO_DELETE"
+        sleep 4
+    fi
+}
+
+# configure sabnzbd
+__transmission_settings() {
+    if [ "$TANGO_LOG_LEVEL" = "DEBUG" ]; then
+        $STELLA_API ansible_play_localhost "$TANGO_APP_ROOT/pool/ansible/ansible-playbook.yml" "$TANGO_APP_ROOT/pool/ansible/roles" "TAGS transmission DEBUG"
+    else
+        $STELLA_API ansible_play_localhost "$TANGO_APP_ROOT/pool/ansible/ansible-playbook.yml" "$TANGO_APP_ROOT/pool/ansible/roles" "TAGS transmission"
+    fi
+    __tango_log "INFO" "mambo" "we have tweaked some transmission values, you should start/restart it"
 }

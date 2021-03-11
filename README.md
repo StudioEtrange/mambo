@@ -377,6 +377,17 @@ Into mambo.env
     * see https://organizrtest.domain.com
     * follow previous organizr2 configuration procedure
 
+
+
+### Organizr2 : change version
+
+Organizr2 auto update feature is disables in Mambo
+
+Choose a commit version from https://github.com/causefx/Organizr and set it as ORGANIZR2_COMMIT value
+
+Then ./mambo update organizr2
+     ./mambo up organizr2
+
 ----
 ## Tautulli
 
@@ -457,7 +468,9 @@ Into Organizr2
 
 * Auto configuration steps :
     `./mambo init sabnzbd`
+        * will set right downloads and other folders
     `./mambo init nzbtomedia`
+        * will set nzbToMedia settings : connect transmission to medusa
 
 * Start service
     `./mambo up sabnzbd`
@@ -491,7 +504,9 @@ go to sabnzbd through organizr https://organizr.mydomain.com/#Sabnzbd
     * Servers
         * Add your newsgroup servers
     * Categories : Create categories for each kind of media files in `/media/folders` as defined by variables `TANGO_ARTEFACT_FOLDERS`
-        * tv / script : nzbToSickBeard.sh
+        * tv
+            * script : nzbToSickBeard.sh
+            * folder : /download/processdir/tv
     * Switches
         * enable Direct Unpack
 
@@ -547,13 +562,19 @@ Into Organizr2
 ## Medusa
 
 
+* Usage guide : https://community.seedboxes.cc/articles/how-to-use-medusa-with-your-seedbox
+* Post processing guide : https://github.com/pymedusa/Medusa/wiki/Post-Processing
+
 ### 1.Auto configuration
 
 * Auto configuration steps :
     `./mambo init medusa`
         * will set plex notification
         * will set sabnzbd as search provider
+        * will set transmission as search provider
     `./mambo init nzbtomedia`
+        * will set nzbToMedia settings : connect transmission to medusa
+
 * Start service
     `./mambo up medusa`
 
@@ -588,18 +609,52 @@ Into Medusa, deactivate login because access is protected with organizr2
 
 ### 3.Manual configuration
 
-TODO
-
+* In settings
+    * General / Misc / Show root directories : Add TV show folders
+    * Search Settings / Episode Search
+        * Set any search filters needed (i.e `required words`)
+    * Search Providers : add your providers    
+    * Subtitles / Subtitles Search 
+        * Languages : add any language you need
+        * Perfect Match - Only download subtitles that match release group : yes
+        * Subtitles Multi-Language - Append language codes to subtitle : yes
+    * Subtitles / Subtitles Plugin : select subtitle provider 
+    * Subtitles / Plugin settings : configure subtitle provider
+    * Post-Processing / Episode naming
+        * Custom name pattern : SEASON %S/%RN
 
 ---
 
 ## nzbToMedia
 
-* Special tool used to connect medusa and sabnzbd
+* Special tool used to connect medusa with sabnzbd and transmission
 * https://github.com/clinton-hall/nzbToMedia
+
+* Sequence for newsgroup :
+    * Medusa will find a tv show file in an nzb indexer or torrent tracker
+    * Download order is sent to sabnzbd/transmission
+    * When finished sabnzbd/transmission will execute an nzbToMedia script
+        * process downloaded file with nzbTomedia
+        * notify medusa at the end of the process
+    * Medusa will post-process the file
 
 * Usage
     * Only init it after init of sabnzbd and medusa with  `./mambo init nzbtomedia`
+
+# MEDUSA <-> TRANSMISSION 
+
+* sync  workflow for a tv show download
+
+medusa send signal to transmission to download file in /download/transmission/complete/tv (medusa variable : torrent_path)
+transmission download file in /download/transmission/incomplete/file
+transmission move file in /download/transmission/complete/tv/file
+transmission seed file from /download/transmission/complete/tv/file
+transmission exec nzbtomedia script TorrentToMedia
+nzbtomedia create hard link from /download/transmission/complete/tv/file to /download/processdir/file (nzbtomedia variable : outputDirectory)
+nzbtomedia send signal to medusa
+medusa process file from /download/processdir
+medusa copy file from /download/processdir to /library/tv/show/folder
+
 
 ----
 ## Ombi
@@ -748,11 +803,16 @@ Into Organizr2
 
 * NOTE : when modify settings from webui, they are saved only when transmission is stopped
 
-### 1.Manual Configuration
+### 1.Configuration
 
 Into mambo.env 
     * set TRANSMISSION_USER and TRANSMISSION_PASSWORD
 
+* Auto configuration steps :
+    `./mambo init transmission`
+        * will set right download folders
+    `./mambo init nzbtomedia`
+        * will set nzbToMedia settings : connect transmission to medusa
 * Start service
     `./mambo up transmission`
 
@@ -771,8 +831,9 @@ Into Organizr2
 * Integration to Homepage :
     * Tab Editor / Homepage Items / Transmission
         * Enable, Minimum Authentication : Co-Admin
-        * Connection / Url : `https://transmission.mydomain.com/transmission/rpc/` (We can not use internal network alias http://transmission if transmission is tied to a vpn service)
+        * Connection / Url : `https://transmission.mydomain.com/transmission/rpc/` (We can not use internal network alias http://transmission when transmission is tied to a vpn service)
         * Connection / User and password : fill with correct values from TRANSMISSION_USER and TRANSMISSION_PASSWORD
+
 
 
 ### Third party tools

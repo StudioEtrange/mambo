@@ -5,5 +5,6 @@
   roles:
     - { role: sabnzbd, tags: ['sabnzbd'] }
     - { role: medusa, tags: ['medusa'] }
+    - { role: transmission, tags: ['transmission'] }
     - { role: nzbtomedia, tags: ['nzbtomedia'] }
     

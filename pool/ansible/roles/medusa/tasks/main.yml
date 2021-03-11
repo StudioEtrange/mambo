@@ -9,6 +9,29 @@
     path: "{{ medusa.ini }}"
   register: medusa_ini
 
+- name: Register sabnzbd_ini
+  stat:
+    path: "{{ sabnzbd.ini }}"
+  register: sabnzbd_ini
+
+- name: Register transmission_cfg
+  stat:
+    path: "{{ transmission.cfg }}"
+  register: transmission_cfg
+  
+
 - name: Settings Tweaks
   include_tasks: "subtasks/medusa_settings.yml"
+  when: medusa_ini.stat.exists and medusa_ini.stat.exists
+
+- name: Settings sabnzbd medusa settings
+  include_tasks: "subtasks/medusa_sabnzbd_settings.yml"
+  when: sabnzbd_ini.stat.exists and medusa_ini.stat.exists
+
+- name: Settings transmission medusa settings
+  include_tasks: "subtasks/medusa_transmission_settings.yml"
+  when: transmission_cfg.stat.exists and medusa_ini.stat.exists
+
+- name: Settings plex medusa settings
+  include_tasks: "subtasks/medusa_plex_settings.yml"
   when: medusa_ini.stat.exists

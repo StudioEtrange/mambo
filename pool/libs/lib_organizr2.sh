@@ -410,17 +410,23 @@ __organizr2_api_url() {
     esac
 
     export ORGANIZR2_INTERNAL_CONTAINER_API_URL="http://${ORGANIZR2_INSTANCE}${__o_api}"
-    __tmp="${ORGANIZR2_INSTANCE^^}_HTTP_URL_DEFAULT_SECURE"
+    __tmp="${ORGANIZR2_INSTANCE^^}_URI_DEFAULT_SECURE"
     export ORGANIZR2_API_URL="${!__tmp}${__o_api}"
 }
 
 
 __organizr2_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
-        __organizr2_init_files
+        __organizr2_init_files "INSTALL"
     fi
 }
 
+
+__organizr2_update() {
+    if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
+        __organizr2_init_files "UPDATE"
+    fi
+}
 
 
 
@@ -486,10 +492,15 @@ __organizr2_set_context() {
 
 
 # install / update version
+# mode : INSTALL
+# mode : UPDATE
 # organizr2 docker image have an auto update mechanism
 # we disable it, and fully download the wanted version each time we init organizr2
 # https://github.com/Organizr/docker-organizr/blob/master/root/etc/cont-init.d/40-install
 __organizr2_init_files() {
+    # main github branch where organizr2 stores main code
+    MAIN_ORGANIZR2_GITHUB_BRANCH="v2-master"
+    local mode="${1}"
     local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
     __data_path="${!__data_path}"
     local __branch_var="${ORGANIZR2_INSTANCE^^}_BRANCH"
@@ -497,46 +508,64 @@ __organizr2_init_files() {
     local __commit="${ORGANIZR2_INSTANCE^^}_COMMIT"
     __commit="${!__commit}"
 
-    # Use 'manual' as branch value to disable automatic code update at container launch
-    # and have the hability to choose a specific commit
-    local __manual_update_mode
-    [ "${__branch}" = "manual" ] && __manual_update_mode="1"
-
-
     __tango_log "INFO" "organizr2" "Installing Organizr2 (instance : $ORGANIZR2_INSTANCE - branch version : $__branch - commit version : $__commit)"
 
 
-    if [ "$__manual_update_mode" = "1" ]; then
-        # remove organizr2 files
-        rm -Rf ${__data_path}/www/organizr
+    case $mode in
+    
+        INSTALL )
+            # Use 'manual' as branch value to disable automatic code update at container launch
+            # and have the hability to choose a specific commit
+            if [ "$__branch" = "manual" ]; then
+                # remove organizr2 files
+                rm -Rf ${__data_path}/www/organizr
 
-        # override branch to v2-master to get organizr code source
-        # if value was "manual" no code is downloaded
-        eval export $__branch_var="v2-master"
-    fi
+                # override branch value to v2-master to trigger a git clone of organizr code source
+                # https://github.com/Organizr/docker-organizr/blob/e527ce31a14a3d9c5dce078dcd13143ec8d966ad/root/etc/cont-init.d/40-install#L42
+                # if value was "manual" the code is not downloaded
+                eval export $__branch_var="$MAIN_ORGANIZR2_GITHUB_BRANCH"
 
-    # install organizr2 files from scratch
-    __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
-    __service_up "$ORGANIZR2_INSTANCE"
-    # wait for files to be installed
-    sleep 4
-    __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
+                # install organizr2 files from scratch
+                __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
+                __service_up "$ORGANIZR2_INSTANCE"
+                # wait for files to be installed
+                sleep 4
+                __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
+                # restore branch value
+                eval export $__branch_var="$__branch"
+            fi
 
+            # https://github.com/Organizr/docker-organizr/blob/e527ce31a14a3d9c5dce078dcd13143ec8d966ad/root/etc/cont-init.d/40-install#L54
+            if [ "$__branch" = "manual" ]; then
+                if [ ! "$__commit" = "" ]; then
+                    __tango_log "INFO" "organizr2" "Switching to Organizr commit $__commit"
+                    cd "${__data_path}/www/organizr"
+                    __tango_git checkout "${__commit}"
+                    # get last commit
+                    git rev-parse HEAD >"${__data_path}/www/organizr/Github.txt"
+                fi
 
-    if [ "$__manual_update_mode" = "1" ]; then
-        if [ ! "$__commit" = "" ]; then
-            __tango_log "INFO" "organizr2" "Switching to Organizr commit $__commit"
-            cd "${__data_path}/www/organizr"
-            __tango_git checkout "${__commit}"
-            # get last commit
-            git rev-parse HEAD >"${__data_path}/www/organizr/Github.txt"
-        fi
+            fi
+        ;;
+        UPDATE )
+            __service_down "$ORGANIZR2_INSTANCE" "NO_DELETE"
+            # https://github.com/Organizr/docker-organizr/blob/e527ce31a14a3d9c5dce078dcd13143ec8d966ad/root/etc/cont-init.d/40-install#L54
+            if [ "$__branch" = "manual" ]; then
+                if [ ! "$__commit" = "" ]; then
+                    __tango_log "INFO" "organizr2" "Updating to Organizr commit $__commit"
+                    cd "${__data_path}/www/organizr"
+                    __tango_git fetch
+                    __tango_git reset --hard origin/$MAIN_ORGANIZR2_GITHUB_BRANCH
+                    __tango_git checkout "${__commit}"
+                    __tango_git reset --hard origin/$MAIN_ORGANIZR2_GITHUB_BRANCH
+                    __tango_git pull origin $MAIN_ORGANIZR2_GITHUB_BRANCH
+                    # get last commit
+                    git rev-parse HEAD >"${__data_path}/www/organizr/Github.txt"
+                fi
 
-        # restore branch value
-        eval export $__branch_var="$__branch"
-    fi
-
-
+            fi
+        ;;
+    esac
     
 }
 

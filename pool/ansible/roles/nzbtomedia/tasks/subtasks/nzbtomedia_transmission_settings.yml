@@ -1,0 +1,64 @@
+---
+#[Torrent]
+#    ###### clientAgent - Supported clients: utorrent, transmission, deluge, rtorrent, vuze, qbittorrent, other
+#    clientAgent = other
+#    ###### Transmission (You must edit this if you're using TorrentToMedia.py with Transmission)
+#    TransmissionHost = localhost
+#    TransmissionPort = 9091
+#    TransmissionUSR = your username
+#    TransmissionPWD = your password
+
+- name: Set transmission client agent
+  replace:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '(\[Torrent\]\s*.*clientAgent.*$)(\s*clientAgent\s?=.*)'
+    replace: '\1\n    clientAgent = transmission'
+
+# nzbToMedia is run from within transmission service
+- name: Set transmission host
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^\s*TransmissionHost\s?=.*'
+    line: '    TransmissionHost = localhost'
+    state: present
+
+- name: Set transmission port
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^\s*TransmissionPort\s?=.*'
+    line: '    TransmissionPort = 9091'
+    state: present
+
+- name: Set transmission user
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^\s*TransmissionUSR\s?=.*'
+    line: '    TransmissionUSR = {{ transmission.user }}'
+    state: present
+
+- name: Set transmission password
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^\s*TransmissionPWD\s?=.*'
+    line: '    TransmissionPWD = {{ transmission.pass }}'
+    state: present
+
+# will create outputDirectory/tv folder to tv category
+- name: Set transmission outputDirectory
+  replace:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '(\[Torrent\])((\s*|.*)*)(outputDirectory\s?=.*)'
+    replace: '\1\2outputDirectory = /download/processdir'
+
+- name: Set transmission default_downloadDirectory for no category
+  replace:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '(\[Torrent\])((\s*|.*)*)(default_downloadDirectory\s?=.*)'
+    replace: '\1\2default_downloadDirectory = /download/transmission/complete'
+
+- name: Set transmission link type from downlaod directory to output directory
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^\s*useLink\s?=.*'
+    line: '    useLink = hard'
+    state: present

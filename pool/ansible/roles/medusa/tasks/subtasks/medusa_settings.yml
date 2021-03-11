@@ -35,83 +35,16 @@
     line: 'launch_browser = 0'
     state: present
 
-
-# sabnzbd settings
-- name: Enable nzb features
+- name: Set post processing dir
   lineinfile:
     path: "{{ medusa_ini.stat.path }}"
-    regexp: '^use_nzbs\s?=.*'
-    line: 'use_nzbs = 1'
+    regexp: '^tv_download_dir\s?=.*'
+    line: 'tv_download_dir = /download/processdir/tv'
     state: present
 
-- name: Enable sabnzbd features
+- name: Set post processing method
   lineinfile:
     path: "{{ medusa_ini.stat.path }}"
-    regexp: '^nzb_method\s?=.*'
-    line: 'nzb_method = sabnzbd'
-    state: present
-
-- name: Set sabnzbd username
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^sab_username\s?=.*'
-    line: 'sab_username = {{ sabnzbd.user }}'
-    state: present
-
-- name: Set sabnzbd password
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^sab_password\s?=.*'
-    line: 'sab_password = {{ sabnzbd.pass }}'
-    state: present
-
-- name: Set sabnzbd api key
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^sab_apikey\s?=.*'
-    line: 'sab_apikey = {{ sabnzbd.api_key }}'
-    state: present
-
-- name: Set sabnzbd host
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^sab_host\s?=.*'
-    line: 'sab_host = http://sabnzbd:8080'
-    state: present
-
-
-# plex settings
-- name: Enable plex features
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^use_plex_server\s?=.*'
-    line: 'use_plex_server = 1'
-    state: present
-
-- name: Update plex library
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^plex_update_library\s?=.*'
-    line: 'plex_update_library = 1'
-    state: present
-
-- name: Set plex host
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^plex_server_host\s?=.*'
-    line: 'plex_server_host = plex:32400,'
-    state: present
-
-- name: Set plex scheme
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^plex_server_https\s?=.*'
-    line: 'plex_server_https = 1'
-    state: present
-  
-- name: Set plex token
-  lineinfile:
-    path: "{{ medusa_ini.stat.path }}"
-    regexp: '^plex_server_token\s?=.*'
-    line: 'plex_server_token = {{ plex.auth_token }}'
+    regexp: '^process_method\s?=.*'
+    line: 'process_method = move'
     state: present

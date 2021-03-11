@@ -1,0 +1,14 @@
+---
+- debug: 
+    msg: 
+      - "TRANSMISSION_DATA_PATH: {{ lookup('env','TRANSMISSION_DATA_PATH') }}"
+
+
+- name: Register transmission_cfg
+  stat:
+    path: "{{ transmission.cfg }}"
+  register: transmission_cfg
+
+- name: Settings Tweaks
+  include_tasks: "subtasks/transmission_settings.yml"
+  when: transmission_cfg.stat.exists

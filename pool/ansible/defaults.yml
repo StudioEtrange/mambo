@@ -12,6 +12,9 @@ medusa:
   pass: "{{ lookup('env','MEDUSA_PASSWORD') }}"
   api_key: "{{ lookup('env','MEDUSA_API_KEY') | default('', true) }}"
   ini: "{{ lookup('env','MEDUSA_INI_PATH') }}"
+  host: "{{ lookup('env','MEDUSA_HOSTNAME') }}"
+  port: "{{ lookup('env','MEDUSA_PORT_WEB_MAIN_SECURE') }}"
+  url: "{{ lookup('env','MEDUSA_URI_DEFAULT_SECURE') }}"
 
 plex:
   auth_token: "{{ lookup('env','PLEX_AUTH_TOKEN') | default('', true) }}"
@@ -19,3 +22,11 @@ plex:
 nzbtomedia:
   cfg: "{{ lookup('env','NZBTOMEDIA_DATA_PATH') }}/autoProcessMedia.cfg"
 
+transmission:
+  user: "{{ lookup('env','TRANSMISSION_USER') }}"
+  pass: "{{ lookup('env','TRANSMISSION_PASSWORD') }}"
+  host: "{{ lookup('env','TRANSMISSION_HOSTNAME') }}"
+  port: "{{ lookup('env','TRANSMISSION_PORT_WEB_MAIN_SECURE') }}"
+  url: "{{ lookup('env','TRANSMISSION_URI_DEFAULT_SECURE') }}"
+  rpc_url: "{{ lookup('env','TRANSMISSION_URI_DEFAULT_SECURE') }}/transmission/rpc"
+  cfg: "{{ lookup('env','TRANSMISSION_CFG_PATH') }}"

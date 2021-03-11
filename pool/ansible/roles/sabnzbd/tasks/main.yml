@@ -15,17 +15,6 @@
       - "SABNZBD_DATA_PATH: {{ lookup('env','SABNZBD_DATA_PATH') }}"
       - "SABNZBD_INI_PATH: {{ lookup('env','SABNZBD_INI_PATH') }}"
 
-# - name: Create sabnzbd directories
-#   file: "path={{ item }} state=directory mode=0775 owner={{ user.name }} group={{ user.name }} recurse=yes"
-#   with_items:
-#     - /opt/sabnzbd
-#     - "{{ downloads.nzbs }}"
-#     - "{{ downloads.nzbs }}/sabnzbd"
-#     - "{{ downloads.nzbs }}/sabnzbd/complete"
-#     - "{{ downloads.nzbs }}/sabnzbd/incomplete"
-#     - "{{ downloads.nzbs }}/sabnzbd/watched"
-#     - "{{ downloads.nzbs }}/sabnzbd/logs"
-
 - name: Register sabnzbd_ini
   stat:
     path: "{{ sabnzbd.ini }}"

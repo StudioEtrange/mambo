@@ -17,12 +17,23 @@
     path: "{{ medusa.ini }}"
   register: medusa_ini
 
+- name: Register transmission_cfg
+  stat:
+    path: "{{ transmission.cfg }}"
+  register: transmission_cfg
+  
+- name: Settings nzbtomedia
+  include_tasks: "subtasks/nzbtomedia_settings.yml"
+  when: nzbtomedia_cfg.stat.exists
 
 - name: Settings sabznbd nzbtomedia
   include_tasks: "subtasks/nzbtomedia_sabnzbd_settings.yml"
   when: nzbtomedia_cfg.stat.exists and sabnzbd_ini.stat.exists
 
-
 - name: Settings medusa nzbtomedia
   include_tasks: "subtasks/nzbtomedia_medusa_settings.yml"
   when: nzbtomedia_cfg.stat.exists and medusa_ini.stat.exists
+
+- name: Settings transmission nzbtomedia
+  include_tasks: "subtasks/nzbtomedia_transmission_settings.yml"
+  when: nzbtomedia_cfg.stat.exists and transmission_cfg.stat.exists

@@ -12,9 +12,6 @@
 - name: Authorized dns name to request sabnzbd
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
-    #regexp: '(^host_whitelist\s?=.*,)'
-    #backrefs: yes
-    #line: '\1 sabnzbd.{{ user.domain }}'
     regexp: '^host_whitelist\s?=.*'
     line: 'host_whitelist = "{{ sabnzbd.host_whitelist }}"'
     state: present
@@ -55,14 +52,14 @@
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
     regexp: '^download_dir\s?=.*'
-    line: 'download_dir = /download/incomplete'
+    line: 'download_dir = /download/sabnzbd/incomplete'
     state: present
 
 - name: Change complete downloads directory
   lineinfile:
     path: "{{ sabnzbd_ini.stat.path }}"
     regexp: '^complete_dir\s?=.*'
-    line: 'complete_dir = /download/complete'
+    line: 'complete_dir = /download/sabnzbd/complete'
     state: present
 
 - name: Change watched directory

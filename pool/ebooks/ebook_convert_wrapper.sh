@@ -3,6 +3,7 @@
 # This script is a wrapper around ebook-convert calibre tool
 # it can be combined with calibre-web to empower calibre-web convert to kindle feature
 # see https://github.com/janeczku/calibre-web/blob/a659f2e49d6413e2285a4473b44d380e09ac543f/cps/tasks/convert.py#L179
+#     https://github.com/janeczku/calibre-web/blob/bbf609b8801d0af2209c94f4c26d6b5353b718f5/cps/helper.py#L215
 
 #   arg1 : ebook source file
 #   arg2 : ebook target file

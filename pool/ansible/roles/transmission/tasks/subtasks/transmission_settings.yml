@@ -1,0 +1,44 @@
+---
+- name: Set download dir
+  lineinfile:
+    path: "{{ transmission_cfg.stat.path }}"
+    regexp: '"download-dir".*'
+    line: '    "download-dir": "/download/transmission/complete",'
+    state: present
+
+- name: Set incomplete dir
+  lineinfile:
+    path: "{{ transmission_cfg.stat.path }}"
+    regexp: '"incomplete-dir".*'
+    line: '    "incomplete-dir": "/download/transmission/incomplete",'
+    state: present
+
+# NOTE : nzbToMedia script
+- name: Set script dir
+  lineinfile:
+    path: "{{ transmission_cfg.stat.path }}"
+    regexp: '"script-torrent-done-filename".*'
+    line: '    "script-torrent-done-filename": "/scripts/TorrentToMedia.sh",'
+    state: present
+
+- name: Enable script
+  lineinfile:
+    path: "{{ transmission_cfg.stat.path }}"
+    regexp: '"script-torrent-done-enabled".*'
+    line: '    "script-torrent-done-enabled": true,'
+    state: present
+
+- name: Set watch dir
+  lineinfile:
+    path: "{{ transmission_cfg.stat.path }}"
+    regexp: '"watch-dir".*'
+    line: '    "watch-dir": "/watch",'
+    state: present
+
+# NOTE : "watch-dir-enabled": true' not have ',' at the end
+- name: Enable watch dir
+  lineinfile:
+    path: "{{ transmission_cfg.stat.path }}"
+    regexp: '"watch-dir-enabled".*'
+    line: '    "watch-dir-enabled": true'
+    state: present

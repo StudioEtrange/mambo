@@ -14,6 +14,8 @@ if [ -f "${FOLDER}/autoProcessMedia.cfg.spec" ]; then
     echo "  + ${ITEM} already installed in ${FOLDER}"
 else
     mkdir -p "${FOLDER}"
+    # logs folder should exist to activate logs
+    mkdir -p "${FOLDER}/logs"
     [ "$ERASE" = "1" ] && echo "  + Download version ${VERSION}"
     type curl 1>&2 2>/dev/null && {
         curl -fkSL -o "/tmp/${ITEM}-${VERSION}.tar.gz" "https://github.com/clinton-hall/nzbToMedia/archive/${VERSION}.tar.gz"
@@ -26,13 +28,23 @@ else
 
     cp "${FOLDER}/autoProcessMedia.cfg.spec" "${FOLDER}/autoProcessMedia.cfg"
 
-    # NOTE : add a sh launcher to force use of python3 (in case of using sabnzbd's python version which not may be python3)
+    # NOTE : add a sh launcher to force use of python3 (in case of using sabnzbd's python version which not may be python3 or if only python3 binary file exist)
     tee "${FOLDER}/nzbToSickBeard.sh" << END
 #!/bin/bash
 _CURRENT_FILE_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" && pwd )"
-python3 \${_CURRENT_FILE_DIR}/nzbToSickBeard.py "\$@"
+mkdir -p ${_CURRENT_FILE_DIR}/logs
+python3 \${_CURRENT_FILE_DIR}/nzbToSickBeard.py "\$@" > ${_CURRENT_FILE_DIR}/logs/nzbToSickBeard.sh.log
 END
     chmod +x "${FOLDER}/nzbToSickBeard.sh"
+
+        # NOTE : add a sh launcher to force use of python3 (in case of using sabnzbd's python version which not may be python3 or if only python3 binary file exist)
+    tee "${FOLDER}/TorrentToMedia.sh" << END
+#!/bin/bash
+_CURRENT_FILE_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" && pwd )"
+mkdir -p ${_CURRENT_FILE_DIR}/logs
+python3 \${_CURRENT_FILE_DIR}/TorrentToMedia.py "\$@" > ${_CURRENT_FILE_DIR}/logs/TorrentToMedia.sh.log
+END
+    chmod +x "${FOLDER}/TorrentToMedia.sh"
 
 fi
 

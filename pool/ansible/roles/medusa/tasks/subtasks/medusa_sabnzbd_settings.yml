@@ -1,0 +1,44 @@
+---
+# sabnzbd settings
+- name: Enable nzb features
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^use_nzbs\s?=.*'
+    line: 'use_nzbs = 1'
+    state: present
+
+- name: Enable sabnzbd features
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^nzb_method\s?=.*'
+    line: 'nzb_method = sabnzbd'
+    state: present
+
+- name: Set sabnzbd username
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^sab_username\s?=.*'
+    line: 'sab_username = {{ sabnzbd.user }}'
+    state: present
+
+- name: Set sabnzbd password
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^sab_password\s?=.*'
+    line: 'sab_password = {{ sabnzbd.pass }}'
+    state: present
+
+- name: Set sabnzbd api key
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^sab_apikey\s?=.*'
+    line: 'sab_apikey = {{ sabnzbd.api_key }}'
+    state: present
+
+- name: Set sabnzbd host
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^sab_host\s?=.*'
+    line: 'sab_host = http://sabnzbd:8080'
+    state: present
+

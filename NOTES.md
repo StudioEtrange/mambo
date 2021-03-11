@@ -150,7 +150,7 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
         * docker bundle rtorrent, flood (web ui) - from code source
         https://github.com/Wonderfall/docker-rtorrent-flood
         https://hub.docker.com/r/wonderfall/rtorrent-flood/dockerfile
-        * docker bundle rtorrent, rutorrent (webui), flood (web ui), autodl-irssi - based on linuxserver distribution - plugins : logoff fileshare filemanager pausewebui mobile ratiocolor force_save_session showip
+        * docker bundle rtorrent, rutorrent (webui), flood (web ui), autodl-irssi (scan irc and download torrent) - based on linuxserver distribution - plugins : logoff fileshare filemanager pausewebui mobile ratiocolor force_save_session showip
         https://github.com/romancin/rutorrent-flood-docker
         https://hub.docker.com/r/romancin/rutorrent-flood
         * docker bundle rtorrent from package, rutorrent from source
@@ -169,10 +169,16 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
     * https://github.com/Jackett/Jackett
     * centralize torrent trackers and tranlate queries from torrent app  (Sonarr, Radarr, SickRage, CouchPotato, Mylar, Lidarr, DuckieTV, qBittorrent, Nefarious ...) into specific tracker queries
 
-* Autotorrent
+* Autotorrent - cross-seed tool
     * allow to rebuild a torrent from files splitted in other directories
     * https://github.com/JohnDoee/autotorrent
     * docker version : https://github.com/illallangi-docker/autotorrent https://github.com/claabs/autotorrent
+
+* cross-seed tool 
+    * allow to share a torrent to several trackers
+    * https://github.com/mmgoodnow/cross-seed
+
+* a cross-seed script : http://torrentinvites.org/f44/automatic-cross-seeding-script-240559/#post886162
 
 ## Music
 
@@ -825,7 +831,7 @@ Proposal : To generate a newsletter we could use the catalog feature of calibre
 
 * command line tool : ebook-convert 
     * https://manual.calibre-ebook.com/generated/en/ebook-convert.html
-    * NOTE : do not automaticly add new converted format to calibre databse
+    * NOTE : do not automaticly add new converted format to calibre databse until calibre
 
 * convert epub to mobi AND add it to calibre database
     * https://www.reddit.com/r/LazyLibrarian/comments/8wtpv3/calibredbebookconvert_question/e1z0pa2?utm_source=share&utm_medium=web2x&context=3
@@ -1071,6 +1077,7 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
 
 * WebtroPie
     * https://github.com/gazpan/WebtroPie
+    * https://github.com/StudioEtrange/WebtroPie
     * technical discussion : https://retropie.org.uk/forum/topic/10164/webtropie
     * web rom brower and manager for retropie with emulationstation theme
     * adaptation for batocera : https://github.com/Broceliande/batocera.webtropie
@@ -1080,8 +1087,8 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://www.archiveteam.org/index.php?title=Emularity
     * https://github.com/db48x/emularity
     * technical documentation : https://github.com/db48x/emularity/blob/master/TECHNICAL.md
-    * loader used by internet archive.org
-    * 3 supported emulators, MAME (=JSMESS) for 60 systems, EM-DOSBox for DOS, and SAE for Amiga
+    * loader used by people from internet archive.org
+    * 3 supported emulators : MAME (=JSMESS) for 60 systems, EM-DOSBox for DOS, and SAE for Amiga
     * documentaion of Internet Archive.org Emulation system : http://digitize.archiveteam.org/index.php/Internet_Archive_Emulation
     * emularity emulators and bios repository :
         * https://archive.org/download/emularity_engine_v1
@@ -1094,7 +1101,7 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
 
 * Retrojolt
     * https://github.com/gamejolt/retrojolt 
-    * it is a wrapper around emularity AND an emulator builder for emularity
+    * it is a wrapper around emularity AND an emulators builder for emularity
     * example usage of retrojolt from inside gamejolt website : https://github.com/gamejolt/gamejolt/blob/master/src/gameserver/components/embed/rom/rom.ts 
     * example usage of retrojolt emulator compile scripts https://github.com/gamejolt/retrojolt/tree/main/scripts
     * test build retroljolt
@@ -1119,7 +1126,8 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://dos.zczc.cz/ (with emularity and em-dosbox)
         * https://github.com/rwv/chinese-dos-games-web
         * https://github.com/rwv/chinese-dos-games (metadata)
-
+    * https://www.myabandonware.com/ run only dosbox games
+    
 * From archive.org
     * Emularity software library of dos games : https://archive.org/details/softwarelibrary_msdos_games
     * Emularity sofware library for arcade games : https://archive.org/details/internetarcade
@@ -1163,6 +1171,7 @@ A frontend is a launcher of emulators
 
 * Snowflake
     * https://github.com/SnowflakePowered/snowflake
+    * https://snowflakepowe.red/
     * framework to build frontend
     * able to build frontend with a metadata backend (server)    
     * under construction
@@ -1217,7 +1226,7 @@ A frontend is a launcher of emulators
 
 * DAT files
     * Datomatic No Intro http://datomatic.no-intro.org/
-    * TOSEC https://www.tosecdev.org/
+    * TOSEC https://www.tosecdev.org/ (The Old School Emulation Centre)
     * https://www.advanscene.com/
     * http://www.progettosnaps.net/dats/
 
@@ -1236,6 +1245,12 @@ A frontend is a launcher of emulators
     * https://github.com/SmokeMonsterPacks/EverDrive-Packs-Lists-Database
     * The EverDrive Packs Lists Project is an archival research initiative with the goal of allowing users to build real-hardware optimized ROM packs based on suggested file/folder layouts compiled by SmokeMonster.
 
+* Shiragame
+    * shiragame is a games and ROM SQLite database that is automatically updated twice weekly by compiling DAT files from cataloguing organizations like Redump, No-Intro, or TOSEC
+    * allows you to look up game titles by ROM hash, or serial. 
+    * https://github.com/SnowflakePowered/shiragame
+    * https://shiragame.snowflakepowe.red/
+    * shiratsu : https://github.com/SnowflakePowered/shiratsu - aggregate data for shiragame
 
 ### Scrapper
 
@@ -1251,7 +1266,6 @@ A frontend is a launcher of emulators
     * https://github.com/sselph/scraper
     * ssscraper with fastscraper : https://forum.recalbox.com/topic/2594/batch-scrape-your-roms-on-your-pc-fastscraper
 
-
 * Skraper 
     * https://www.skraper.net/ 
     * client desktop win/linux (not macos)
@@ -1260,7 +1274,6 @@ A frontend is a launcher of emulators
     * integration with recalbox, retropie and launchbox
     * tutorial (FR) : https://recalbox.gitbook.io/documentation/v/francais/tutoriels/utilitaires/gestion-des-scrappes/skraper-scrapper-ses-roms
     * needs a lot of space for downloaded metadata cache
-
 
 * Arrm (Another Gamelist, Roms manager, and Scraper for Recalbox, Batocera, Retropie, Retrobat & Emulationstation)
     * http://jujuvincebros.fr/telechargements2/file/10-arrm-another-recalbox-roms-manager

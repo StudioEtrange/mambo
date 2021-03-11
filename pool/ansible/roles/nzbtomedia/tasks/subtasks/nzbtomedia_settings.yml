@@ -1,0 +1,7 @@
+---
+- name: Set log debug
+  lineinfile:
+    path: "{{ nzbtomedia_cfg.stat.path }}"
+    regexp: '^\s*log_debug\s?=.*'
+    line: '    log_debug = 1'
+    state: present

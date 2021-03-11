@@ -1,0 +1,52 @@
+---
+# transmission settings
+- name: Enable torrents features
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^use_torrents\s?=.*'
+    line: 'use_torrents = 1'
+    state: present
+
+- name: Enable transmission features
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^torrent_method\s?=.*'
+    line: 'torrent_method = transmission'
+    state: present
+
+- name: Set transmission username
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^torrent_username\s?=.*'
+    line: 'torrent_username = {{ transmission.user }}'
+    state: present
+
+- name: Set transmission password
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^torrent_password\s?=.*'
+    line: 'torrent_password = {{ transmission.pass }}'
+    state: present
+
+- name: Set transmission url
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^torrent_host\s?=.*'
+    line: 'torrent_host = {{ transmission.url }}'
+    state: present
+
+- name: Set transmission rpc url
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^torrent_rpcurl\s?=.*'
+    line: 'torrent_rpcurl = {{ transmission.rpc_url }}'
+    state: present
+
+# where medusa ask transmission to download file
+- name: Set transmission download path
+  lineinfile:
+    path: "{{ medusa_ini.stat.path }}"
+    regexp: '^torrent_path\s?=.*'
+    line: 'torrent_path = /download/transmission/complete/tv'
+    state: present
+
