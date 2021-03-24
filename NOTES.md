@@ -1006,9 +1006,11 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
 
 ## Games
 
-### Tools
+### Tools & links
 
 * nodejs library to ping game server https://github.com/gamedig/node-gamedig
+
+
 
 ### Complete retrogaming distribution
 
@@ -1182,14 +1184,14 @@ A frontend is a launcher of emulators
 * List
     * (FR) http://www.emu-france.com/utilitaires/24-utilitaires-multi-systemes/316-managers/
 
-* Romulus
-    * https://romulus.cc/ 
-    * non opensource
-    * windows only
-    * weird behaviour : erase files
-    * good updater and search of DAT files
-    * easyier than romcenter or clrmamepro
-    * tutorial by recalbox (FR) : https://recalbox.gitbook.io/documentation/v/francais/tutoriels/utilitaires/gestion-des-roms/romulus-rom-manager
+* ClrmamePro (well known)
+    * ​https://mamedev.emulab.it/clrmamepro/
+
+* Romcenter (well known)
+    * http://www.romcenter.com/
+    * tutorial : https://www.youtube.com/watch?v=1JtIh5u2Ko4
+    * good enough
+    * source code no available - closed source
 
 * Romvault
     * http://www.romvault.com/ 
@@ -1198,17 +1200,24 @@ A frontend is a launcher of emulators
     * tutorial : https://www.youtube.com/embed/yUOIYYbZuAg
     * can manipulate several DAT files simultaneously
 
-* Romcenter
-    * http://www.romcenter.com/
-    * tutorial : https://www.youtube.com/watch?v=1JtIh5u2Ko4
-    * good enough
+
+
+* Romulus
+    * https://romulus.cc/ 
+    * closed source
+    * windows only - tested with wine on linux and mac
+    * weird behaviour : erase files
+    * good updater and search of DAT files
+    * easyier than romcenter or clrmamepro
+    * DAT files format supported : Clrmame pro OLD and XML format, Romcenter, Offlinelist, MESS softlists
+    * tutorial by recalbox (FR) : https://recalbox.gitbook.io/documentation/v/francais/tutoriels/utilitaires/gestion-des-roms/romulus-rom-manager
+    * by default do not support network drive, to support them go to parameters / general
+
 
 * JRomManager 
     * https://github.com/optyfr/JRomManager
     * opensource
 
-* ClrmamePro
-    * ​https://mamedev.emulab.it/clrmamepro/
 
 * ROMba
     * https://github.com/uwedeportivo/romba
@@ -1291,12 +1300,8 @@ A frontend is a launcher of emulators
     * https://yelostech.com/working-best-rom-sites/
     * https://archive.org/details/MAME_0.151_ROMs
     * https://the-eye.eu/public/rom/
-    * https://mega.nz/folder/P8dBVSoI#2SvU2uqK3yUVj46dSu5Xfw
 
-* CIA download for 3DS
-    * https://www.softcobra.com/ntdo/ntdo-3ts/3ts-roms/
-    * http://roms3ds.com/rom-3ds-cartoon-network-punch-time-explosion-usa-multi-espanol-3ds-rom-cia/ 
-    * https://isoroms.com/category/3ds/
+
 
 
 ## GPU

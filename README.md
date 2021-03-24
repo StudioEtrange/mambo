@@ -255,7 +255,7 @@ Into Organizr2
             * Active Streams / Enable, Minimum Authentication : User
             * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
             * Misc Options / Plex Tab Name : Plex (Name of your plex tab in setted in tab editor)
-            * Misc Options / Url : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
+            * Misc Options / Url wan : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
 
 ### Plex and GPU
 
@@ -853,7 +853,7 @@ Into Organizr2
 
 Calibre-web will print ebooks registerd in calibre database. When configured, it can send to kindle a converted ebook. Each converted created file is updated with metadata from its metadata.opf file and added to calibre database
 
-About sending to kindle and format :
+* About sending to kindle and format :
     * https://github.com/janeczku/calibre-web/blob/34a474101fa2b3dd97046f5febc84cb10ac9c27b/cps/helper.py#L211
     * If Mobi file is existing, it's directly send to kindle email,
     * If Epub file is existing, it's converted and send to kindle email,
@@ -918,8 +918,8 @@ Into Calibre web `https://books.mydomain.com`
 
 Into Organizr2
 
-    * Image manager
-        * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
+* Image manager
+    * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
 
 Into Calibre web
 
@@ -969,13 +969,13 @@ Each user can set himself it's kindle mail. Calibre-web convert on the fly the s
 
 Into Organizr2
 
-    * Image manager
-        * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
+* Image manager
+    * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
 
 Into Calibre Web
 
-    * Admin / Configuration / Edit UI Configuration
-        * Remove view by author and publisher
+* Admin / Configuration / Edit UI Configuration
+    * Remove view by author and publisher
 
 
 # Calibre
@@ -992,32 +992,32 @@ NOTE : to copy/paste inside calibre use Ctrl+shift+alt
 
 Into Organizr2
 
-    * Add a tab in Organizr2 menu
-    * Tab editor / add a tab ("plus" button)
-        * Tab name : Calibre - MUST be same name as listed in `mambo services list` - ignore case
-        * Tab Url : `https://calibre.mydomain.com`
-        * Choose image : cops
-    * Tab editor / Tabs list 
-        * Group : Co-Admin
+* Add a tab in Organizr2 menu
+* Tab editor / add a tab ("plus" button)
+    * Tab name : Calibre - MUST be same name as listed in `mambo services list` - ignore case
+    * Tab Url : `https://calibre.mydomain.com`
+    * Choose image : cops
+* Tab editor / Tabs list 
+    * Group : Co-Admin
 
 Into Calibre
 
-    * recommended action to add to toolbar
-        * Preferences / Toolbars & menus / main toolbar
-            * "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
-            * "Polish book" action (FR : "polir livres") - for ePub and AZW3 files
-                * Update metadata in ebook
-                * Update the cover in ebook
-                * Remove unused CSS
-                * Losslessly compress image
-                * to not keep an original file : Preferences / Tweaks / Save origin file when... / False (Click on restart calibre)
-    * recommended plugins
-        * Preferences / Advanced / Plugins / Get new plugins
-            * "Modify ePub" - for ePub files
-            * "Quality check" - for ePub files
-            * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421 (Load plugin from file : babelio_calibre.zip)
-            * "Mass Search/Replace" - Usefull to take care of press/magazines
-    * all calibre database folders are in folder `/calibredb` (i.e /calibredb/books, /calibredb/press)
+* recommended action to add to toolbar
+    * Preferences / Toolbars & menus / main toolbar
+        * "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
+        * "Polish book" action (FR : "polir livres") - for ePub and AZW3 files
+            * Update metadata in ebook
+            * Update the cover in ebook
+            * Remove unused CSS
+            * Losslessly compress image
+            * to not keep an original file : Preferences / Tweaks / Save origin file when... / False (Click on restart calibre)
+* recommended plugins
+    * Preferences / Advanced / Plugins / Get new plugins
+        * "Modify ePub" - for ePub files
+        * "Quality check" - for ePub files
+        * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421 (Load plugin from file : babelio_calibre.zip)
+        * "Mass Search/Replace" - Usefull to take care of press/magazines
+* all calibre database folders are in folder `/calibredb` (i.e /calibredb/books, /calibredb/press)
 
 ----
 # Network Configuration

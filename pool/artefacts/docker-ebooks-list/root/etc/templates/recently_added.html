@@ -578,7 +578,7 @@
 <%
 from urllib.request import Request, urlopen
 
-req = Request("http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Random%20books&days_old_filter=&random_order=1&limit=4&debug=0")
+req = Request("http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Random%20books&days_old_filter=&random_order=1&limit=4&url=https%3A%2F%2F&debug=0")
 req.add_header("Accept", "text/html")
 
 url = urlopen(req)
@@ -594,7 +594,7 @@ ${generated_html_random.decode("utf-8") | n}
 <%
 from urllib.request import Request, urlopen
 
-req = Request("http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Last%207%20days%20added%20books&days_old_filter=7&random_order=0&limit=&debug=0")
+req = Request("http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Last%207%20days%20added%20books&days_old_filter=7&random_order=0&limit=&url=https%3A%2F%2F&debug=0")
 req.add_header("Accept", "text/html")
 
 url = urlopen(req)

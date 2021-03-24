@@ -608,19 +608,16 @@ __organizr2_auth() {
 __organizr2_scheduler_set() {
     local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
-        $STELLA_API crontab_add "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-        $STELLA_API crontab_add "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_add "* * * * * ${TANGO_APP_ROOT}/mambo auth sync -d 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
     else
         # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
-        $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-        $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+        $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync -d 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
     fi
 }
 __organizr2_scheduler_shutdown() {
     # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
     local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
-    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
-    $STELLA_API crontab_remove "* * * * * sleep 30; ${TANGO_APP_ROOT}/mambo auth sync 2>&1 >> ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
+    $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync -d 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
 }
 
 

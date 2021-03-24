@@ -965,7 +965,7 @@ services:
       - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
       # data used inside template
       - 'URL_CALIBREDB_FOR_COVER=${WEB_URI_DEFAULT_SECURE}'
-      - 'URL_BOOK_LINK=${ORGANIZR2_URI_DEFAULT_SECURE}/#Books'
+      #- 'URL_BOOK_LINK=${ORGANIZR2_URI_DEFAULT_SECURE}/#Books'
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
     networks:

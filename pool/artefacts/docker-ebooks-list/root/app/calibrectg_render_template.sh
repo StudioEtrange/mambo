@@ -68,8 +68,10 @@ RANDOM_ORDER="${6:-0}"
 # days_old_filter: filter list by days old (0: no filter)
 DAYS_OLD_FILTER="${7:-0}"
 [ ! "$DAYS_OLD_FILTER" = "0" ] && DAYS_OLD_FILTER="date:>=${DAYS_OLD_FILTER}daysago"
+# url - link to books main page
+URL="${8:-}"
 # debug (1:active debug)
-DEBUG="${8:-0}"
+DEBUG="${9:-0}"
 
 # --------------------------------
 if [ "$DEBUG" = "1" ]; then
@@ -81,6 +83,7 @@ if [ "$DEBUG" = "1" ]; then
     echo $LIMIT
     echo $RANDOM_ORDER
     echo $DAYS_OLD_FILTER
+    echo $URL
     echo $DEBUG
     echo "ARGS_END -->"
 fi
@@ -110,7 +113,7 @@ cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBR
 
 
 # render template
-python - "${TEMPLATE_FILE}" "${GENERATED_JSON_FILE}" "${GENERATED_HTML_FILE}" "${LIMIT}" "${RANDOM_ORDER}" "${TITLE}" "${ITEMS_NAME}" "${DEBUG}" <<-EOF
+python - "${TEMPLATE_FILE}" "${GENERATED_JSON_FILE}" "${GENERATED_HTML_FILE}" "${LIMIT}" "${RANDOM_ORDER}" "${TITLE}" "${ITEMS_NAME}" "${URL}" "${DEBUG}" <<-EOF
 import json
 import sys
 import random
@@ -126,7 +129,8 @@ limit=int(sys.argv[4])
 random_order=int(sys.argv[5])
 title=sys.argv[6]
 items_name=sys.argv[7]
-debug=int(sys.argv[8])
+url=sys.argv[8]
+debug=int(sys.argv[9])
 
 
 hplookup = TemplateLookup(directories=["/config/templates"], default_filters=['unicode', 'h'])
@@ -160,7 +164,7 @@ else:
 try:
     # https://github.com/Tautulli/Tautulli/blob/14b98a32e085d969f010f0249c3d2f660db50880/plexpy/newsletters.py#L477
     template = hplookup.get_template(template_file)
-    htmlcontent=template.render(data=data,title=title,items_name=items_name)
+    htmlcontent=template.render(data=data,title=title,items_name=items_name,url=url)
 except:
     htmlcontent=html_error_template().render().decode("utf-8")
 

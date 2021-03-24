@@ -115,6 +115,7 @@ The render engine is requested through an HTTP request reacheable at `http://loc
 | `limit` | Limit generated list size (0:no limit) | 0 |
 | `random_order` | Randomize generated list order, by default the order is by decreasing added date (1:random order) | 0 |
 | `days_old_filter` | Max nb of days that item have been added to catalog to filter catalog list. 0: unlimited | 0 |
+| `url` | URL to books homepage | <empty> |
 | `debug` | Generated files will be kept in /config/output. (1:active debug) | 0 |
 
 
@@ -136,7 +137,7 @@ There is an embedded template wchich can be integrated with [tautulli newsletter
 
 It needs two env var  
   * `URL_CALIBREDB_FOR_COVER` point to calibredb folder exposed with HTTP to access cover files (dont forget to use .htaccess to authorize only images files access through HTTP)
-  * `URL_BOOK_LINK` link which point to book homepage
+
 
 
 ```
@@ -149,7 +150,6 @@ docker run \
   -e TZ=Europe/London \
   -e DOCKER_MODS=studioetrange/calibre-mod:v5.9.0 \
   -e 'URL_CALIBREDB_FOR_COVER=https://web/cover' \
-  -e 'URL_BOOK_LINK=https://organizr2/#Books' \
   -v <path to data>:/config \
   -v <path to ebook calibredb folder>:/calibredb/books \
   studioetrange/ebooks-list
@@ -175,7 +175,7 @@ To integrate it, we will inject a section into [Tautulli](https://github.com/Tau
 
 * To add a `Recently added books` since 7 days section use : `http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Recently%20added%20books&days_old_filter=7`
 * To add a `10 Last added books` section use : `http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=10%20Last%20added%20books&limit=10`
-* To add a `Recently added random books` section use : `http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Recently%20added%20random%20books&limit=10&random_order=1&days_old_filter=7`
+* To add a `Recently added random books` with a link to books homepage section use : `http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Recently%20added%20random%20books&limit=10&random_order=1&days_old_filter=7&url=https%3A%2F%2Fdomain.org%2F%23Books`
 
 &nbsp;
 ## Docker Mods

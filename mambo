@@ -39,8 +39,6 @@ STELLA_LOG_STATE="OFF"
 
 
 
-
-
 # SET ARG ------------------------
 # set command line
 . "${TANGO_ROOT}/src/tango-set-arg.sh" $@
@@ -118,7 +116,7 @@ case ${ACTION} in
         __action_done_by_mambo="1"
         case ${TARGET} in
             sync )
-                # disable generated files modification, we just want to load var and sync api
+                # disable generated files and folder modification, we just want to load var and sync api
                 export TANGO_ALTER_GENERATED_FILES="OFF"
             ;;
             disable )
