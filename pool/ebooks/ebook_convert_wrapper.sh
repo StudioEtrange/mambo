@@ -9,8 +9,8 @@
 #   arg2 : ebook target file
 #   arg3 : mode
 #           STANDARD : nothing special
-#           ADD_CALIBREDB : add converted file to calibre db
-#           METADATA_FROM_OPF : take metadata from metadata.opf file from same directory than ebook source file
+#           ADD_CALIBREDB : add created file to calibre db
+#           METADATA_FROM_OPF : read metadata from existing metadata.opf file from same directory than ebook source file
 #           ADD_CALIBREDB_AND_METADATA_FROM_OPF : combine two previous mode
 #   arg4 : calibre binary tools folder with ebook-convert tool (i.e : /opt/calibre)
 #   arg5 : folder path to calibredb database file (i.e: /books)

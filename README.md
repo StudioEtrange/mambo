@@ -236,8 +236,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Plex - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Plex or choose one
         * Tab Url : `https://plex.mydomain.com`
+        * Ping Url : plex - MUST be same name as listed in `mambo services list`
         * Choose image : `plex`
     * Tab editor / Tabs list 
         * Group : User
@@ -439,8 +440,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Tautulli - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Tautulli or choose one
         * Tab Url : `https://tautulli.mydomain.com`
+        * Ping Url : tautulli - MUST be same name as listed in `mambo services list`
         * Choose image : tautulli
     * Tab editor / Tabs list
         * Group : User
@@ -481,8 +483,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Sabnzbd - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Sabnzbd or choose one
         * Tab Url : `https://sabnzbd.mydomain.com`
+        * Ping Url : sabnzbd - MUST be same name as listed in `mambo services list`
         * Choose image : sabnzbd
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -551,8 +554,9 @@ Into Organizr2
 
     * Add a tab in Organizr2 menu
         * Tab editor / add a tab ("plus" button)
-            * Tab name : KCC - MUST be same name as listed in `mambo services list` - ignore case
+            * Tab name : KCC or choose one
             * Tab Url : `https://kcc.mydomain.com`
+            * Ping Url : kcc - MUST be same name as listed in `mambo services list`
             * Choose image : KCC_logo.png
         * Tab editor / Tabs list 
             * Group : Co-Admin
@@ -586,8 +590,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Medusa - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Medusa or chosse one
         * Tab Url : `https://medusa.mydomain.com`
+        * Ping Url : medusa - MUST be same name as listed in `mambo services list`
         * Choose image : medusa
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -641,19 +646,18 @@ Into Medusa, deactivate login because access is protected with organizr2
 * Usage
     * Only init it after init of sabnzbd and medusa with  `./mambo init nzbtomedia`
 
-# MEDUSA <-> TRANSMISSION 
+## Medusa and Transmission
 
-* sync  workflow for a tv show download
-
-medusa send signal to transmission to download file in /download/transmission/complete/tv (medusa variable : torrent_path)
-transmission download file in /download/transmission/incomplete/file
-transmission move file in /download/transmission/complete/tv/file
-transmission seed file from /download/transmission/complete/tv/file
-transmission exec nzbtomedia script TorrentToMedia
-nzbtomedia create hard link from /download/transmission/complete/tv/file to /download/processdir/file (nzbtomedia variable : outputDirectory)
-nzbtomedia send signal to medusa
-medusa process file from /download/processdir
-medusa copy file from /download/processdir to /library/tv/show/folder
+* sync workflow for a tv show download
+    * medusa send signal to transmission to download file in /download/transmission/complete/tv (medusa variable : torrent_path)
+    * transmission download file in /download/transmission/incomplete/file
+    * transmission move file in /download/transmission/complete/tv/file
+    * transmission seed file from /download/transmission/complete/tv/file
+    * transmission exec nzbtomedia script TorrentToMedia
+    * nzbtomedia create hard link from /download/transmission/complete/tv/file to /download/processdir/file (nzbtomedia variable : outputDirectory)
+    * nzbtomedia send signal to medusa
+    * medusa process file from /download/processdir
+    * medusa copy file from /download/processdir to /library/tv/show/folder
 
 
 ----
@@ -702,8 +706,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Ombi - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Ombi or choose one
         * Tab Url : `https://ombi.mydomain.com/auth/cookie`
+        * Ping Url : ombi - MUST be same name as listed in `mambo services list`
         * Choose image : `ombi-plex`
     * Tab editor / Tabs list 
         * Group : User
@@ -741,8 +746,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : MKVToolNix - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : MKVToolNix or choose one
         * Tab Url : `https://mkvtoolnix.mydomain.com`
+        * Ping Url : mkvtoolnix - MUST be same name as listed in `mambo services list`
         * Choose image : `mkvtoolsnix_logo`
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -777,8 +783,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Lazylibrarian - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Lazylibrarian or choose one
         * Tab Url : `https://lazylibrarian.mydomain.com`
+        * Ping Url : lazylibrarian - MUST be same name as listed in `mambo services list`
         * Choose image : `lazylibrarian`
     * Tab editor / Tabs list 
         * Group : Co-Admin
@@ -822,8 +829,9 @@ Into Organizr2
     
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : Transmission - MUST be same name as listed in `mambo services list` - ignore case
+        * Tab name : Transmission or choose one
         * Tab Url : `https://internal-transmission.mydomain.com`
+        * Ping Url : transmission - MUST be same name as listed in `mambo services list`
         * Choose image : `transmission`
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -851,7 +859,7 @@ Into Organizr2
 ## Calibre Web for books
 
 
-Calibre-web will print ebooks registerd in calibre database. When configured, it can send to kindle a converted ebook. Each converted created file is updated with metadata from its metadata.opf file and added to calibre database
+Calibre-web will print ebooks registerd in a calibre database. When configured, it can send to kindle a converted ebook. Each converted created file is updated with metadata from its metadata.opf file and added to calibre database
 
 * About sending to kindle and format :
     * https://github.com/janeczku/calibre-web/blob/34a474101fa2b3dd97046f5febc84cb10ac9c27b/cps/helper.py#L211
@@ -869,13 +877,15 @@ Into Calibre web `https://books.mydomain.com`
 
 * First access :
     * Location of Calibre database : /books
-    * Connexion : admin/admin123
+    * Connexion : admin/admin123 (do forget me)
 
 * Admin / Configuration / Edit UI Configuration
     * Default Settings for New Users
         * Allow Downloads (needed by the feature : send to kindle)
         * Allow eBook Viewer
-    * Remove view by author and publisher
+    * Default Visibilities for New Users
+        * depending of books type remove some selection
+            * For regular ebooks : Remove show publisher selection
  
 * Admin / Users / Add New user
     * Username : same as your plex admin user
@@ -883,17 +893,17 @@ Into Calibre web `https://books.mydomain.com`
     * Mail/... : anything you want
     * Admin User
 
-* Admin / Users / 
+* Admin / Users
     * Select admin user
         * Password : change password to anything you want
-        * Mail/... : anything you want
+        * Mail/... : anything you want (but different from the previous one)
 
 * Admin / Configuration / Edit Basic Configuration
     * Feature Configuration : Enable Uploads
     * External binaries
         * Path to Calibre E-Book Converter : /pool/mambo/ebooks/ebook_convert_wrapper.sh      
-        * Calibre E-Book Converter Settings : METADATA_FROM_OPF /usr/bin /books -v 
-            * for calibre-web < v0.6.11 which fo not auto add the converted book to calibre library : Calibre E-Book Converter Settings : ADD_CALIBREDB_AND_METADATA_FROM_OPF /usr/bin /books -v
+        * Calibre E-Book Converter Settings : METADATA_FROM_OPF /usr/bin /books -v
+            * for calibre-web < v0.6.11 which do not auto add the converted book to calibre library : Calibre E-Book Converter Settings : ADD_CALIBREDB_AND_METADATA_FROM_OPF /usr/bin /books -v
         * Path to Kepubify E-Book Converter : /usr/bin/kepubify
         * Location of Unrar binary : /usr/bin/unrar
 
@@ -913,12 +923,14 @@ Into Calibre web `https://books.mydomain.com`
         * Title : choose a title
         * Theme : caliblur
         * sort regexp : tweak it if needed
+            * i.e: ^(A|The|An|Der|Die|Das|Den|Ein|Eine|Einen|Dem|Des|Einem|Eines|Le|La|Du|Des|De|Les|Un|Une)\s+
+
 
 ### 2.Calibre Web and Organizr2
 
 Into Organizr2
 
-* Image manager
+* Settings / Image manager
     * Add image file `press_logo.png` from https://github.com/StudioEtrange/mambo/tree/master/pool/artefacts/img
 
 Into Calibre web
@@ -931,8 +943,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
-        * Tab name : books - MUST be same name as listed in `mambo services list` (after character _) - ignore case
+        * Tab name : books or choose one
         * Tab Url : `https://books.mydomain.com`
+        * Ping Url : calibreweb_books - MUST be same name as listed in `mambo services list`
         * Choose image : `calibre-web`
     * Tab editor / Tabs list 
         * Group : User
@@ -994,8 +1007,9 @@ Into Organizr2
 
 * Add a tab in Organizr2 menu
 * Tab editor / add a tab ("plus" button)
-    * Tab name : Calibre - MUST be same name as listed in `mambo services list` - ignore case
+    * Tab name : Calibre or choose one
     * Tab Url : `https://calibre.mydomain.com`
+    * Ping Url : calibre - MUST be same name as listed in `mambo services list`
     * Choose image : cops
 * Tab editor / Tabs list 
     * Group : Co-Admin
@@ -1115,3 +1129,18 @@ List of available plugins
        ERROR: Configuration for volume tango_shared_internal_data specifies "device" driver_opt /foo/folder/tango_shared, but a volume with the same name uses a different "device" driver_opt (/foo/bar/tango_shared). If you wish to use the new configuration, please remove the existing volume "tango_shared_internal_data" first:
         $ docker volume rm tango_shared_internal_data
     ```
+
+* Problem with number of folders or while transcoding audio like EAC
+    * may occurs while transcoding video or sound (like from EAC format) because the transcoder need one free slot of watched directory (https://forums.plex.tv/t/video-with-eac3-audio-wont-play/385000/30)
+    * Error sample
+        * `EAE timeout! EAE not running`
+        * https://forums.plex.tv/t/unable-to-play-mediad-due-to-eae-error/536851
+    * FIX : on host increase fs.inotify.max_user_watches which have a default value of 8182 directories. This value is set on the host and shared at the kernel level by all docker container
+    ```
+    sysctl fs.inotify
+    echo fs.inotify.max_user_watches=NEW_MAX_DIRECTORIES  >> /etc/sysctl.conf
+    sysctl -p
+    sysctl fs.inotify
+    ```
+    * How to calculate new number : https://forums.plex.tv/t/increase-the-number-of-directories-linux-can-monitor-notify/209156
+    * about inotify values : https://transang.me/enospc-inotify-in-ubuntu/

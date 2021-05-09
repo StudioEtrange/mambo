@@ -106,10 +106,15 @@ database_name="$(basename ${CALIBREDB_PATH})"
 calibredb catalog "${GENERATED_XML_FILE}" -v --search="${DAYS_OLD_FILTER}" --library-path="${tmp}" 1>/dev/null
 [ ! -f "${GENERATED_XML_FILE}" ] && echo " ** WARN ${GENERATED_XML_FILE} file do not exist -  ${DAYS_OLD_FILTER} may have no matching books into $CALIBREDB_PATH" && exit
 cat "${GENERATED_XML_FILE}" | xq -r 'if .calibredb!=null then . else .calibredb="" end'>${GENERATED_JSON_FILE}
+# when there is only one result, record is an object instead of an array, so we turn it into an array
+# { "calibredb": { "record": {...} } ==> { "calibredb": { "record": [{...}] }
+cat "${GENERATED_JSON_FILE}" | jq -r 'if (.calibredb|type != "string") then if (.calibredb["record"]|type == "object") then .calibredb.record=[.calibredb.record] else . end else . end' | sponge "${GENERATED_JSON_FILE}"
 
 # replace tmp folder reference
 #cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then (.calibredb["record"]) | .[].library_name=$database_name | .[].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
-cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name=$database_name | .calibredb["record"][].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
+#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name=$database_name | .calibredb["record"][].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
+#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then if (.calibredb["record"]|type == "array") then .calibredb["record"][].library_name=$database_name | .calibredb["record"][].cover |= sub($tmp;$CALIBREDB_PATH) else .calibredb["record"].library_name=$database_name | .calibredb["record"].cover |= sub($tmp;$CALIBREDB_PATH) end else . end' | sponge "${GENERATED_JSON_FILE}"
+cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name|=$database_name | .calibredb["record"][].cover|=sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
 
 
 # render template

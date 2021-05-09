@@ -229,6 +229,16 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
     * http://httpd.apache.org/docs/current/en/mod/core.html#EnableSendfile
     * Use ```EnableSendfile On```
 
+* CIFS/samba cause some problem when using a share for ebooks feature of mambo
+    * Create a dedicated samba mount with all your ebooks
+        * Avoid calibre problem : use "nobrl" option
+            * fix : https://coderwall.com/p/zrxobw/calibre-libraries-on-nas
+            * confirm fix works : https://github.com/janeczku/calibre-web/issues/440
+            * caveat : https://github.com/docker/for-win/issues/694
+        * Avoid calibre-web problems when editing ebooks or permission problem when manipulating ebooks files :
+            * set uid and gid option with the current user which will run mambo
+    * Sample of /etc/fstab file with NAS user/password into a /root/.smbcredentials file
+        `//NAS/folder/ebooks        /mnt/EBOOKS        cifs    nobrl,credentials=/root/.smbcredentials,uid=me,gid=me,file_mode=0777,dir_mode=0777,iocharset=utf8   0       0 `
 
 ### Game Streaming
 
@@ -504,6 +514,10 @@ Plex SSO through organizr means : log into organizr then we are auto logged into
     * build from source 
         * https://amp.reddit.com/r/Booksonic/comments/hboaua/building_from_source/
         * instructions : https://github.com/mmguero-android/Booksonic-Android
+
+* Booksonic-bridge
+    * allow to use plex as content server
+    * https://github.com/popeen/Booksonic-Bridge
 
 ### Booksonic and Organizr2 
 
@@ -1039,6 +1053,11 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://github.com/retropie/retropie-setup/wiki/themes
     * https://github.com/search?q=org%3ARetroPie+es-theme&unscoped_q=es-theme
 
+* retrobat
+    * https://www.retrobat.ovh/
+    * distribution for windows
+    * auto install emulation station, retroarch and other emulator
+
 * recalbox vs retropie 
     * https://www.domo-blog.fr/comparatif-solutions-retrogaming-raspberry/
     * https://www.electromaker.io/blog/article/retropie-vs-recalbox-vs-lakka-for-retro-gaming-on-the-raspberry-pi
@@ -1047,6 +1066,10 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://www.retroarch.com/
     * RetroArch is a kind frontend for emulators, game engines and media players.
     * it also includes a variety of emulators as cores
+
+* Lakka.tv
+    * http://www.lakka.tv/
+    * distribution for pc and others based on retroarch
 
 ### Emulators
 
@@ -1095,9 +1118,9 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * emularity emulators and bios repository :
         * https://archive.org/download/emularity_engine_v1
         * https://archive.org/details/emularity_bios_v1 
-    * Emularity software library of dos games : https://archive.org/details/softwarelibrary_msdos_games
-    * Emularity sofware library for arcade games : https://archive.org/details/internetarcade
-    * Emularity sofware library for console games : https://archive.org/details/consolelivingroom
+    * Emularity software library of dos games (=ROM) : https://archive.org/details/softwarelibrary_msdos_games
+    * Emularity sofware library for arcade games (=ROM) : https://archive.org/details/internetarcade
+    * Emularity sofware library for console games (=ROM) : https://archive.org/details/consolelivingroom
     * list of all various items relative to emularity : https://archive.org/search.php?query=Emularity%20Engine
 
 
@@ -1105,17 +1128,41 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://github.com/gamejolt/retrojolt 
     * it is a wrapper around emularity AND an emulators builder for emularity
     * example usage of retrojolt from inside gamejolt website : https://github.com/gamejolt/gamejolt/blob/master/src/gameserver/components/embed/rom/rom.ts 
-    * example usage of retrojolt emulator compile scripts https://github.com/gamejolt/retrojolt/tree/main/scripts
-    * test build retroljolt
+    * example retrojolt emulator compile scripts https://github.com/gamejolt/retrojolt/tree/main/scripts
+    * test retroljolt
         ```
-        # NEED nodejs and yarn
-        git clone https://github.com/gamejolt/retrojolt 
+        git clone https://github.com/gamejolt/retrojolt
         cd retrojolt
         git submodule init
         git submodule update
+        
+        docker run -it --rm --name retrojolt -p :8080 -v $(pwd):/retrojolt node bash
+        cd /retrojolt
+        # install typescript
+        npm install typescript
+        # yarn commands are defined in package.json
         yarn build
         yarn start
-        see http://localhost:8080
+        see http://localhost:port/test
+       ```
+
+* Gamejolt
+    * https://github.com/gamejolt/gamejolt
+    * a video game web portal - which use Retrojolt
+    * test gamejolt
+        ```
+        git clone https://github.com/gamejolt/gamejolt
+        cd gamejolt
+        git submodule init
+        git submodule update
+        
+        docker run -it --rm --name gamejolt -p :8080 -v $(pwd):/gamejolt node bash
+        cd /gamejolt
+        # yarn commands are defined in package.json
+        yarn
+        # TODO problem : do not listen on 0.0.0.0 only localhost
+        yarn run dev
+        see http://localhost:port/test
        ```
 
 ### Website running emulators
@@ -1148,8 +1195,11 @@ A frontend is a launcher of emulators
     * https://github.com/mmatyas/pegasus-frontend
     * opensource
     * multiplatform (Windows, Linux, Mac, Android, all Raspberries, Odroids)
+    * based on Qt
     * support games library from emulators and steam and gog
     * integrated in retropie installer
+    * do not have any scrapper capability
+    * can read metadata format of emulation station, skraper, steam, gog, launchbox, logiqx and its own (pegasus)
     * Theme Switch-like adaptated for Retroid Pocket2 https://github.com/dragoonDorise/RP-Switch
     * Guide and preconfiguration data to install pegasus on Retroid Pocket2 https://github.com/dragoonDorise/pegasus-rp2-metadata
 
@@ -1160,7 +1210,11 @@ A frontend is a launcher of emulators
     * https://digdroid.com/
     * android only
 
-* launchbox (windows only) - game front end
+* Launchbox (windows only) - game front end
+    * have scrapper capability
+    * closed source
+    * Launchbox is free and have premium paid features too
+
 * openemu (mac only) - game front end
 * lutris (linux only) - game front end
 
@@ -1211,7 +1265,7 @@ A frontend is a launcher of emulators
     * easyier than romcenter or clrmamepro
     * DAT files format supported : Clrmame pro OLD and XML format, Romcenter, Offlinelist, MESS softlists
     * tutorial by recalbox (FR) : https://recalbox.gitbook.io/documentation/v/francais/tutoriels/utilitaires/gestion-des-roms/romulus-rom-manager
-    * by default do not support network drive, to support them go to parameters / general
+
 
 
 * JRomManager 
@@ -1231,7 +1285,9 @@ A frontend is a launcher of emulators
 
 ### Emulation : Rom database
 
-* A guide how to manage DAT and rom : https://www.oreilly.com/library/view/gaming-hacks/0596007140/ch01s13.html
+* guide how to manage DAT and rom :
+    * https://www.oreilly.com/library/view/gaming-hacks/0596007140/ch01s13.html
+    * https://retropie.org.uk/docs/Validating%2C-Rebuilding%2C-and-Filtering-ROM-Collections/
 
 * DAT files
     * Datomatic No Intro http://datomatic.no-intro.org/
@@ -1265,11 +1321,12 @@ A frontend is a launcher of emulators
 
 * Scrapers list from recalbox (FR) : https://recalbox.gitbook.io/documentation/v/francais/tutoriels/utilitaires/gestion-des-scrappes/liste-des-utilitaires-de-scrape
 
-* Lars Muldjord's Skyscraper 
+* Skyscraper : Lars Muldjord's Skyscraper
     * https://github.com/muldjord/skyscraper
-    * integration with EmulationStation, AtrtractMode, Pegasus frontens
+    * integration with EmulationStation, AtrtractMode, Pegasus frontend
     * for linux (works on win and macos but nonofficaly)
     * use various source for games items
+    * by default integrated into retropie and was designed for it
 
 * Steven Selph's Scraper 
     * https://github.com/sselph/scraper
@@ -1277,7 +1334,7 @@ A frontend is a launcher of emulators
 
 * Skraper 
     * https://www.skraper.net/ 
-    * client desktop win/linux (not macos)
+    * client desktop win/linux/macos
     * support emulationstation metadata
     * use ScreenScraper.fr for games items, need an account for better speed
     * integration with recalbox, retropie and launchbox

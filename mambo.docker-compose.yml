@@ -181,7 +181,20 @@ volumes:
       o: bind
       device: ${CALIBREDB_PRESS_MEDIA_PATH}
     name: ${TANGO_APP_NAME}_calibredb_press_media
-
+  calibreweb_pgames_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREWEB_PGAMES_DATA_PATH}
+    name: ${TANGO_APP_NAME}_calibreweb_pgames_data
+  calibredb_pgames_media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CALIBREDB_PGAMES_MEDIA_PATH}
+    name: ${TANGO_APP_NAME}_calibredb_pgames_media
 
 
 # NOTE : yaml do not support array merge, so we cannot factorize volume or labels declaration here
@@ -189,7 +202,7 @@ volumes:
 # https://github.com/linuxserver/docker-calibre-web
 # https://hub.docker.com/r/linuxserver/calibre-web
 x-calibreweb: &default-calibreweb
-  image: linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
+  image: ghcr.io/linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
   depends_on:
     - service_init
   restart: unless-stopped
@@ -236,13 +249,15 @@ services:
       #   SOLUTION force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
       #- 'traefik.http.middlewares.xframe-allow-all.headers.customFrameOptionsValue=allow-from *'
       #   BUT X-Frame-Options: allow-from * is DEPRECATED
-      #   INSTEAD enpty any X-Frame-Options
+      #   INSTEAD empty any X-Frame-Options
       - 'traefik.http.middlewares.xframe-allow-all.headers.customResponseHeaders.X-Frame-Options='
       # FIX : Mixed content : The page at was loaded over HTTPS, but requested an insecure ressource
       #       this problem exists with calibreweb search form/button
       #       SOLUTION : automatic upgrade any http link to https -> it is applied on any iframe level/sublevel starting with the page which returns this directive
       #                  so we need to put this directive on the highest iframe level (organizr)
       - "traefik.http.middlewares.convert-http-links.headers.contentSecurityPolicy=upgrade-insecure-requests;"
+      # need this when testing newsletter from tautulli direct url (https://tautulli.domain.com) trying to access organizr2 url
+      - "traefik.http.middlewares.alloworigin.headers.accesscontrolalloworigin=*"
       # service router : organizr2
       - "traefik.http.routers.organizr2.entrypoints=${ORGANIZR2_ENTRYPOINTS:-entry_main_http}"
       - "traefik.http.routers.organizr2.rule=HostRegexp(`{subdomain:${ORGANIZR2_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
@@ -255,8 +270,8 @@ services:
       - "traefik.http.routers.organizr2-secure.tls=true"
       - "traefik.http.routers.organizr2-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
       # service router middlewares : organizr2
-      - "traefik.http.routers.organizr2.middlewares=error-middleware"
-      - "traefik.http.routers.organizr2-secure.middlewares=convert-http-links,error-middleware"
+      - "traefik.http.routers.organizr2.middlewares=alloworigin,error-middleware"
+      - "traefik.http.routers.organizr2-secure.middlewares=convert-http-links,alloworigin,error-middleware"
       # BEGIN SPECIAL tip -------------------------------------------------------------------------------------
       # make organizr plex SSO work : have another way to access plex as a subfolder of organizr2 url
       # middlewares : organizr2_plex
@@ -308,11 +323,9 @@ services:
       - "traefik.http.services.organizrtest.loadbalancer.server.scheme=http"
       - "traefik.http.services.organizrtest.loadbalancer.passhostheader=true"
       # middlewares : organizrtest
-      # X-Frame-Options: allow-from * is DEPRECATED
-      # force request to return X-Frame-Options: allow-from * - can be used to force service to show into an organizr iframe even if they do not allow it
-      #- 'traefik.http.middlewares.xframe-allow-all.headers.customFrameOptionsValue=allow-from *'
-      # enpty any X-Frame-Options instead
       - 'traefik.http.middlewares.xframe-allow-all.headers.customResponseHeaders.X-Frame-Options='
+      - "traefik.http.middlewares.convert-http-links.headers.contentSecurityPolicy=upgrade-insecure-requests;"
+      - "traefik.http.middlewares.alloworigin.headers.accesscontrolalloworigin=*"
       # service router : organizrtest
       - "traefik.http.routers.organizrtest.entrypoints=${ORGANIZRTEST_ENTRYPOINTS:-entry_main_http}"
       - "traefik.http.routers.organizrtest.rule=HostRegexp(`{subdomain:${ORGANIZRTEST_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
@@ -325,8 +338,8 @@ services:
       - "traefik.http.routers.organizrtest-secure.tls=true"
       - "traefik.http.routers.organizrtest-secure.tls.domains[0].main=${ORGANIZRTEST_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
       # service router middlewares : organizrtest
-      - "traefik.http.routers.organizrtest.middlewares=error-middleware"
-      - "traefik.http.routers.organizrtest-secure.middlewares=error-middleware"
+      - "traefik.http.routers.organizrtest.middlewares=alloworigin,error-middleware"
+      - "traefik.http.routers.organizrtest-secure.middlewares=convert-http-links,alloworigin,error-middleware"
     networks:
       - default
     expose:
@@ -718,6 +731,7 @@ services:
       - download:/download
       - calibredb_books_media:/calibredb/books
       - calibredb_press_media:/calibredb/press
+      - calibredb_pgames_media:/calibredb/pgames
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -761,10 +775,9 @@ services:
   #                                                         tested with chrome "Transmission easy client"
   # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
   transmission:
-    # TODO wait for PRs hhttps://github.com/linuxserver/docker-transmission/pull/146
-    #image: ghcr.io/linuxserver/transmission:version-3.00-r0
-    #${TRANSMISSION_VERSION:-latest}
-    image: studioetrange/transmission:latest
+    # TODO wait for PRs https://github.com/linuxserver/docker-transmission/pull/146
+    #image: studioetrange/transmission:latest
+    image: ghcr.io/linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_transmission
     depends_on:
       - service_init
@@ -899,6 +912,7 @@ services:
       # allow to expose books cover
       - calibredb_books_media:/app/calibredb/books
       - calibredb_press_media:/app/calibredb/press
+      - calibredb_pgames_media:/app/calibredb/pgames
       - ${TANGO_APP_ROOT}/pool/ebooks/calibredb_cover.htaccess:/app/calibredb/.htaccess
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
@@ -956,6 +970,9 @@ services:
       - ebooks_list_data:/config
       - calibredb_books_media:/calibredb/books
       - calibredb_press_media:/calibredb/press
+      - calibredb_pgames_media:/calibredb/pgames
+      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
+      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -965,7 +982,6 @@ services:
       - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
       # data used inside template
       - 'URL_CALIBREDB_FOR_COVER=${WEB_URI_DEFAULT_SECURE}'
-      #- 'URL_BOOK_LINK=${ORGANIZR2_URI_DEFAULT_SECURE}/#Books'
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
     networks:
@@ -982,7 +998,7 @@ services:
   # https://hub.docker.com/r/linuxserver/booksonic-air
   # https://github.com/linuxserver/docker-booksonic-air
   booksonic:
-    image: linuxserver/booksonic-air:${BOOKSONIC_VERSION:-latest}
+    image: ghcr.io/linuxserver/booksonic-air:${BOOKSONIC_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_booksonic
     depends_on:
       - service_init
@@ -1066,6 +1082,7 @@ services:
       - download:/download
       - calibredb_books_media:/calibredb/books
       - calibredb_press_media:/calibredb/press
+      - calibredb_pgames_media:/calibredb/pgames
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1113,6 +1130,7 @@ services:
       - download:/download
       - calibredb_books_media:/calibredb/books
       - calibredb_press_media:/calibredb/press
+      - calibredb_pgames_media:/calibredb/pgames
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1153,6 +1171,8 @@ services:
       # different paths used by calibreweb
       - download:/download
       - calibredb_books_media:/books
+      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
+      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1195,6 +1215,8 @@ services:
       # different paths used by calibreweb
       - download:/download
       - calibredb_press_media:/press
+      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
+      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1225,4 +1247,46 @@ services:
       # service router middlewares : calibreweb_press
       - "traefik.http.routers.calibreweb_press.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
       - "traefik.http.routers.calibreweb_press-secure.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
-  
+
+      
+  calibreweb_pgames:
+    !!merge <<: *default-calibreweb
+    container_name: ${TANGO_APP_NAME}_calibreweb_pgames
+    volumes:
+      # will contain calibre-web configuration
+      - calibreweb_pgames_data:/config
+      # different paths used by calibreweb
+      - download:/download
+      - calibredb_pgames_media:/pgames
+      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
+      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+      - AUTO_CREATE_DB=/pgames
+      - CALIBRE_CONFIG_DIRECTORY=/config/calibre
+      - CALIBRE_TEMP_DIR=/config/calibre/tmp
+      - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : calibreweb_pgames
+      - "traefik.http.services.calibreweb_pgames.loadbalancer.server.port=8083"
+      - "traefik.http.services.calibreweb_pgames.loadbalancer.server.scheme=http"
+      - "traefik.http.services.calibreweb_pgames.loadbalancer.passhostheader=true"
+      # middlewares : calibreweb_pgames
+      # service router : calibreweb_pgames
+      - "traefik.http.routers.calibreweb_pgames.entrypoints=${CALIBREWEB_PGAMES_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.calibreweb_pgames.rule=HostRegexp(`{subdomain:${CALIBREWEB_PGAMES_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.calibreweb_pgames.priority=${CALIBREWEB_PGAMES_PRIORITY}"
+      - "traefik.http.routers.calibreweb_pgames.service=calibreweb_pgames"
+      - "traefik.http.routers.calibreweb_pgames-secure.entrypoints=${CALIBREWEB_PGAMES_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.calibreweb_pgames-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_PGAMES_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.calibreweb_pgames-secure.priority=${CALIBREWEB_PGAMES_PRIORITY}"
+      - "traefik.http.routers.calibreweb_pgames-secure.service=calibreweb_pgames"
+      - "traefik.http.routers.calibreweb_pgames-secure.tls=true"
+      - "traefik.http.routers.calibreweb_pgames-secure.tls.domains[0].main=${CALIBREWEB_PGAMES_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : calibreweb_pgames
+      - "traefik.http.routers.calibreweb_pgames.middlewares=calibreweb_pgames-auth@rest,xframe-allow-all,error-middleware"
+      - "traefik.http.routers.calibreweb_pgames-secure.middlewares=calibreweb_pgames-auth@rest,xframe-allow-all,error-middleware"

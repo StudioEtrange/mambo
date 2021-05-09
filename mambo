@@ -219,6 +219,7 @@ case ${ACTION} in
                 organizr2 )
                     __tango_log "INFO" "mambo" "Update service Organizr2"
                     __organizr2_update
+                    __tango_log "WARN" "mambo" "You have to restart ${TARGET} service to run the updated version"
                 ;;
             esac
     ;;

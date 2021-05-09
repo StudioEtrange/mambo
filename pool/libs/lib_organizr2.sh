@@ -655,8 +655,8 @@ __organizr2_api_launch_request() {
 
 
 # tabs name from organizr will be matched with docker compose service names. Ignoring case.
-# If a docker compose service name (or a subservice) contains a "_", only the part after "_" will be used for a match
-#           'Books' (organizr tab name) will match 'calibreweb_books' (docker compose service name)
+# by default the 'ping url' field defined in organizr is used as tab name to match a service
+# if 'ping url' is null or empty then the real tab name defined in organir is used
 # http://organizr2.mydomain.com/api/?v1/tab/list
 # http://organizr2.mydomain.com/api/v2/tabs
 __organizr2_auth_group_by_service_all() {
@@ -681,7 +681,8 @@ __organizr2_auth_group_by_service_all() {
                     1 ) __tree=".data.tabs[]";;
                     2 ) __tree=".response.data.tabs[]";;
                 esac
-                for i in $(echo "$__tab_list" | jq -r ${__tree}' | .name + "#" + (.group_id|tostring)'); do
+                #for i in $(echo "$__tab_list" | jq -r ${__tree}' | .name + "#" + (.group_id|tostring)'); do
+                for i in $(echo "$__tab_list" | jq -r ${__tree}' | if (.ping_url == null or .ping_url == "") then .name else .ping_url end + "#" + (.group_id|tostring)'); do
 
                     __group_id="${i//*#}"
                     __tab_name="${i//#*}"
@@ -698,15 +699,15 @@ __organizr2_auth_group_by_service_all() {
                         esac
                         [ "$__found" = "1" ] && break;
                         # try to match tab name with a composed service name like "calibre_books"
-                        if $STELLA_API string_contains "${s}" "_"; then
-                            case $s in
-                                *_${__tab_name} ) 
-                                    __tango_log "DEBUG" "organizr2" "Matching organizr tab name : ${__tab_name} with service : ${s}"
-                                    __tab_name="${s}"
-                                    __found=1
-                                    ;;
-                            esac
-                        fi
+                        # if $STELLA_API string_contains "${s}" "_"; then
+                        #     case $s in
+                        #         *_${__tab_name} ) 
+                        #             __tango_log "DEBUG" "organizr2" "Matching organizr tab name : ${__tab_name} with service : ${s}"
+                        #             __tab_name="${s}"
+                        #             __found=1
+                        #             ;;
+                        #     esac
+                        # fi
                         [ "$__found" = "1" ] && break;
                     done
                     
