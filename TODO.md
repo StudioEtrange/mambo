@@ -1,5 +1,7 @@
 #  TODO 
 
+* [ ] Calibre back cover https://www.mobileread.com/forums/showthread.php?t=268119 ?
+
 * [X] add forward auth to compose file static at each launch AND dynamic at each change ? use organizr2 api and traefik rest api provider
 
 * [ ] lib transmission : generate encoded password for use in Authentification header

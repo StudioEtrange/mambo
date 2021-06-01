@@ -501,7 +501,9 @@ Plex SSO through organizr means : log into organizr then we are auto logged into
 
 * how to manage metadata books collection for booksonic and plex with mp3tag : https://github.com/seanap/Plex-Audiobook-Guide/blob/master/README.md
 
+* audioserve : simple streaming serve that can support audiobooks https://github.com/izderadicka/audioserve
 
+* calibre-web : audio player ? https://github.com/janeczku/calibre-web/blob/master/cps/static/js/libs/soundmanager2.js
 
 ### Booksonic
 
@@ -578,7 +580,7 @@ Into Organizr2
 
 * alfred - A web based comic book reader and library manager. https://github.com/kaethorn/alfred
 
-* ComicTagger
+* ComicTagger (alternative : ComicRack)
     * ComicTagger is a multi-platform app for writing metadata to digital comics, written in Python and PyQt
     * https://github.com/comictagger/comictagger
 
@@ -622,7 +624,6 @@ Into Organizr2
     * Manage multiple users, with per-library accesss control
 
 
-
 * ebook-tools
     * https://github.com/na--/ebook-tools
     * collection of bash shell scripts for automated and semi-automated organization and management of large ebook collections
@@ -639,8 +640,9 @@ Into Organizr2
 
 ### Shoko
 
-* Anime metadata/catalog management tool
+* ShokoServer
     * An anime cataloging program designed to automate the cataloging of your anime collection regardless of the size and number of files in your collection.
+    * WARN : rename files !
     * https://github.com/shokoanime
     * https://shokoanime.com/
     * https://hub.docker.com/r/cazzar/shokoserver
@@ -672,7 +674,7 @@ Into Organizr2
     * Metadata from library management software Calibre and ComicRack are also supported.
     * Works on JVM
     * old ? 2018
-    * no code source
+    * no code source - closed source
 
 * Test
     ```
@@ -841,6 +843,7 @@ Proposal : To generate a newsletter we could use the catalog feature of calibre
     * can Sync your Kobo devices through Calibre-Web with your Calibre library
 
 
+
 ### Calibre convert format
 
 * command line tool : ebook-convert 
@@ -917,13 +920,18 @@ Proposal of a comic metadata auto workflow
 
 ### Calibre metadata management
 
+* "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
+
 * plugin 'Polir les livres'
     * Installation : icône Préférences -> Barre d'outis & menus -> barre d'outils ou menu à personnaliser -> La barre d'outils principale
-    * Cocher les cases pour mettre à jour dans le fichier epub les métadonnées (colonnes) et la couverture.
-    * À noter que par défaut, lors du polissage Calibre conserve le fichier original au format original_epub
+    * Cocher les 2 cases pour mettre à jour dans le fichier epub les métadonnées (colonnes) et la couverture.
+    * Cocher les cases pour retirer les regles CSS inutiles et compresser les images
+    * À noter que 2 par défaut, lors du polissage Calibre conserve le fichier original au format original_epub
     Pour ne pas le sauvegarder :
     icône Préférences -> Ajustements -> Sauvegarder le fichier original ... vers le même format.
     save_original_format_when_polishing = True (remplacer True par False)
+
+
 
 * 'Vérifier la bibliothèque'
     * Menu de l'icône de la bibliothèque -> Maintenance de la bibliothèque -> Vérifier la bibliothèque puis Vérifier si les fichiers de la bibliothèque correspondent bien aux informations de la base de données.
@@ -936,10 +944,12 @@ Proposal of a comic metadata auto workflow
     * Installation : icône Préférences -> Extensions -> Obtenir de nouvelles extensions
 
 * En passant ces différents outils, je m'assure ainsi que :
+    * embed Metadata l'epub contient bien les metadata ("Embed Metadata")
     * le fichier epub contient bien (avant export) la couverture et les métadonnées visibles dans Calibre ('Polir les livres')
-    * les répertoires et la base de données sont cohérents ('Vérifier la bibliothèque')
-    * Les métadonnées sont correctement harmonisées ('Quality Check')
-    * Le livre (fichier epub) ne contient pas de données inutiles qui en particulier alourdissent la taille(Mo).
+    * Le livre (fichier epub) ne contient pas de données inutiles qui en particulier alourdissent la taille(Mo). ('Polir les livres')
+    * OPTIONEL : les répertoires et la base de données sont cohérents ('Vérifier la bibliothèque')
+    * OPTIONEL : Les métadonnées sont correctement harmonisées ('Quality Check')
+    
 
 ### ComicRack 
 
@@ -955,8 +965,7 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://github.com/cbanack/comic-vine-scraper
 
 * ComicRack plugin LibraryOrganizer 
-    * http://comicrack.cyolito.com/forum/13-scripts/11603-library-organizer-version-2-1-11-september-25-2014
-    * https://bitbucket.org/Stonepaw/library-organizer/src/default/
+    * https://github.com/Stonepaw/comicrack-library-organizer
 * ComicRack plugin DataManager
     * http://comicrack.cyolito.com/forum/13-scripts/33002-cr-data-manager-manipulate-data-based-on-rules-version-1-2-4
 
@@ -1046,7 +1055,9 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
 
 * Retropie
     * built primarly for raspberrypi
+    * build ontop of raspbian - can be installed as package (instead of a full distro)
     * distribution emulation with EmulationStation (default frontend) + Retroarch + Others emulators
+    * harder and more configurable than recalbox or batocera
     * https://retropie.org.uk/
     * https://github.com/RetroPie
     * https://github.com/RetroPie/EmulationStation
@@ -1232,6 +1243,10 @@ A frontend is a launcher of emulators
     * able to build frontend with a metadata backend (server)    
     * under construction
 
+* CoinOps
+    * Frontend for XBox or PC
+    * Runs under windows
+    * CoinOps Next 2 : https://www.arcadepunks.com/coinops-next-2-up-to-date-january-2021-edition-from-furio-r2-r3-arcade-arcade-r2-r3-art/
 
 ### Emulation : Rom management tools
 
@@ -1349,6 +1364,7 @@ A frontend is a launcher of emulators
 
 * Links
     * http://romhustler.net/
+    * https://www.emurom.net/
     * https://romsmania.cc
     * https://www.nds-passion.xyz
     * https://www.3dscia.com/

@@ -237,10 +237,10 @@ Into Organizr2
 * Add a tab in Organizr2 menu
     * Tab editor / add a tab ("plus" button)
         * Tab name : Plex or choose one
-        * Tab Url : `https://plex.mydomain.com`
+        * Tab Url : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
         * Ping Url : plex - MUST be same name as listed in `mambo services list`
         * Choose image : `plex`
-    * Tab editor / Tabs list 
+    * Tab editor / Tabs list
         * Group : User
 
 * SSO : Delegate ombi authentification to organizr2
@@ -255,7 +255,7 @@ Into Organizr2
         * Personalize all viewing options - recommended : 
             * Active Streams / Enable, Minimum Authentication : User
             * Active Streams / User Info Enabled, Minimum Authentication : Co-Admin
-            * Misc Options / Plex Tab Name : Plex (Name of your plex tab in setted in tab editor)
+            * Misc Options / Plex Tab Name : Plex (Name of your plex tab in setted in tab editor) (WARN : if you setted a tab name with special characters, links on homepage about plex active streams may not works)
             * Misc Options / Url wan : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
 
 ### Plex and GPU
@@ -714,7 +714,7 @@ Into Organizr2
         * Group : User
 
 * SSO : Delegate ombi authentification to organizr2
-    * System Settings - Single Sign-On
+    * System Settings / Single Sign-On / Ombi
         * Ombi Url : `http://ombi:5000`
         * Token : get API Key from Ombi settings / Ombi / Ombi Configuration
 
@@ -724,6 +724,74 @@ Into Organizr2
 
 * To add users 
     * Parameters / Configuration / User importer : Run importer
+
+
+
+----
+## Overseerr
+
+### 1.Auto configuration
+
+* Start service
+    `./mambo up overseerr`
+
+
+## 2. Manual Configuration
+
+
+go to overseerr https://overseerr.mydomain.com
+
+
+* At first Launch
+    * Connect with plex account
+    * Plex settings
+        * Server : choose the secure url
+        * Hostname : https://plex.domain.com
+        * Port : 443
+        * Enable SSL
+        * Save
+    * Plex libraries
+        * select wanted libraries
+        * Start Scan
+* Settings
+    * General
+        * Application Title : will be used in mail
+        * Application Url : https://organizr.domain.com/#OverseerTabName
+    * Users
+        * Enable New Plex User Sign-In Allow Plex users to sign in without first being imported : enable
+        * Default Permissions
+            * View requests : if you want that all requests to anybody
+    * Notifications
+        * Email
+            * settings based on your mail provider, sample for mymail@gmail.com :
+            * Enable Agent
+            * Sender name : choose a name
+            * Sender address : mymail@gmail.com
+            * SMTP Host : smtp.gmail.com
+            * SMTP port : 587
+            * Encryption : use starttls if available
+            * SMTP Username : mymail@gmail.com
+            * SMTP Password : xxxx
+    
+
+### 2. Overseerr and Organizr2 
+
+Into Organizr2
+
+* Add a tab in Organizr2 menu
+    * Tab editor / add a tab ("plus" button)
+        * Tab name : Overseerr or choose one
+        * Tab Url : `https://overseerr.mydomain.com`
+        * Ping Url : overseerr - MUST be same name as listed in `mambo services list`
+        * Choose image : `overseerr`
+    * Tab editor / Tabs list 
+        * Group : User
+
+* SSO : Delegate Overseerr authentification to organizr2
+    * System Settings / Single Sign-On / overseerr
+        * overseerr Url : `http://overseerr:5055`
+        * Token : get API Key from Overseerr settings or with `./mambo info overseerr`
+        * Enable
 
 ---
 ## MKVToolNix
@@ -1020,17 +1088,20 @@ Into Calibre
     * Preferences / Toolbars & menus / main toolbar
         * "Embed Metadata" action (FR : "integrer metadonnees") - for any file format
         * "Polish book" action (FR : "polir livres") - for ePub and AZW3 files
+            * to not keep an original file : Preferences / Tweaks / Save origin file when... / set both values as False (Click on restart calibre)
             * Update metadata in ebook
             * Update the cover in ebook
             * Remove unused CSS
             * Losslessly compress image
-            * to not keep an original file : Preferences / Tweaks / Save origin file when... / False (Click on restart calibre)
 * recommended plugins
     * Preferences / Advanced / Plugins / Get new plugins
         * "Modify ePub" - for ePub files
         * "Quality check" - for ePub files
         * "Babelio" plugins - for babelio.com metadata https://www.mobileread.com/forums/showthread.php?t=294421 (Load plugin from file : babelio_calibre.zip)
         * "Mass Search/Replace" - Usefull to take care of press/magazines
+        * "Comments cleaner" https://github.com/un-pogaz/Comments-Cleaner
+        * "GetFileName" - Usefull to store in a column original filename https://www.mobileread.com/forums/showthread.php?t=278559
+        * "Google Images"
 * all calibre database folders are in folder `/calibredb` (i.e /calibredb/books, /calibredb/press)
 
 ----
