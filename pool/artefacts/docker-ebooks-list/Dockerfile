@@ -25,6 +25,7 @@ RUN \
  echo "**** install python tools ****" && \
  pip install \
  	yq==2.11.1 \
+	python-dateutil==2.8.1 \
  	Mako==1.1.3 && \
  echo "**** install webhook ****" && \
  curl -fkSL "https://github.com/adnanh/webhook/releases/download/2.8.0/webhook-linux-amd64.tar.gz" -o /tmp/webhook-linux-amd64.tar.gz && \

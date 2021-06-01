@@ -34,6 +34,8 @@ calibredb=data['calibredb']
 #print("nb books :", nb_books)
 #print("id books list :", books_id_list)
 
+from dateutil import parser
+
 %>
 
 <!-- ebooks-list integration by StudioEtrange for Mambo media stack https://github.com/StudioEtrange/mambo -->
@@ -116,8 +118,8 @@ calibredb=data['calibredb']
                                                                                     <td class="badge-container" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;max-width: 260px;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;">
                                                                                         <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate;mso-table-lspace: 0pt;mso-table-rspace: 0pt;width: 100%;">
                                                                                             <tr>
-                                                                                                % if 'year' in book and book['year']:
-                                                                                                <td class="badge" title="${book['year']}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${book['year']}</td>
+                                                                                                % if 'pubdate' in book and book['pubdate'] and parser.parse(book['pubdate']).year!=101:
+                                                                                                <td class="badge" title="${parser.parse(book['pubdate']).strftime('%Y-%m')}" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 11px;vertical-align: middle;display: inline-block;min-width: 10px;margin-right: 4px;padding: 3px 7px;line-height: 1;text-align: center;white-space: nowrap;background-color: rgba(0, 0, 0, .25);border-radius: 2px;text-overflow: ellipsis;overflow: hidden;color: #ffffff;">${parser.parse(book['pubdate']).strftime('%Y-%m')}</td>
                                                                                                 % endif
                                                                                                 % if 'tags' in book and book['tags']['tag']:
                                                                                                 % if isinstance(book['tags']['tag'], str):

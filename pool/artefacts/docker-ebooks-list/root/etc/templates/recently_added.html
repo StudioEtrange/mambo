@@ -544,7 +544,6 @@
         <td class="container" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;display: block;max-width: 1042px;padding: 10px;width: 1042px;margin: 0 auto !important;">
             <div class="content" style="box-sizing: border-box;display: block;margin: 0 auto;max-width: 1037px;padding: 10px;">
                 <span class="preheader" style="color: transparent;display: none;height: 0;max-height: 0;max-width: 0;opacity: 0;overflow: hidden;mso-hide: all;visibility: hidden;width: 0;">Tautulli Newsletter  - ${subject}</span>
-                <!--<span class="preheader" style="color: transparent;display: none;height: 0;max-height: 0;max-width: 0;opacity: 0;overflow: hidden;mso-hide: all;visibility: hidden;width: 0;">Tautulli Newsletter  - ${subject}</span>-->
                 % if base_url and not preview:
                 <div class="view-full" style="clear: both;color: #282A2D;font-size: 12px;margin-bottom: 10px;text-align: center;width: 100%;">  <!-- IGNORE SAVE -->
                     <a href="${base_url + uuid}" title="View full newsletter" target="_blank" rel="noreferrer" style="text-decoration: underline;color: #282A2D;">Click here to view the full newsletter.</a>  <!-- IGNORE SAVE -->
@@ -557,7 +556,6 @@
                                 <img src="${base_url_image + 'images/newsletter/newsletter-header.png' if base_url_image else 'https://tautulli.com/images/newsletter/newsletter-header.png'}" class="header-img" width="492" height="90" style="border: none;-ms-interpolation-mode: bicubic;max-width: 100%;width: 492px;height: 90px;margin-left: -35px;">
                             </div>
                             <div class="server-name" style="font-size: 30px;text-align: center;">${parameters['server_name']}</div>
-                            <!--<div class="server-name" style="font-size: 30px;text-align: center;">${parameters['server_name']}</div>-->
                             <div class="dates" style="color: #aaaaaa;font-size: 20px;text-align: center;">${parameters['start_date']} - ${parameters['end_date']}</div>
                         </td>
                     </tr>
@@ -580,6 +578,7 @@
 <%
 from urllib.request import Request, urlopen
 
+# 4 randoms books
 req = Request("http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Random%20books&days_old_filter=&random_order=1&limit=4&url=https%3A%2F%2F&debug=0")
 req.add_header("Accept", "text/html")
 
@@ -591,11 +590,11 @@ ${generated_html_random.decode("utf-8") | n}
 <!-- END inject ebooks-list template -->
 
 
-
 <!-- BEGIN inject ebooks-list template -->
 <%
 from urllib.request import Request, urlopen
 
+# Last 7 days added books
 req = Request("http://localhost:9000/hooks/render?calibredb=/calibredb/books&template_file=tautulli_ebooks.html&items_name=book&title=Last%207%20days%20added%20books&days_old_filter=7&random_order=0&limit=&url=https%3A%2F%2F&debug=0")
 req.add_header("Accept", "text/html")
 
@@ -605,9 +604,6 @@ generated_html_last_books = url.read()
 %>
 ${generated_html_last_books.decode("utf-8") | n}
 <!-- END inject ebooks-list template -->
-
-
-
 
 
 
@@ -882,6 +878,10 @@ ${generated_html_last_books.decode("utf-8") | n}
                         </td>
                     </tr>
                     % endif
+
+
+
+
                     % if recently_added.get('artist'):
                     <tr>
                         <td class="wrapper" style="font-family: 'Open Sans', Helvetica, Arial, sans-serif;font-size: 14px;vertical-align: top;box-sizing: border-box;padding: 5px;overflow: auto;">
