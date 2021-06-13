@@ -1,0 +1,47 @@
+program:
+	arguments(text='');
+
+	if switch(text,"altcover",'1','0') == '1' then
+		existing_text = re(text, '^(.|\s)*(#altcover.*)','\2');
+		
+		covertable = identifier_in_list(formats_paths(),"JPG","1","0");
+		covertable = or(covertable,identifier_in_list(formats_paths(),"PNG","1","0"));
+		
+		html = '';
+	
+		if covertable == '1' then
+			html = strcat(html,"<p>")
+		fi;
+	
+	
+		if select(formats_paths(),'JPG') != '' then
+			html = strcat(
+				html,
+				'<img  src="',
+				sublist(re(select(formats_paths(),'JPG'), '[\\/]', ':') , -1,0,':'),
+				'" alt="#altcover"/>',	
+				'<img  src="/download/',
+				field("id"), '/jpg/', field('id'), '.jpg',
+				'"  alt="#altcover"/>',
+			)
+		fi;
+		if select(formats_paths(),'PNG') != '' then
+			html = strcat(
+				html,
+				'<img  src="',
+				sublist(re(select(formats_paths(),'PNG'), '[\\/]', ':') , -1,0,':'),
+				'"  alt="#altcover"/>',
+				'<img  src="/download/',
+				field("id"), '/png/', field('id'), '.png',
+				'"  alt="#altcover"/>',
+			)
+		fi;
+	
+	
+		if covertable == '1' then
+			html = strcat(html,"</p>")
+		fi;
+		html
+	else
+		text
+	fi;
