@@ -333,6 +333,7 @@ __create_docker_compose_file() {
 	# concatenate compose files starting with tango compose file
 	# NOTE : do not explode anchors here, we need to keep anchor &default-vpn, because we add vpn sections later and we need &default-vpn still exists
 	cp -f "${TANGO_COMPOSE_FILE}" "${GENERATED_DOCKER_COMPOSE_FILE}"
+
 	
 	# manage traefik entrypoint
 	__add_entrypoints_all
@@ -345,14 +346,24 @@ __create_docker_compose_file() {
 	[ -f "${TANGO_USER_COMPOSE_FILE}" ] && yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_USER_COMPOSE_FILE}")
 
 
+	# define network area
+	__set_network_area_all
+
+
 	__set_module_all
 	__set_active_services_all
 	__set_time_all
+	
+	# attach all services to entrypoints
 	__set_entrypoints_service_all
+	# attach all subservices to entrypoints
 	__set_entrypoints_subservice_all
-	__set_uri_info_service_all
+
+	__set_routers_info_service_all
 	__set_priority_router_all
+
 	__set_redirect_https_service_all
+	
 	# set priority for error router after to override default setted values for any service
 	__set_error_engine
 	__add_service_direct_port_access_all
@@ -416,9 +427,8 @@ __translate_all_path() {
 
 # MANAGE FEATURES FOR ALL CONTAINTERS -----------------
 
-
+# declare all active service as "tango" service depdenciess in compose file
 __set_active_services_all() {
-	# declare all active service in tango depdenciess
 	for s in ${TANGO_SERVICES_ACTIVE}; do
 		__check_docker_compose_service_exist "${s}" && __add_service_dependency "tango" "${s}" || __tango_log "WARN" "tango" "unknow service ${s} declared in TANGO_SERVICES_ACTIVE"
 	done
@@ -494,7 +504,7 @@ __add_volume_artefact_all() {
 				#	|| echo "** WARN : unknow ${s} service declared in TANGO_ARTEFACT_SERVICES"
 				
 			done
-			[ "${VERBOSE}" = "1" ] && __tango_log "DEBUG" "tango" "[${f}] will be mapped to {${TANGO_ARTEFACT_MOUNT_POINT}/${target}}"			
+			__tango_log "DEBUG" "tango" "[${f}] will be mapped to {${TANGO_ARTEFACT_MOUNT_POINT}/${target}}"
 		fi
 	done
 }
@@ -591,111 +601,148 @@ __set_letsencrypt_service_all() {
 
 
 
-__set_uri_info_service_all() {
+__set_routers_info_service_all() {
 
-	local __var=
+	
+	local area
+	local name
+	local proto
+	local internal_port
+	local secure_port
+	local __service
+	local __port
 	local __entrypoints=
 	local __entrypoint_default=
-
+	local __var=
 	local __subdomain=
 	local __hostname=
+	local __subservice_flag=
 	local __address=
-	local __port=
-	local __http=
-	for __service in ${TANGO_SERVICES_AVAILABLE}; do
-		
+	local __uri=
+	local __parent=
+	local __router_list=
+	
+	__tango_log "DEBUG" "tango" "set_routers_info_service_all : setting routers information (port, subdomain, hostname, address, uri)"
 
-		__var="${__service^^}_ENTRYPOINTS"; __entrypoints="${!__var}"
-		__var="${__service^^}_ENTRYPOINTS_SECURE"; __entrypoints="${__entrypoints} ${!__var}";
-		# trim __entrypoints
-        __entrypoints="${__entrypoints#"${__entrypoints%%[![:space:]]*}"}"   # remove leading whitespace characters
-        __entrypoints="${__entrypoints%"${var##*[![:space:]]}"}" # remove trailing whitespace characters
+	for __service in ${TANGO_SERVICES_AVAILABLE} SUBSERVICES_DELIMITER ${TANGO_SUBSERVICES_ROUTER}; do
+		
+		__subdomain=
+		__hostname=
+		__address=
+		__port=
+		__uri=
+
+		if [ "${__service}" = "SUBSERVICES_DELIMITER" ]; then
+			# we iter inside subservice list
+			__subservice_flag="1"
+			continue
+		fi
+
+		if [ "${__subservice_flag}" = "1" ]; then
+			__parent="$(__get_subservice_parent "${__service}")"
+			__router_list="${__parent^^}_ROUTERS_LIST"
+			__router_list="${!__router_list} ${__service}"
+			eval "export ${__parent^^}_ROUTERS_LIST=\"${__router_list}\""
+			__add_declared_variables "${__parent^^}_ROUTERS_LIST"
+		else
+			eval "export ${__service^^}_ROUTERS_LIST=\"${__service}\""
+			__add_declared_variables "${__service^^}_ROUTERS_LIST"
+		fi
+
+
+		__entrypoints="${__service^^}_ENTRYPOINTS"
+		__entrypoints="${!__entrypoints}"
+		__entrypoint_default="${__service^^}_ENTRYPOINT_DEFAULT"
+		__entrypoint_default="${!__entrypoint_default}"
+
 
 		if [ ! "${__entrypoints}" = "" ]; then
 			__var="${__service^^}_SUBDOMAIN"
 			if [ -z ${!__var+x} ]; then
-				__add_declared_variables "${__service^^}_SUBDOMAIN"
-				__subdomain="${__service}."
+				if [ "${__subservice_flag}" = "1" ]; then
+					__subdomain="$(__get_subservice_parent "${__service}")."
+				else
+					# by default each router of a service have the service name as subdomin name value
+					__subdomain="${__service}."
+				fi
 				eval "export ${__service^^}_SUBDOMAIN=${__subdomain}"
+				__add_declared_variables "${__service^^}_SUBDOMAIN"
 			else
 				__subdomain="${!__var}"
 			fi
-			__add_declared_variables "${__service^^}_HOSTNAME"
+
 			[ "${TANGO_DOMAIN}" = '.*' ] && __hostname="${__subdomain}" || __hostname="${__subdomain}${TANGO_DOMAIN}"
 			eval "export ${__service^^}_HOSTNAME=${__hostname}"
+			__add_declared_variables "${__service^^}_HOSTNAME"
 
+			__tango_log "DEBUG" "tango" "service : ${__service} - entrypoints : ${__entrypoints} - subdomain : ${__subdomain} - hostname : ${__hostname}"
+		else
+			__tango_log "DEBUG" "tango" "service : ${__service} is not attached to any entrypoint"
 		fi
 
-		__service="${__service^^}"
+		for e in ${__entrypoints}; do
+			area="$(__get_network_area_name_from_entrypoint "${e}")"
 
-		__var="${__service}_ENTRYPOINT_DEFAULT"
-		__entrypoint_default="${!__var}"
-		__entrypoint_default="${__entrypoint_default^^}"
-		
-		#WEB1_ENTRYPOINTS=entry_main_http
-		#WEB1_ENTRYPOINTS_SECURE=entry_main_http_secure
-        for e in ${__entrypoints}; do
-			e="${e^^}"
-			# turn entry_main_http_secure into NETWORK_PORT_MAIN_SECURE
-            __var="${e/ENTRY_/NETWORK_PORT_}"
-			__var="${__var/_HTTP/}"
-			__var="${__var/_TCP/}"
-			__var="${__var/_UDP/}"
-            __var="${__var^^}"
-			__port="${!__var}"
+			__port="NETWORK_PORT_${area^^}"
+			__port="${!__port}"
+			eval "export ${__service^^}_PORT_${area^^}=${__port}"
+			__add_declared_variables "${__service^^}_PORT_${area^^}"
+
 			[ "${__port}" = "" ] && __address="${__hostname}" || __address="${__hostname}:${__port}"
+			eval "export ${__service^^}_ADDRESS_${area^^}=${__address}"
+			__add_declared_variables "${__service^^}_ADDRESS_${area^^}"
 
-			case $e in
-				*_HTTP*)
-					case $e in
-						*SECURE )
-							__uri="https://${__address}"
-							;;
-						* )
-							__uri="http://${__address}"
-							;;
-					esac
-					;;
-				*_TCP*)
-					__uri="tcp://${__address}"
-					;;
-				*_UDP*)
-					__uri="udp://${__address}"
-					;;
+			proto="NETWORK_SERVICES_AREA_${area^^}_PROTO"
+			proto="${!proto}"
+			case $proto in
+				http ) __uri="http://${__address}" ;;
+				tcp ) __uri="tcp://${__address}" ;;
+				udp ) __uri="tcp://${__address}" ;;
+				* )	__uri="unknow://${__address}" ;;
 			esac
-		
-			__add_declared_variables "${__service}_PORT_${e}"
-			__add_declared_variables "${__service}_ADDRESS_${e}"
-			__add_declared_variables "${__service}_URI_${e}"
-			eval "export ${__service}_PORT_${e}=${__port}"
-			eval "export ${__service}_ADDRESS_${e}=${__address}"
-			eval "export ${__service}_URI_${e}=${__uri}"
-			
-			case $e in
-				*SECURE )
-					if [ "${__entrypoint_default}_SECURE" = "$e" ]; then
-						__add_declared_variables "${__service}_URI_DEFAULT_SECURE"
-						eval "export ${__service}_URI_DEFAULT_SECURE=${__uri}"
-					fi
-				;;
-				* )
-					if [ "${__entrypoint_default}" = "$e" ]; then
-						__add_declared_variables "${__service}_URI_DEFAULT"
-						eval "export ${__service}_URI_DEFAULT=${__uri}"
-					fi
-				;;
-			esac
+			eval "export ${__service^^}_URI_${area^^}=${__uri}"
+			__add_declared_variables "${__service^^}_URI_${area^^}"
+
+			if [ "$e" = "${__entrypoint_default}" ]; then
+				eval "export ${__service^^}_URI_DEFAULT=${__uri}"
+				__add_declared_variables "${__service^^}_URI_DEFAULT"
+			fi
+
+			secure_port="NETWORK_SERVICES_AREA_${area^^}_INTERNAL_SECURE_PORT"
+			secure_port="${!secure_port}"
+			if [ ! "${secure_port}" = "" ] ; then
+				__port="NETWORK_PORT_${area^^}_SECURE"
+				__port="${!__port}"
+				eval "export ${__service^^}_PORT_${area^^}_SECURE=${__port}"
+				__add_declared_variables "${__service^^}_PORT_${area^^}_SECURE"
+
+				[ "${__port}" = "" ] && __address="${__hostname}" || __address="${__hostname}:${__port}"
+				eval "export ${__service^^}_ADDRESS_${area^^}_SECURE=${__address}"
+				__add_declared_variables "${__service^^}_ADDRESS_${area^^}_SECURE"
 				
-        done
+				case $proto in
+					http ) __uri="https://${__address}" ;;
+					tcp ) __uri="tcp://${__address}" ;;
+					udp ) __uri="tcp://${__address}" ;;
+					* )	__uri="unknow://${__address}" ;;
+				esac
+				eval "export ${__service^^}_URI_${area^^}_SECURE=${__uri}"
+				__add_declared_variables "${__service^^}_URI_${area^^}_SECURE"
 
-		
-		
+				if [ "$e" = "${__entrypoint_default}" ]; then
+					eval "export ${__service^^}_URI_DEFAULT_SECURE=${__uri}"
+					__add_declared_variables "${__service^^}_URI_DEFAULT_SECURE"
+				fi
+			fi
+			
+
+		done
 
 	done
 }
 
-# Define network areas
-# Each network area have traefik entrypoint with a name, a protocol an internal port and an optionnal associated entrypoint
+# Define network areas into compose file
+# Each network area have traefik entrypoint with a name, a protocol an internal port and an optional associated entrypoint
 # The associated entrypoint have same name with postfix _secure is mainly used to declare an alternative HTTPS entrypoint to a HTTP entrypoint
 # NETWORK_SERVICES_AREA_LIST=main|tcp|80|443 secondary|tcp|8000|8443 test|udp|41000 
 __add_entrypoints_all() {
@@ -705,14 +752,14 @@ __add_entrypoints_all() {
 		IFS="|" read -r name proto internal_port secure_port <<<$(echo ${area})
 		__add_entrypoint "$name" "$proto" "$internal_port" "$secure_port"
 		[ "$name" = "main" ] && __area_main_done=1
-		__add_declared_variables "NETWORK_SERVICES_AREA_${name^^}_${proto^^}"
+		__add_declared_variables "NETWORK_SERVICES_AREA_${name^^}"
 	done
 
 	# add by default the definition of main network area if not defined in list
 	if [ ! "$__area_main_done" = "1" ]; then
 		__add_entrypoint "main" "http" "80" "443"
 		NETWORK_SERVICES_AREA_LIST="main|http|80|443 $NETWORK_SERVICES_AREA_LIST"
-		__add_declared_variables "NETWORK_SERVICES_AREA_MAIN_HTTP"
+		__add_declared_variables "NETWORK_SERVICES_AREA_MAIN"
 	fi
 
 }
@@ -772,27 +819,36 @@ __add_entrypoint() {
 }
 
 
+__set_network_area_all() {
+	
+	for area in ${NETWORK_SERVICES_AREA_LIST}; do
+		IFS="|" read -r name proto internal_port secure_port <<<$(echo ${area})
 
+		eval "export NETWORK_SERVICES_AREA_${name^^}_PROTO=${proto}"
+		__add_declared_variables "NETWORK_SERVICES_AREA_${name^^}_PROTO"
+		eval "export NETWORK_SERVICES_AREA_${name^^}_INTERNAL_PORT=${internal_port}"
+		__add_declared_variables "NETWORK_SERVICES_AREA_${name^^}_INTERNAL_PORT"
+		eval "export NETWORK_SERVICES_AREA_${name^^}_INTERNAL_SECURE_PORT=${secure_port}"
+		__add_declared_variables "NETWORK_SERVICES_AREA_${name^^}_INTERNAL_SECURE_PORT"
+	done
 
+	
+}
+
+# attach all services to entrypoint
 __set_entrypoints_service_all() {
 
 	local var
-	local parent_entrypoints_list
 
 	for area in ${NETWORK_SERVICES_AREA_LIST}; do
 		IFS="|" read -r name proto internal_port secure_port <<<$(echo ${area})
 
-		var="NETWORK_SERVICES_AREA_${name^^}_${proto^^}"
+		var="NETWORK_SERVICES_AREA_${name^^}"
 
 		# assign each declared service or subservice attached to this area
 		for s in ${!var}; do
-			__tango_log "DEBUG" "tango" "assign service ${s} to $var"
-			if [ "$secure_port" = "" ]; then
-				__set_entrypoint_service "${s}"  "entry_${name}_${proto}"
-			else
-				__set_entrypoint_service "${s}"  "entry_${name}_${proto}"
-				__set_entrypoint_service "${s}"  "entry_${name}_${proto}" "secure"
-			fi
+			__tango_log "DEBUG" "tango" "service : ${s} is attached to network area : ${name}"
+			__set_entrypoint_service "${s}" "${name}"
 		done
 	done
 
@@ -800,57 +856,53 @@ __set_entrypoints_service_all() {
 }
 
 
-# parse subservice list to attach each subservice to its parent entrypoint if any and if not already attached
-# because by default each subservice have the same entrypoint than its parent service
+# parse subservice list to attach each subservice to its parent entrypoint (if parents have an entrypoint and if not already attached)
+# note : by default each subservice have the same entrypoint than its parent service
 __set_entrypoints_subservice_all() {
 	local var
 	local parent
 	local parent_entrypoints_list
-	local __previous
+	local parent_entrypoint_default
 
 	for s in ${TANGO_SUBSERVICES_ROUTER}; do
 
 		parent=$(__get_subservice_parent "$s")
-
-		var="${s^^}_ENTRYPOINTS"
+		
 		parent_entrypoints_list="${parent^^}_ENTRYPOINTS"
-
+		parent_entrypoints_list="${!parent_entrypoints_list}"
+		parent_entrypoint_default="${parent^^}_ENTRYPOINT_DEFAULT"
+		parent_entrypoint_default="${!parent_entrypoint_default}"
+		var="${s^^}_ENTRYPOINTS"
+		# subservice not attached to an entrypoint so attached to the same as its parent
 		if [ "${!var}" = "" ]; then
-			__previous=
-			for pe in ${!parent_entrypoints_list}; do
-				#__var="${__service^^}_ENTRYPOINTS"
-				if [ ! "${!var}" = "" ]; then
-					__previous=",${!var}"
-				else
-					# first entrypoint attached to a service is the default one
-					__add_declared_variables "${s^^}_ENTRYPOINT_DEFAULT"
-					eval "export ${s^^}_ENTRYPOINT_DEFAULT=${pe}"
-				fi
-				eval "export ${var}=${pe}${__previous}"
+			if [ ! "${parent_entrypoints_list}" = "" ]; then
+				eval "export ${var}=${parent_entrypoints_list}"
 				__add_declared_variables "${var}"
-			done
+				eval "export ${s^^}_ENTRYPOINT_DEFAULT=${parent_entrypoint_default}"
+				__add_declared_variables "${s^^}_ENTRYPOINT_DEFAULT"
+				__tango_log "DEBUG" "tango" "assign subservice : ${s}, child of service : ${parent}, to its parent entrypoints : ${parent_entrypoints_list}"
+			fi
+		else
+			__tango_log "DEBUG" "tango" "subservice : ${s}, child of service : ${parent}, was already assigned to its own entrypoints : ${!var}"
 		fi
 
 		var="${s^^}_ENTRYPOINTS_SECURE"
-		parent_entrypoints_list="${parent^^}_ENTRYPOINTS_SECURE"
-
 		if [ "${!var}" = "" ]; then
-			__previous=
-			for pe in ${!parent_entrypoints_list}; do
-				#__var="${__service^^}_ENTRYPOINTS"
-				if [ ! "${!var}" = "" ]; then
-					__previous=",${!var}"
-				else
-					# first entrypoint attached to a service is the default one
-					__add_declared_variables "${s^^}_ENTRYPOINT_DEFAULT_SECURE"
-					eval "export ${s^^}_ENTRYPOINT_DEFAULT_SECURE=${pe}"
-				fi
-				eval "export ${var}=${pe}${__previous}"
+			parent_entrypoints_list="${parent^^}_ENTRYPOINTS_SECURE"
+			parent_entrypoints_list="${!parent_entrypoints_list}"
+			parent_entrypoint_default="${parent^^}_ENTRYPOINT_DEFAULT_SECURE"
+			parent_entrypoint_default="${!parent_entrypoint_default}"
+
+			if [ ! "${parent_entrypoints_list}" = "" ]; then
+				eval "export ${var}=${parent_entrypoints_list}"
 				__add_declared_variables "${var}"
-			done
+
+				__tango_log "DEBUG" "tango" "assign subservice : ${s}, child of service : ${parent}, to its parent secure entrypoints : ${parent_entrypoints_list}"
+				
+				eval "export ${s^^}_ENTRYPOINT_DEFAULT_SECURE=${parent_entrypoint_default}"
+				__add_declared_variables "${s^^}_ENTRYPOINT_DEFAULT_SECURE"
+			fi
 		fi
-
-
 	done
 }
 
@@ -963,7 +1015,7 @@ __add_service_direct_port_access_all() {
 			if __check_docker_compose_service_exist "${service}"; then
 				port_inside="$(yq r "${GENERATED_DOCKER_COMPOSE_FILE}" services.$service.expose[0])"
 				if [ ! "${port_inside}" = "" ]; then
-					[ "${VERBOSE}" = "1" ] && __tango_log "DEBUG" "tango" "Activate direct access to $service : mapping $port to $port_inside"
+					__tango_log "INFO" "tango" "Activate direct access to $service : mapping $port to $port_inside"
 					yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.$service.ports[+]" "$port:$port_inside"
 				else
 					__tango_log "WARN" "tango" "cannot activate direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
@@ -989,58 +1041,79 @@ __set_module_all() {
 __set_module() {
 	local __module="$1"
 
-	__tango_log "DEBUG" "tango" "__set_module : process module ${__module}"
-	__parse_item "module" "${__module}" "MODULE"
+	__tango_log "DEBUG" "tango" "set_module : process module declaration form : ${__module}"
+	__parse_item "module" "${__module}" "_MODULE"
+
+	__tango_log "DEBUG" "tango" "set_module : module name : ${_MODULE_NAME}"
+	__module="${_MODULE_NAME}"
 
 	# add yml to docker compose file
-	case ${MODULE_OWNER} in
+	case ${_MODULE_OWNER} in
 		APP )
-			# NOTE : if problem appears with anchos in module
-			yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_APP_MODULES_ROOT}/${MODULE_NAME}.yml")
-			#yq m -i -a=overwrite -- "${GENERATED_DOCKER_COMPOSE_FILE}" "${TANGO_APP_MODULES_ROOT}/${MODULE_NAME}.yml"
+			__tango_log "DEBUG" "tango" "set_module : ${__module} is an app module"
+			# NOTE : if problem appears with anchors in module
+			yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_APP_MODULES_ROOT}/${_MODULE_NAME}.yml")
+			#yq m -i -a=overwrite -- "${GENERATED_DOCKER_COMPOSE_FILE}" "${TANGO_APP_MODULES_ROOT}/${_MODULE_NAME}.yml"
 		;;
 		TANGO )
-			# NOTE : if problem appears with anchos in module
-			yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_MODULES_ROOT}/${MODULE_NAME}.yml")
-			#yq m -i -a=overwrite -- "${GENERATED_DOCKER_COMPOSE_FILE}" "${TANGO_MODULES_ROOT}/${MODULE_NAME}.yml"
+			__tango_log "DEBUG" "tango" "set_module : ${__module} is a tango module"
+			# NOTE : if problem appears with anchors in module
+			yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_MODULES_ROOT}/${_MODULE_NAME}.yml")
+			#yq m -i -a=overwrite -- "${GENERATED_DOCKER_COMPOSE_FILE}" "${TANGO_MODULES_ROOT}/${_MODULE_NAME}.yml"
 		;;
 	esac
 
 	# entrypoint
-	# MODULE_NETWORK_AREA is setted by __parse_item()
+	# NOTE : _MODULE_NETWORK_AREA is setted by __parse_item()
 	local __area=
-	if [ ! "${MODULE_NETWORK_AREA}" = "" ]; then
-		__area="${MODULE_NETWORK_AREA}"
-		__tango_log "DEBUG" "tango" "__set_module ${__module} entrypoint affected : $__area"
+	local __area_services=
+	if [ ! "${_MODULE_NETWORK_AREA}" = "" ]; then
+		__tango_log "DEBUG" "tango" "set_module : network area declared : $_MODULE_NETWORK_AREA"
+		__area="${_MODULE_NETWORK_AREA}"
 		__area="NETWORK_SERVICES_AREA_${__area^^}"
-		eval "export ${__area}=\"${!__area} ${MODULE_NAME}\""
+		eval "export ${__area}=\"${!__area} ${__module}\""
+		__tango_log "DEBUG" "tango" "set_module : ${__module} is now attached to network area : $_MODULE_NETWORK_AREA"
 	else
-		# define a default value only if module name have an associated traefik router
+		__tango_log "DEBUG" "tango" "set_module : no network area in ${__module} form declaration"
 		if ! __check_traefik_router_exist ${__module}; then
-			__tango_log "DEBUG" "tango" "__set_module ${__module} do not have a router with the same name, we do not affect a default entrypoint"
+			# attach module to a default network area value only if module name have an associated traefik router
+			__tango_log "DEBUG" "tango" "set_module : ${__module} not have any traefik router defined in compose file. May have only subservices."
 		else
-			__area="$(__get_service_entrypoint "${__module}")"
+			# check if module is attached to a network area through variable declaration NETWORK_SERVICES_AREA_* instead of declared via its form <module>[@<network area>]
+			for a in ${NETWORK_SERVICES_AREA_LIST}; do
+				IFS="|" read -r name proto internal_port secure_port <<<$(echo ${a})
+				__area_services="NETWORK_SERVICES_AREA_${name^^}"
+				for s in ${!__area_services}; do
+					if [ "${s}" = "${__module}" ]; then
+						__area="${name}"
+						break
+					fi
+				done
+				[ ! "${__area}" = "" ] && break
+			done
 			if [ "$__area" = "" ]; then
-				__area="main_http"
-				__tango_log "DEBUG" "tango" "__set_module ${__module} default entrypoint affected : $__area"
+				__area="main"
+				__tango_log "DEBUG" "tango" "set_module : ${__module} is now attached to the default tango network area : $__area"
+				
+				__area="NETWORK_SERVICES_AREA_${__area^^}"
+				eval "export ${__area}=\"${!__area} ${_MODULE_NAME}\""
 			else
-				__tango_log "DEBUG" "tango" "__set_module ${__module} entrypoint affected : $__area"
+				__tango_log "DEBUG" "tango" "set_module : ${__module} is declared being attached to network area : $__area through variable : ${__area_services}"
 			fi
-			__area="NETWORK_SERVICES_AREA_${__area^^}"
-			eval "export ${__area}=\"${!__area} ${MODULE_NAME}\""
+			
 		fi
 	fi	
 
 	# dependencies
-	local __dep_disabled="$($STELLA_API filter_list_with_list "${MODULE_LINKS}" "${TANGO_SERVICES_DISABLED}" "FILTER_KEEP")"
-	[ ! -z "${__dep_disabled}" ] && echo " ** WARN : if ${MODULE_NAME} is enabled, these disabled services will be reactivated as dependencies : ${__dep_disabled}"
-	for d in ${MODULE_LINKS}; do
-		__add_service_dependency "${MODULE_NAME}" "${d,,}"
+	local __dep_disabled="$($STELLA_API filter_list_with_list "${_MODULE_LINKS}" "${TANGO_SERVICES_DISABLED}" "FILTER_KEEP")"
+	[ ! -z "${__dep_disabled}" ] && echo " ** WARN : if ${__module} is enabled, these disabled services will be reactivated as dependencies : ${__dep_disabled}"
+	for d in ${_MODULE_LINKS}; do
+		__add_service_dependency "${__module}" "${d,,}"
 	done
 
 	local _vpn=
-	if [ ! "${MODULE_VPN_ID}" = "" ]; then 
-		_vpn="${MODULE_VPN_ID^^}_SERVICES" && eval "export ${_vpn}=\"${!_vpn} ${MODULE_NAME}\""
+	if [ ! "${_MODULE_VPN_ID}" = "" ]; then 
+		_vpn="${_MODULE_VPN_ID^^}_SERVICES" && eval "export ${_vpn}=\"${!_vpn} ${__module}\""
 	fi
 
 }
@@ -1533,7 +1606,6 @@ __check_docker_compose_service_exist() {
 
 
 # if service is a subservice return parent service
-# parent-service_subservice
 __get_subservice_parent() {
 	local __service="$1"
 	if $STELLA_API list_contains "${TANGO_SUBSERVICES_ROUTER}" "${__service}"; then
@@ -1545,20 +1617,21 @@ __get_subservice_parent() {
 	fi
 }
 
-# get associated entrypoint name to a service/subservice
-# return "main_http"
-__get_service_entrypoint() {
-	local __service="$1"
-	for area in ${NETWORK_SERVICES_AREA_LIST}; do
-		IFS="|" read -r name proto internal_port secure_port <<<$(echo ${area})				
-		__area_services="NETWORK_SERVICES_AREA_${name^^}_${proto^^}"
-		for s in ${!__area_services}; do
-			if [ "${s}" = "${__service}" ]; then
-				echo "${name}"_"${proto}"
-				return;
-			fi
-		done
-	done
+
+# return area name associated to an entrypoint
+# i.e : entry_main_http or entry_main_http_secure => return main
+__get_network_area_name_from_entrypoint() {
+	local __entrypoint="$1"
+	local result="${__entrypoint,,}"
+
+	# remove entry_
+	result="${result##entry_}"
+	# remove _secure
+	result="${result%%_secure}"
+	# remove _proto
+	result="${result%_*}"
+
+	echo ${result}
 }
 
 # a service (aka a docker compose service) may exist but may not have a default traefik associated router with the same name
@@ -1645,41 +1718,51 @@ __add_letsencrypt_service() {
 
 # attach an entrypoint to a service or a subservice as well to the secured version of the entrypoint
 # it will update a list of entrypoint for the service
-# NOTE : a subservie as same entrypoint than its parent service
 # __service : service name
-# __entrypoint : entrypoint name
+# __network_area : area name
 # __secure : "secure|<empty>" declare the entrypoint as secure
 # __set_entrypoint_service "web1" "entry_main_http" "secure"
 __set_entrypoint_service() {
 	local __service="$1"
-	local __entrypoint="$2"
-	local __secure="$3"
+	local __network_area_name="$2"
+	
 
+	local __secure_port
 	local __var
 	local __previous
+	local __proto
 
+	[ "${__network_area_name}" = "" ] && return
 
-	if [ "$__secure" = "secure" ]; then
+	__var="${__service^^}_ENTRYPOINTS"
+	if [ ! "${!__var}" = "" ]; then
+		__previous=",${!__var}"
+	else
+		# first entrypoint attached to a service is the default one
+		__add_declared_variables "${__service^^}_ENTRYPOINT_DEFAULT"
+		__proto="NETWORK_SERVICES_AREA_${__network_area_name^^}_PROTO"
+		__proto="${!__proto}"
+		eval "export ${__service^^}_ENTRYPOINT_DEFAULT=entry_${__network_area_name}_${__proto}"
+		__tango_log "DEBUG" "tango" "assign service : ${s} to entrypoint : entry_${__network_area_name}_${__proto}"
+	fi
+	eval "export ${__var}=entry_${__network_area_name}_${__proto}${__previous}"
+	__add_declared_variables "${__var}"
+	
+
+	__secure_port="NETWORK_SERVICES_AREA_${__network_area_name^^}_INTERNAL_SECURE_PORT"
+	if [ ! "${!__secure_port}" = "" ]; then
 		__var="${__service^^}_ENTRYPOINTS_SECURE"
 		if [ ! "${!__var}" = "" ]; then
 			__previous=",${!__var}"
 		else
 			# first entrypoint attached to a service is the default one
 			__add_declared_variables "${__service^^}_ENTRYPOINT_DEFAULT_SECURE"
-			eval "export ${__service^^}_ENTRYPOINT_DEFAULT_SECURE=${__entrypoint}_secure"
+			__proto="NETWORK_SERVICES_AREA_${__network_area_name^^}_PROTO"
+			__proto="${!__proto}"
+			eval "export ${__service^^}_ENTRYPOINT_DEFAULT_SECURE=entry_${__network_area_name}_${__proto}_secure"
+			__tango_log "DEBUG" "tango" "assign service : ${s} to entrypoint : entry_${__network_area_name}_${__proto}_secure"
 		fi
-		eval "export ${__var}=${__entrypoint}_secure${__previous}"
-		__add_declared_variables "${__var}"
-	else
-		__var="${__service^^}_ENTRYPOINTS"
-		if [ ! "${!__var}" = "" ]; then
-			__previous=",${!__var}"
-		else
-			# first entrypoint attached to a service is the default one
-			__add_declared_variables "${__service^^}_ENTRYPOINT_DEFAULT"
-			eval "export ${__service^^}_ENTRYPOINT_DEFAULT=${__entrypoint}"
-		fi
-		eval "export ${__var}=${__entrypoint}${__previous}"
+		eval "export ${__var}=entry_${__network_area_name}_${__proto}_secure${__previous}"
 		__add_declared_variables "${__var}"
 	fi
 
@@ -1880,9 +1963,11 @@ __base64_basic_authentification() {
 # launch a curl command from a docker image in priority if docker is available or from curl from host if not
 __tango_curl() {
 	if __is_docker_client_available; then
-		local __id="mambo_$($STELLA_API generate_password 8 "[:alnum:]")"
+		local __id="mambo_$($STELLA_API md5 "$@")"
+		docker stop $__id 1>&2 2>/dev/null
+		docker rm $__id 1>&2 2>/dev/null
 		docker run --name $__id --user "${TANGO_USER_ID}:${TANGO_GROUP_ID}" --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 "$@"
-		docker rm $__is 1>&2 2>/dev/null
+		docker rm $__id 1>&2 2>/dev/null
 	else
 		type curl &>/dev/null && curl "$@"
 	fi
@@ -1946,11 +2031,11 @@ __create_path_all() {
 
 	# force to create first these root folders before all other that might be subfolders
 	if [ ! "${TANGO_APP_WORK_ROOT_SUBPATH_CREATE}" = "" ]; then
-		__tango_log "DEBUG" "tango" "__create_path_all() parse TANGO_APP_WORK_ROOT_SUBPATH_CREATE instructions"
+		__tango_log "DEBUG" "tango" "create_path_all : parse TANGO_APP_WORK_ROOT_SUBPATH_CREATE instructions"
 		__create_path "${TANGO_APP_WORK_ROOT}" "${TANGO_APP_WORK_ROOT_SUBPATH_CREATE}"
 	fi
 	if [ ! "${TANGO_DATA_PATH_SUBPATH_CREATE}" = "" ]; then
-		__tango_log "DEBUG" "tango" "__create_path_all() parse TANGO_DATA_PATH_SUBPATH_CREATE instructions"
+		__tango_log "DEBUG" "tango" "create_path_all : parse TANGO_DATA_PATH_SUBPATH_CREATE instructions"
 		__create_path "${TANGO_DATA_PATH}" "${TANGO_DATA_PATH_SUBPATH_CREATE}"
 	fi
 
@@ -1958,7 +2043,7 @@ __create_path_all() {
 	for p in $(compgen -A variable | grep _SUBPATH_CREATE$); do
 		[ "$p" = "TANGO_APP_WORK_ROOT_SUBPATH_CREATE" ] && continue
 		[ "$p" = "TANGO_DATA_PATH_SUBPATH_CREATE" ] && continue
-		__tango_log "DEBUG" "tango" "__create_path_all() instructions of ${p}"
+		__tango_log "DEBUG" "tango" "create_path_all : instructions of ${p}"
 		__create_path_instructions="${!p}"
 		if [ ! "${__create_path_instructions}" = "" ]; then
 			__root="${p%_SUBPATH_CREATE}"
@@ -1983,11 +2068,12 @@ __create_path() {
 	[ "$TANGO_ALTER_GENERATED_FILES" = "OFF" ] && return
 
 	if [ ! -d "${__root}" ]; then
-		__tango_log "ERROR" "tango" "root path ${__root} do not exist"
+		__tango_log "ERROR" "tango" "create_path : root path ${__root} do not exist"
 		return
 	fi
 
-	__tango_log "DEBUG" "tango" "__create_path() ROOT=${__root} INSTRUCTIONS=${__list}"
+	__tango_log "DEBUG" "tango" "create_path : ROOT=${__root} INSTRUCTIONS=${__list}"
+	local cpt=0
 	for p in ${__list}; do
 		[ "${p}" = "FOLDER" ] && __folder=1 && __file= && continue
 		[ "${p}" = "FILE" ] && __folder= && __file=1 && continue
@@ -1996,33 +2082,45 @@ __create_path() {
 		if [ "${__folder}" = "1" ]; then
 			if [ ! -d "${__path}" ]; then
 				__msg=$(docker run -it --rm --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} -v "${__root}":"/foo" ${TANGO_SHELL_IMAGE} bash -c 'mkdir -p /foo/'${p}' && chown '${TANGO_USER_ID}':'${TANGO_GROUP_ID}' /foo/'${p})
-				[ ! "${__msg}" = "" ] && __tango_log "DEBUG" "tango" "__create_path() msg : ${__msg}"
+				[ ! "${__msg}" = "" ] && __tango_log "DEBUG" "tango" "create_path : msg : ${__msg}"
 				# wait more time if not created yet
-				__tango_log "DEBUG" "tango" "__create_path() Wait for folder $__path exists"
+				__tango_log "DEBUG" "tango" "create_path : Wait for folder $__path exists"
+				cpt=0
 				while [ ! -d "$__path" ]
 				do
-					printf "[waiting root:$__root list:$__list path:$__path]."
-					#__tango_log "DEBUG" "tango" "__create_path() Wait for folder $__path exists"
+					printf "."
+					__tango_log "DEBUG" "tango" "create_path : Wait for folder $__path exists"
 					sleep 1
+					(( cpt++ ))
+					if [ $cpt -gt 10 ]; then
+						__tango_log "ERROR" "tango" "create_path : Error while creating folder $__path"
+						exit 1
+					fi
 				done
 				echo
-				__tango_log "DEBUG" "tango" "done"
+				__tango_log "DEBUG" "tango" "create_path : done"
 			fi
 		fi
 		if [ "${__file}" = "1" ]; then
 			if [ ! -f "${__path}" ]; then
 				__msg=$(docker run -it --rm --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} -v "${__root}":"/foo" ${TANGO_SHELL_IMAGE} bash -c 'touch /foo/'${p}' && chown '${TANGO_USER_ID}':'${TANGO_GROUP_ID}' /foo/'${p})
-				[ ! "${__msg}" = "" ] && __tango_log "DEBUG" "tango" "__create_path() msg : ${__msg}"
+				[ ! "${__msg}" = "" ] && __tango_log "DEBUG" "tango" "create_path : msg : ${__msg}"
 				# wait more time if not created yet
-				__tango_log "DEBUG" "tango" "__create_path() Wait for file $__path exists"
+				__tango_log "DEBUG" "tango" "create_path : Wait for file $__path exists"
+				cpt=0
 				while [ ! -f "$__path" ]
 				do
 					printf "."
-					#__tango_log "DEBUG" "tango" "__create_path() Wait for file $__path exists"
+					__tango_log "DEBUG" "tango" "create_path : Wait for file $__path exists"
 					sleep 1
+					(( cpt++ ))
+					if [ $cpt -gt 10 ]; then
+						__tango_log "ERROR" "tango" "create_path : Error while creating file $__path"
+						exit 1
+					fi
 				done
 				echo
-				__tango_log "DEBUG" "tango" "done"
+				__tango_log "DEBUG" "tango" "create_path : done"
 			fi
 		fi
 	done

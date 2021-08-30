@@ -30,7 +30,7 @@ NOTE : mambo will auto install all other required tools like docker-compose insi
 
 * Organizr2 - Media portal
 * Plex - media center
-* Ombi - user request content  
+* Overseer - user request content
 * Sabnzbd - newzgroup download
 * Medusa - tv episodes search and subtitles management
 * Tautulli - plex statistics and newsletter
@@ -41,6 +41,10 @@ NOTE : mambo will auto install all other required tools like docker-compose insi
 * MKVToolNix - Matroska tools with WebGUI - Video Editing (Remuxing - changing media container while keeping original source quality)
 * Kindle Comic Converter - graphical tool and cli to manage/convert  ebook
 
+
+Optional module services
+
+* Ombi - user request content
 
 &nbsp;
 # USAGE
@@ -207,6 +211,27 @@ NOTE : mambo will auto install all other required tools like docker-compose insi
     ```
     ./mambo down <service>
     ```
+
+## Start/stop an optional module service
+
+* Launch a specific service
+
+    ```
+    ./mambo up --module <module>
+    ```
+
+* Stop a service
+
+    ```
+    ./mambo down --module <module>
+    ```
+
+## Available modules
+
+
+* ombi
+
+
 
 ----
 

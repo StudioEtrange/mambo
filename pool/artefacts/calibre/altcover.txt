@@ -4,16 +4,16 @@ program:
 	if switch(text,"altcover",'1','0') == '1' then
 		existing_text = re(text, '^(.|\s)*(#altcover.*)','\2');
 		
-		covertable = identifier_in_list(formats_paths(),"JPG","1","0");
-		covertable = or(covertable,identifier_in_list(formats_paths(),"PNG","1","0"));
+		covertable = or(identifier_in_list(formats_paths(),"JPG","1",""),identifier_in_list(formats_paths(),"PNG","1",""));
 		
 		html = '';
-	
+
 		if covertable == '1' then
 			html = strcat(html,"<p>")
+		else
+			html = strcat(html,"<p>#altcover</p>")
 		fi;
-	
-	
+
 		if select(formats_paths(),'JPG') != '' then
 			html = strcat(
 				html,

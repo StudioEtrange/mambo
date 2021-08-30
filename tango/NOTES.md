@@ -40,10 +40,3 @@
 * Let's encrypt
     * challenge types : https://letsencrypt.org/fr/docs/challenge-types/
 
-## Backup solutions
-* https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
-* https://rclone.org/
-    * rclone desktop browser : https://github.com/kapitainsky/RcloneBrowser
-    * rclone desktop browser on docker with VNC : https://github.com/romancin/rclonebrowser-docker
-    * rclone for android : https://github.com/x0b/rcx
-* restic is a backup program, can use rclone https://github.com/restic/restic

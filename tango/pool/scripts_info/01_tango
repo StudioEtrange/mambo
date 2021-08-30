@@ -51,21 +51,32 @@ for service in ${TANGO_SERVICES_AVAILABLE}; do
 
     if [ "${info_extended}" = "1" ]; then
         echo "L-- version : ${version}"
-        
-        __var="${service}_ENTRYPOINTS"; __entrypoints="${!__var}"; __var="${service}_ENTRYPOINTS_SECURE"; __entrypoints="${__entrypoints} ${!__var}";
-        # trim __entrypoints
-        __entrypoints="${__entrypoints#"${__entrypoints%%[![:space:]]*}"}"   # remove leading whitespace characters
-        __entrypoints="${__entrypoints%"${var##*[![:space:]]}"}" # remove trailing whitespace characters
-        echo "L-- entrypoints : ${__entrypoints}"
-        
-        echo -n "L-- use letsencrypt : "
+
+        rlist="${service}_ROUTERS_LIST"
+        echo "L-- routers list : ${!rlist}"
+
+        for r in ${!rlist}; do
+            echo "L-- router : $r"
+            __var="${r^^}_ENTRYPOINTS"; __entrypoints="${!__var}"; 
+            __var="${r^^}_ENTRYPOINTS_SECURE"; __entrypoints="${__entrypoints} ${!__var}";
+            __entrypoints="${__entrypoints#"${e%%[![:space:]]*}"}"   # remove leading whitespace characters
+            __entrypoints="${__entrypoints%"${var##*[![:space:]]}"}" # remove trailing whitespace characters
+            if [ ! "${__entrypoints}" = "" ]; then
+                echo "  + entrypoints : ${__entrypoints}"
+            fi
+
+        done
+
+      
+        echo "L-- For all ${service} HTTP entrypoints :"
+        echo -n "  + use letsencrypt : "
         __letsencrypt=
         for s in ${LETS_ENCRYPT_SERVICES}; do
             [ "${service,,}" = "$s" ] && __letsencrypt=1
         done
         [ "${__letsencrypt}" = "1" ] && echo YES || echo NO
 
-        echo -n "L-- redirect HTTP to HTTPS : "
+        echo -n "  + redirect HTTP to HTTPS : "
         __redirected=
         for s in ${NETWORK_SERVICES_REDIRECT_HTTPS}; do
             [ "${service,,}" = "$s" ] && __redirected=1
@@ -84,9 +95,11 @@ for service in ${TANGO_SERVICES_AVAILABLE}; do
         __urls_api_rest=
         for u in $(compgen -A variable | grep -Ev DEFAULT | grep ^${service}_URI_); do
             __urls="${__urls} ${!u}"
-            __urls_api_get="${__urls_api_get} ${!u}/api"
-            __urls_api_data="${__urls_api_data} ${!u}/api/rawdata"
-            __urls_api_rest="${__urls_api_rest} ${!u}/api/providers/rest"
+            if [ "${service^^}" = "TRAEFIK" ]; then
+                __urls_api_get="${__urls_api_get} ${!u}/api"
+                __urls_api_data="${__urls_api_data} ${!u}/api/rawdata"
+                __urls_api_rest="${__urls_api_rest} ${!u}/api/providers/rest"
+            fi
         done
 
         __var="${service^^}_HOSTNAME"
@@ -198,25 +211,19 @@ for area in ${NETWORK_SERVICES_AREA_LIST}; do
     IFS="|" read -r name proto internal_port secure_port <<<$(echo ${area})
 
     echo "* ${name^^} AREA"
-    v1="NETWORK_SERVICES_AREA_${name^^}_${proto^^}"
+    v1="NETWORK_SERVICES_AREA_${name^^}"
     v2="NETWORK_PORT_${name^^}"
     v3="NETWORK_PORT_${name^^}_SECURE"
     v4="NETWORK_PORT_${name^^}_REACHABLE"
     v5="NETWORK_PORT_${name^^}_SECURE_REACHABLE"
+    v6="NETWORK_SERVICES_AREA_${name^^}_PROTO"
+    v7="NETWORK_SERVICES_AREA_${name^^}_INTERNAL_PORT"
+    v8="NETWORK_SERVICES_AREA_${name^^}_INTERNAL_SECURE_PORT"
     echo L-- services : ${!v1}
-    echo L-- entrypoint [entry_${name}_${proto}] - port : ${!v2} reachable from internet : $([ "${!v4}" = "1" ] && echo YES || echo dont know)
-    [ ! "$secure_port" = "" ] && echo L-- associated secure entrypoint [entry_${name}_${proto}_secure] - port : ${!v3} reachable from internet : $([ "${!v5}" = "1" ] && echo YES || echo dont know)
+    echo L-- entrypoint [entry_${name}_${proto}] - protocol : ${!v6}  - port : ${!v2} [internal port : ${!v7}] - reachable from internet : $([ "${!v4}" = "1" ] && echo YES || echo dont know)
+    [ ! "$secure_port" = "" ] && echo L-- associated secure entrypoint [entry_${name}_${proto}_secure] - port : ${!v3} [internal port : ${!v8}] - reachable from internet : $([ "${!v5}" = "1" ] && echo YES || echo dont know)
 done
 
-
-# echo "* SECONDARY AREA"
-# echo L-- services : $NETWORK_SERVICES_AREA_SECONDARY_TCP
-# echo L-- HTTP entrypoint [entry_secondary_tcp] - port : $NETWORK_PORT_SECONDARY reachable from internet : $([ "${NETWORK_PORT_SECONDARY_REACHABLE}" = "1" ] && echo YES || echo dont know)
-# echo L-- HTTPS entrypoint [entry_secondary_tcp_secure] - port : $NETWORK_PORT_SECONDARY_SECURE reachable from internet : $([ "${NETWORK_PORT_SECONDARY_SECURE_REACHABLE}" = "1" ] && echo YES || echo dont know)
-# echo "* ADMIN AREA"
-# echo L-- services : $NETWORK_SERVICES_AREA_ADMIN_TCP
-# echo L-- HTTP entrypoint [entry_admin_tcp] - port : $NETWORK_PORT_ADMIN reachable from internet : $([ "${NETWORK_PORT_ADMIN_REACHABLE}" = "1" ] && echo YES || echo dont know)
-# echo L-- HTTPS entrypoint [entry_admin_tcp_secure] - port : $NETWORK_PORT_ADMIN_SECURE reachable from internet : $([ "${NETWORK_PORT_ADMIN_SECURE_REACHABLE}" = "1" ] && echo YES || echo dont know)
 
 echo "---------==---- VPN ----==---------"
 echo "* VPN Service"

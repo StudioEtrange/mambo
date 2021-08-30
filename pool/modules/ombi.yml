@@ -1,0 +1,42 @@
+# Manage movie/tv show requests
+services:
+  ombi:
+    image: studioetrange/docker-ombi:${OMBI_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_ombi
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/ombi will contain ombi configuration
+      - data:/data
+    environment:
+      - SERVICE_USER=${TANGO_USER_ID:-0}:${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : ombi
+      - "traefik.http.services.ombi.loadbalancer.server.port=5000"
+      - "traefik.http.services.ombi.loadbalancer.server.scheme=http"
+      - "traefik.http.services.ombi.loadbalancer.passhostheader=true"
+      # middlewares : ombi
+      # service router : ombi
+      - "traefik.http.routers.ombi.entrypoints=${OMBI_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.ombi.rule=HostRegexp(`{subdomain:${OMBI_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.ombi.priority=${OMBI_PRIORITY}"
+      - "traefik.http.routers.ombi.service=ombi"
+      - "traefik.http.routers.ombi-secure.entrypoints=${OMBI_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.ombi-secure.rule=HostRegexp(`{subdomain:${OMBI_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.ombi-secure.priority=${OMBI_PRIORITY}"
+      - "traefik.http.routers.ombi-secure.service=ombi"
+      - "traefik.http.routers.ombi-secure.tls=true"
+      - "traefik.http.routers.ombi-secure.tls.domains[0].main=${OMBI_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : ombi
+      - "traefik.http.routers.ombi.middlewares=ombi-auth@rest,error-middleware"
+      - "traefik.http.routers.ombi-secure.middlewares=ombi-auth@rest,error-middleware"
+    networks:
+      - default
+    expose:
+      - 5000
+    build:
+      context: https://github.com/StudioEtrange/docker-ombi.git#:ver/${OMBI_VERSION:-latest}
+

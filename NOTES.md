@@ -23,8 +23,9 @@ Various notes, test, links, code... made while designing Mambo
 * complete guide for a full media distribution install
     * docker, traefik2, traefik2 secure hearders, cloudflare, oauth2, guacamole
     * https://mediacenterz.com/ultimate-docker-home-server-avec-traefik-2-letsencrypt-et-oauth-2020/
-
-
+* dockserver
+    * Traefik with Authelia and Cloudflare Protection
+    * https://github.com/dockserver/dockserver
 
 ### Mambo notes on adding new user
 
@@ -44,6 +45,8 @@ Various notes, test, links, code... made while designing Mambo
 ### File management tools
 
 * FileBot - The ultimate TV and Movie Renamer filebot ansible role https://github.com/Cloudbox/Community/blob/master/roles/filebot/tasks/main.yml
+    * format for tv show with languages : {n} - {s00e00} - {t} [{resolution}_{vc}_{audioLanguages.size()>1 ? "MULTI":""}_{audioLanguages.ISO3.join("_").upper()}]
+    * advanced format for tv show with languages and encoding : https://www.filebot.net/forums/viewtopic.php?f=5&t=5285
 
 ### Video management tools
 
@@ -229,9 +232,9 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
     * http://httpd.apache.org/docs/current/en/mod/core.html#EnableSendfile
     * Use ```EnableSendfile On```
 
-* CIFS/samba cause some problem when using a share for ebooks feature of mambo
+* CIFS/samba cause some problem when using network share for ebooks
     * Create a dedicated samba mount with all your ebooks
-        * Avoid calibre problem : use "nobrl" option
+        * Avoid calibre problem : use "nobrl" option on the samba client side (xwhere you run mambo)
             * fix : https://coderwall.com/p/zrxobw/calibre-libraries-on-nas
             * confirm fix works : https://github.com/janeczku/calibre-web/issues/440
             * caveat : https://github.com/docker/for-win/issues/694
@@ -239,6 +242,7 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
             * set uid and gid option with the current user which will run mambo
     * Sample of /etc/fstab file with NAS user/password into a /root/.smbcredentials file
         `//NAS/folder/ebooks        /mnt/EBOOKS        cifs    nobrl,credentials=/root/.smbcredentials,uid=me,gid=me,file_mode=0777,dir_mode=0777,iocharset=utf8   0       0 `
+    * For better result when using Calibre desktop version when using a Samba from a Synology NAS : File Service > SMB > disable oppotunistic locking and set SMB2 as minimal protocol
 
 ### Game Streaming
 
@@ -267,13 +271,57 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
     * stream the game (an non the entire pc)
 
 
-### Game : Sync game library
 
-* FSCache linux + CIFS or NFS
 
-* rclone sync OR rclone Union or rclone Mount
 
-* Frontend launchbox on windows play machine + games in cloud + rclone to mount folder on windows play machine + script to download game with rclone at game launch https://www.reddit.com/r/launchbox/comments/i6wnfi/launchbox_rclonegsuite_for_unlimited_game_storage/
+## Backup solutions
+
+* https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
+* Rclone (Mirroring tool)
+    * https://rclone.org/ 
+    * rclone desktop browser : https://github.com/kapitainsky/RcloneBrowser
+    * rclone desktop browser on docker with VNC : https://github.com/romancin/rclonebrowser-docker
+    * rclone for android : https://github.com/x0b/rcx
+
+* restic (backup tool)
+    * https://github.com/restic/restic
+    * have a lot of storage connectivity including using rclone
+
+* Borg (backup tool)
+    * https://www.borgbackup.org/
+
+* Duplicacy
+    * https://duplicacy.com/
+    * command line version is free and open source
+
+* rclone vs restic : 
+    * Rclone is more of a mirroring tool while restic is a backup tool.
+    * https://www.reddit.com/r/DataHoarder/comments/ogfyq2/how_to_sue_google_drive_for_a_large_backup_to_a/h4kus5t?utm_source=share&utm_medium=web2x&context=3
+
+* restic vs borg vs duplicati vs ducplicacy
+    * https://forum.duplicati.com/t/big-comparison-borg-vs-restic-vs-arq-5-vs-duplicacy-vs-duplicati/9952
+
+### google drive
+
+* Unlimited storage in Google workspace team drive with a upload limit 750GB/24h/user
+
+* plexdrive : cache system for media files in gdrive : https://github.com/plexdrive/plexdrive
+* rclone cache : same thing but better today than plexdrive ?
+
+* rclone
+    * how to mount a gdrive crypted mount https://upandclear.org/2020/10/15/noob-rclone-workspace-ex-gsuite-creer-et-monter-un-shared-drive-aka-team-drive-chiffre/#souscription
+
+* rclone + gdrive + plexdrive : https://upandclear.org/2019/05/07/rclone-gdrive-et-plexdrive-exemples-de-configuration/
+
+* cloudplow : https://github.com/l3uddz/cloudplow
+    * Automatic uploader to Rclone remote
+    * UnionFS Cleaner functionality
+    * Automatic rclone remotes sync
+
+* unionfs + rclone + gdrive + script to upload to gdrive through a mounted (with rclone) gdrive https://upandclear.org/2020/10/15/utilisation-basique-dun-montage-rclone/
+
+
+* Frontend launchbox on windows play machine + google drive + rclone to mount folder on windows play machine + windows batch script to download game on local host (with rclone copy) at game launch on launchbox instead of playing with rom from the cloud https://www.reddit.com/r/launchbox/comments/i6wnfi/launchbox_rclonegsuite_for_unlimited_game_storage/
 
 
 
@@ -642,7 +690,7 @@ Into Organizr2
 
 * ShokoServer
     * An anime cataloging program designed to automate the cataloging of your anime collection regardless of the size and number of files in your collection.
-    * WARN : rename files !
+    * WARN WARN : rename files !
     * https://github.com/shokoanime
     * https://shokoanime.com/
     * https://hub.docker.com/r/cazzar/shokoserver

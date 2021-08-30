@@ -467,7 +467,6 @@ __organizr2_set_context() {
                     __organizr2_auth_group_by_service_all
                     # init ORGANIZR2_AUTH_GROUP_NAME_BY_ID
                     __organizr2_auth_group_name_by_id_all
-
                     # by default authorize service not defined as an organizr tab to everybody - use Guest group (999)
                     ORGANIZR2_DEFAULT_GROUP="999"
                 else
@@ -648,9 +647,9 @@ __organizr2_api_launch_request() {
 
     local __token_password="${ORGANIZR2_INSTANCE^^}_API_TOKEN_PASSWORD"
 
-    [ "${__http_command}" = "" ] && __http_command="GET"
-    #docker run --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 curl -X ${__http_command} -skL -H "token: ${!__token_password}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
-    __tango_curl -X ${__http_command} -skL -H "token: ${!__token_password}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+    [ "${__http_command}" = "" ] && __http_command="GET"    
+    __tango_curl -m 10 -X ${__http_command} -skL -H "token: ${!__token_password}" "${ORGANIZR2_INTERNAL_CONTAINER_API_URL}/${__request}"
+    
 }
 
 
@@ -665,7 +664,7 @@ __organizr2_auth_group_by_service_all() {
                 local __tab_list="$(__organizr2_api_request "GET" "tab/list")"
             ;;
             2 )
-                local __tab_list="$(__organizr2_api_request "GET" "tabs")"               
+                local __tab_list="$(__organizr2_api_request "GET" "tabs")"
             ;;
         esac
 

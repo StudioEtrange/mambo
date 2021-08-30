@@ -1,4 +1,4 @@
-services:  
+services:
   cloud9:
     image: sapk/cloud9:${CLOUD9_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_cloud9

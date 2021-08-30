@@ -31,12 +31,20 @@ NOTE : tango will auto install other tools like docker-compose inside of its tre
     ./tango install
     ```
 
-### Minimal standalone usage
+### Minimal standalone sample usage
 
 * Launch an instance with a firefox predefined service (aka a tango module)
 
     ```
     ./tango --module firefox --domain mydomain.org --freeport up
+    ./tango --module firefox --domain mydomain.org info
+    ```
+
+* NOTE : Tango organize services with subdomain name with the service name as default value. Here : `https://firefox.mydomain.org:port`
+
+* If you do not have any domain setted, you could test the previous command by adding a mapping to `/etc/hosts` and use `localhost` as domain option value to get `https://firefox.localhost:port` running
+    ```
+    127.0.0.1 localhost firefox.localhost
     ```
 
 ### Minimal application
@@ -257,7 +265,7 @@ A service match a docker container.
         * add service to `TANGO_SERVICES_AVAILABLE` list
         * if this service has subservices, declare subservices into `TANGO_SUBSERVICES_ROUTER` (listed in their priority ascending order)
         * if this service needs to access all artefact folders, add it to `TANGO_ARTEFACT_SERVICES`
-        * choose to which logical network areas by default this service will be attached `main`, `secondary`, `admin` and add it to `NETWORK_SERVICES_AREA_MAIN`,`NETWORK_SERVICES_AREA_SECONDARY` and `NETWORK_SERVICES_AREA_ADMIN`
+        * choose to which logical network areas by this service will be attached and add it to the matching variable list `NETWORK_SERVICES_AREA_*`
         * to generate an HTTPS certificate add service to `LETS_ENCRYPT_SERVICES`
         * if HTTPS redirection add service to `NETWORK_SERVICES_REDIRECT_HTTPS`
         * for time setting add service to TANGO_TIME_VOLUME_SERVICES or `TANGO_TIME_VAR_TZ_SERVICES`
@@ -290,7 +298,7 @@ A service match a docker container.
     * use variable list `TANGO_SERVICES_MODULES` or `--module` command line option
     * `--module` command line option is cumulative with variable list `TANGO_SERVICES_MODULES`
     * Item format of the list is `<module>[@<network area>][%<service dependency1>][%<service dependency2>][^<vpn id>]`
-    * `main` network area is the default - to choose another area when activating it, either use `--module <module>[@<network area>]` or `TANGO_SERVICES_MODULES=<module>[@<network area>]`. Also, you can set a default network area by adding module to NETWORK_SERVICES_AREA_entrypoint list (NETWORK_SERVICES_AREA_MAIN_HTTP+=module) in dedicated module.env file.
+    * by default, will use default tango network area which is main - to choose another area when activating it, either use `--module <module>[@<network area>]` or `TANGO_SERVICES_MODULES=<module>[@<network area>]`. Also, you can set a default network area by adding module to NETWORK_SERVICES_AREA_entrypoint_protocol list (NETWORK_SERVICES_AREA_MAIN_HTTP+=module) in dedicated module.env file.
 
     ```
     CLOUD9_USERNAME=tango CLOUD9_PASSWORD=tango ./tango --module cloud9 --module firefox@secondary --domain mydomain.org --freeport up
@@ -300,11 +308,6 @@ A service match a docker container.
 * Predefined modules and their available variables files are in `pool/modules` folder
 * You can define your own modules in your app by putting their matching `.yml` and `.env` files in a `pool/modules` folder of the app
 
-### Tango modules list
-
-* cloud9
-* firefox
-* whoami
 
 ----
 ## Plugins 
@@ -388,35 +391,34 @@ A service match a docker container.
 ----
 ## Network
 
-### Logical area
+### Logical area & entrypoints
 
-* Tango have 3 logical areas. `main`, `secondary` and `admin`. Each of them have a HTTP entrypoint and a HTTPS entrypoint. 
-* So you can separate each service on different area according to your needs by opening/closing your router settings
+* To define network logical area use this syntax
 
+```
+NETWORK_SERVICES_AREA_LIST=<name>|<protocol>|<traefik internal port>|<traefik internal secured port>
+i.e : NETWORK_SERVICES_AREA_LIST=main|http|80|443 admin|http|9000|9443
+```
 
-* A service can be declared into several logical areas
+* For each logical area one will be created. Two entrypoints if a secured port is declared
 
-### Available areas and entrypoints
+* `zone|http|80|443` will create two entrypoints with this form : `entry_zone_http` and `entry_zone_http_secure`, making traefik listening on this port. Remember that traefik is itself in a container, so this port will be mapped to an external port that will be used as port for the entrypoint.
 
-|logical area|entrypoint name|protocol|default port|variable|
-|-|-|-|-|-|
-|main|web_main|HTTP|80|NETWORK_PORT_MAIN|
-|main|web_main_secure|HTTPS|443|NETWORK_PORT_MAIN_SECURE|
-|secondary|web_secondary|HTTP|8000|NETWORK_PORT_SECONDARY|
-|secondary|web_secondary_secure|HTTPS|8443|NETWORK_PORT_SECONDARY_SECURE|
-|admin|web_admin|HTTP|9000|NETWORK_PORT_ADMIN|
-|admin|web_admin_secure|HTTPS|9443|NETWORK_PORT_ADMIN_SECURE|
+* To declare an external port matching the entrypoint use `NETWORK_PORT_<name>[_SECURE]` form
+```
+NETWORK_PORT_ADMIN=30000 ==> will match internal container port 9000
+NETWORK_PORT_ADMIN_SECURE=30043 ==> will match internal container port 9443
+```
 
-### Sample usage
+* There is always a main network area defined. If not declare main network is created with these characteristics : main|http|80|443
 
-* With these logical areas, you could setup different topology.
+* A service can be attached to several logical area, soo you can separate each service on different area according to your needs by opening/closing your router settings. Use the form `NETWORK_SERVICES_AREA_<name>=<service>` form 
 
-* Example : if service `ombi` and `medusa` must be access only through `organirz2` split services on different logical area and open your router port only for `main` area (HTTP/HTTPS port)
-    ```
-    TANGO_SERVICES_ENTRYPOINT_MAIN=organizr2
-    TANGO_SERVICES_ENTRYPOINT_SECONDARY=ombi medusa sabnzbd
-    ```
+```
+NETWORK_SERVICES_AREA_MAIN=web who
+```
 
+* This will attached `web` and `who` services to main logical area (which can have two entrypoints, one not secure and one secure)
 
 ### Ports and Random free port
 
@@ -455,7 +457,7 @@ A service match a docker container.
 
 * ie in user env file : 
     ```
-    NETWORK_SERVICES_REDIRECT_HTTPS=traefik ombi organizr2
+    NETWORK_SERVICES_REDIRECT_HTTPS=traefik organizr2
     ```
 ### Certificate with Let's encrypt
 
@@ -465,6 +467,8 @@ A service match a docker container.
     * `LETS_ENCRYPT=debug` will use the test server of letsencrypt to not reach rate limit (https://letsencrypt.org/fr/docs/rate-limits/)
 
 * NOTE : when you need to fully reset generated certificate, you have to delete the `acme.json` file Use `tango letsencrypt rm` command for that.
+
+* NOTE : letsencrypt do not allow "underscore" usage in name (https://community.letsencrypt.org/t/underscore-in-subdomain-fails/31431)
 
 ### Let's encrypt and non default port for main area
 
