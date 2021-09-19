@@ -7,6 +7,7 @@
 
 __nzbtomedia_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "nzbtomedia"; then
+        __tango_log "DEBUG" "nzbtomedia" "nzbtomedia init"
         __nzbtomedia_init_files
         # configure
         __nzbtomedia_settings

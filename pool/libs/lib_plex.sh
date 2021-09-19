@@ -12,7 +12,7 @@ __plex_set_context() {
 __plex_init() {
 	[ "${PLEX_USER}" = "" ] && __tango_log "ERROR" "plex" "Error missing plex user -- set PLEX_USER" && exit 1
 	[ "${PLEX_PASSWORD}" = "" ] && __tango_log "ERROR" "plex" "Error missing plex password -- set PLEX_PASSWORD" && exit 1
-
+	__tango_log "DEBUG" "plex" "plex init"
 	__plex_create_tree
 	__plex_claim
 	__plex_first_launch

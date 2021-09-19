@@ -417,6 +417,7 @@ __organizr2_api_url() {
 
 __organizr2_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
+        __tango_log "DEBUG" "organizr2" "organizr2 init"
         __organizr2_init_files "INSTALL"
     fi
 }
@@ -593,6 +594,7 @@ __organizr2_auth() {
                 echo "L-- organizr groups list by id"
                 [ ${#ORGANIZR2_AUTH_GROUP_NAME_BY_ID[@]} -gt 0 ] && printf "  + "
                 for i in "${!ORGANIZR2_AUTH_GROUP_NAME_BY_ID[@]}";do printf "%s : %s | " "$i" "${ORGANIZR2_AUTH_GROUP_NAME_BY_ID[$i]}";done; printf "\n";
+                echo "  + Current default group when not attached to an organizr tab (change when organizr is running or not) : $ORGANIZR2_DEFAULT_GROUP"
                 echo "L-- services (equivalent to organizr tab) : group authorized (group id)"
                 for i in "${!ORGANIZR2_AUTH_GROUP_BY_SERVICE[@]}";do _gid="${ORGANIZR2_AUTH_GROUP_BY_SERVICE[$i]}"; printf "  + %s : %s (%s)\n" "$i" "${ORGANIZR2_AUTH_GROUP_NAME_BY_ID[$_gid]}" "${_gid}";done;
             fi

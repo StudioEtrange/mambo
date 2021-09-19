@@ -201,6 +201,7 @@ volumes:
 # https://forums.docker.com/t/is-there-any-way-to-use-extension-fields-in-docker-compose-with-docker-secrets/68602
 # https://github.com/linuxserver/docker-calibre-web
 # https://hub.docker.com/r/linuxserver/calibre-web
+# ghcr.io : https://github.com/linuxserver/docker-calibre-web/pkgs/container/calibre-web
 x-calibreweb: &default-calibreweb
   image: ghcr.io/linuxserver/calibre-web:${CALIBREWEB_VERSION:-latest}
   depends_on:
@@ -771,8 +772,6 @@ services:
   #                                                         tested with chrome "Transmission easy client"
   # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
   transmission:
-    # TODO wait for PRs https://github.com/linuxserver/docker-transmission/pull/146
-    #image: studioetrange/transmission:latest
     image: ghcr.io/linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_transmission
     depends_on:
@@ -798,7 +797,7 @@ services:
       - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
       - "traefik.http.services.transmission.loadbalancer.passhostheader=true"
       # middlewares : transmission
-      # this middleware is used to auto login into transmission
+      # this middleware is used to auto login
       - 'traefik.http.middlewares.transmission-autoauthbasic.headers.customrequestheaders.Authorization=Basic ${TRANSMISSION_AUTH_BASIC}'
       # transmission have a lot of problem with url endpoint and HTTP error 409, we need to add /
       - 'traefik.http.middlewares.transmission-slash1.redirectregex.regex=^(https?://[^/]+/transmission/web)$$'
@@ -806,7 +805,9 @@ services:
       - 'traefik.http.middlewares.transmission-slash2.redirectregex.regex=^(https?://[^/]+/transmission/rpc)$$'
       - 'traefik.http.middlewares.transmission-slash2.redirectregex.replacement=$${1}/'
       # service router : transmission
+      # not defined
       # service router middlewares : transmission
+      # not defined
       # sub service router : transmission_internal
       - "traefik.http.routers.transmission_internal.entrypoints=${TRANSMISSION_ENTRYPOINTS:-entry_main_http}"
       - "traefik.http.routers.transmission_internal.rule=HostRegexp(`{subdomain:internal-${TRANSMISSION_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
@@ -966,8 +967,6 @@ services:
       - calibredb_books_media:/calibredb/books
       - calibredb_press_media:/calibredb/press
       - calibredb_pgames_media:/calibredb/pgames
-      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
-      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1209,8 +1208,6 @@ services:
       # different paths used by calibreweb
       - download:/download
       - calibredb_books_media:/books
-      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
-      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1253,8 +1250,6 @@ services:
       # different paths used by calibreweb
       - download:/download
       - calibredb_press_media:/press
-      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
-      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
@@ -1296,8 +1291,6 @@ services:
       # different paths used by calibreweb
       - download:/download
       - calibredb_pgames_media:/pgames
-      # TODO while docker-mods script not fixed https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
-      - ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}

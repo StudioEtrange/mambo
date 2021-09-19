@@ -56,7 +56,7 @@ STELLA_LOG_STATE="OFF"
 
 # PARSE ARG ------------------------
 PARAMETERS="
-ACTION=										'action' 			a				'init update info shell up down status install logs restart services modules scripts plugins cert letsencrypt auth' '1'
+ACTION=										'action' 			a				'init update info shell exec up down status install logs restart services modules scripts plugins cert letsencrypt auth' '1'
 TARGET=										'target' 			s				''	'0'
 ARGUMENT=									'argument' 			s				''	'0'
 "
@@ -80,7 +80,8 @@ usage() {
 	echo "L     status [service] : see service status."
 	echo "L     logs [service] [-f] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
-	echo "L     shell <service> : launch a shell into a running service."
+	echo "L     shell <service> [--userroot] : launch a shell into a running service. Can be launched as root user instead of setted user."
+    echo "L     exec <service> [--userroot] -- command : exec a command into a running service. Can be launched as root user instead of setted user."
 	echo "L     services|modules|plugins|scripts list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
 	echo "L     plugins exec-service <service>|exec <plugin> : exec all plugin attached to a service OR exec a plugin into all serviced attached."
 	echo "L     scripts exec <script> : exec a script."
@@ -90,7 +91,6 @@ usage() {
 	echo "L		letsencrypt logs : follow letsencrypt actions"
     echo "L		auth sync : sync authorization information between organizr2 and traefik."
     echo "L		auth enable|disable : temporary enable|disable organizr2 until next up/down. To be permanent use ORGANIZR2_AUTHORIZATION variable"
-
 }
 
 # parse command line
@@ -173,6 +173,8 @@ case ${ACTION} in
         __plex_set_context
         __tango_log "DEBUG" "mambo" "set context : overseerr"
         __overseerr_set_context
+        __tango_log "DEBUG" "mambo" "set context : airdcppweb"
+        __airdcppweb_set_context
     ;;
 esac
 

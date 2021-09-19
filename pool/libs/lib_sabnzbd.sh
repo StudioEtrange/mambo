@@ -18,6 +18,7 @@ __sabnzbd_set_context() {
 
 __sabnzbd_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "sabnzbd"; then
+        __tango_log "DEBUG" "sabnzbd" "sabnzbd init"
         __sabnzbd_init_files
         # configure
         __sabnzbd_settings

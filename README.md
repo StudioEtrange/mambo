@@ -1184,10 +1184,11 @@ List of available plugins
     * first, ask for an open port to enter your vpn on the active VPN connexion
     * second, set transmission with this remote port
 
-* This plugin is by declared as active into mambo and declared as attached to transmission but must be manually launched
-    * see declaration in mambo.env : `TANGO_PLUGINS=transmission_pia_port%!transmission`
-    * launch this plugin to set transmission remote port : `./mambo plugins exec-service transmission`
-    * To declare it as aut launched at each transmission launch set in your pwn mambo.env file `TANGO_PLUGINS=transmission_pia_port%transmission`
+* To declare it as auto launched at each transmission launch set in your own mambo.env file with `TANGO_PLUGINS=transmission_pia_port%transmission`
+
+* To declare it as manually launched at each transmission launch set in your own mambo.env file with `TANGO_PLUGINS=transmission_pia_port%!transmission`
+    * then launch this plugin to set transmission remote port : `./mambo plugins exec-service transmission`
+    
 
 ### Usage
 

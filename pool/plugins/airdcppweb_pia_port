@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+
+# FEATURES : this plugin set remote airdcppweb port according to PIA vpn provider
+
+
+# NEED airdcppweb volumes
+# NEED lib pia port forward
+# WAIT for vpn and airdcppweb service up
+
+# load tango libs
+for f in /pool/tango/libs/*; do
+	[ -f "${f}" ] && . ${f}
+done
+# load app libs
+[ ! "${TANGO_NOT_IN_APP}" = "1" ] && for f in /pool/${TANGO_APP_NAME}/libs/*.sh; do [ -f "${f}" ] && . ${f}; done
+
+
+PLUGIN="airdcppweb_pia_port"
+DATA="/plugins_data/${PLUGIN}"
+
+echo "* Plugin : ${PLUGIN}"
+
+echo "L-- STEP : install plugin"
+pia_install_script "${DATA}"
+
+echo "  -"
+echo "L-- STEP : setup plugin"
+pia_setup_script
+
+echo "  -"
+echo "L-- STEP : run plugin"
+
+pia_get_port
+if [ ! "$PIA_FORWARD_PORT" = "" ]; then
+	echo "  - we use port $PIA_FORWARD_PORT, setting airdcppweb with it"
+	# set airdcppweb with this port
+ 	# TODO__airdcppweb_set_port "$PIA_FORWARD_PORT"
+else
+	echo "  - ERROR while getting PIA port"
+fi
+
+
+echo "L-- STEP : end plugin"

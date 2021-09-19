@@ -1,0 +1,82 @@
+
+# Advanced Direct Connect protocol p2p protocol
+# TODO WIP 
+volumes:
+  airdcppweb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${AIRDCPPWEB_DATA_PATH}
+    name: ${TANGO_APP_NAME}_airdcppweb_data
+  airdcppweb_download:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${AIRDCPPWEB_DOWNLOAD_PATH}
+    name: ${TANGO_APP_NAME}_airdcppweb_download
+
+services:
+  airdcppweb:
+    image: studioetrange/docker-airdcppweb:${AIRDCPPWEB_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_airdcppweb
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - airdcppweb_data:/.airdcpp
+      - airdcppweb_download:/Downloads
+      - download:/download
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : airdcppweb
+      - "traefik.http.services.airdcppweb.loadbalancer.server.port=5600"
+      - "traefik.http.services.airdcppweb.loadbalancer.server.scheme=http"
+      - "traefik.http.services.airdcppweb.loadbalancer.passhostheader=true"
+      # middlewares : airdcppweb
+      # TODO : do not work -- this middleware is used to auto login
+      # - 'traefik.http.middlewares.airdcppweb-autoauthbasic.headers.customrequestheaders.Authorization=Basic ${AIRDCPPWEB_AUTH_BASIC}'
+      # service router : airdcppweb
+      - "traefik.http.routers.airdcppweb.entrypoints=${AIRDCPPWEB_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.airdcppweb.rule=HostRegexp(`{subdomain:${AIRDCPPWEB_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.airdcppweb.priority=${AIRDCPPWEB_PRIORITY}"
+      - "traefik.http.routers.airdcppweb.service=airdcppweb"
+      - "traefik.http.routers.airdcppweb-secure.entrypoints=${AIRDCPPWEB_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.airdcppweb-secure.rule=HostRegexp(`{subdomain:${AIRDCPPWEB_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.airdcppweb-secure.priority=${AIRDCPPWEB_PRIORITY}"
+      - "traefik.http.routers.airdcppweb-secure.service=airdcppweb"
+      - "traefik.http.routers.airdcppweb-secure.tls=true"
+      - "traefik.http.routers.airdcppweb-secure.tls.domains[0].main=${AIRDCPPWEB_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : airdcppweb
+      #- "traefik.http.routers.airdcppweb.middlewares=airdcppweb-auth@rest,error-middleware,airdcppweb-autoauthbasic"
+      #- "traefik.http.routers.airdcppweb-secure.middlewares=airdcppweb-auth@rest,error-middleware,airdcppweb-autoauthbasic"
+      - "traefik.http.routers.airdcppweb.middlewares=airdcppweb-auth@rest,error-middleware"
+      - "traefik.http.routers.airdcppweb-secure.middlewares=airdcppweb-auth@rest,error-middleware"
+    networks:
+      - default
+    expose:
+      # web ui http port
+      - 5600
+      # web ui https port
+      - 5601
+      # TCP port is used for unencrypted transfers. You have to publish this on the same port number otherwise clients will not be able to connect.
+      - 21248/tcp
+      # UDP port is used for searching. You have to publish this on the same port number otherwise clients will not be able to connect.
+      - 21249/udp
+      # TLS port (TCP) is used for encrypted transfers. You have to publish this on the same port number otherwise clients will not be able to connect.
+      - 21249/tcp
+    ports:
+      - ${AIRDCPPWEB_PORT}:21248/tcp
+      - ${AIRDCPPWEB_PORT}:21248/udp
+    build:
+      context: https://github.com/StudioEtrange/docker-airdcpp-webclient.git#master
+      args:
+        # urls : https://web-builds.airdcpp.net/stable
+        - dl_url=https://web-builds.airdcpp.net/stable/airdcpp_${AIRDCPPWEB_VERSION}_webui-${AIRDCPPWEB_VERSION}_64-bit_portable.tar.gz
+        
+

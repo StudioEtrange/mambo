@@ -48,11 +48,33 @@ Various notes, test, links, code... made while designing Mambo
     * format for tv show with languages : {n} - {s00e00} - {t} [{resolution}_{vc}_{audioLanguages.size()>1 ? "MULTI":""}_{audioLanguages.ISO3.join("_").upper()}]
     * advanced format for tv show with languages and encoding : https://www.filebot.net/forums/viewtopic.php?f=5&t=5285
 
+* Filebrowser
+    * https://github.com/filebrowser/filebrowser
+    * https://filebrowser.org/
+    * Authentification option : https://filebrowser.org/configuration/authentication-method
+    * docker version : https://hub.docker.com/r/filebrowser/filebrowser
+
 ### Video management tools
 
 * Unmanic - Video files converter with web ui and scheduler https://github.com/Josh5/unmanic
 
+### Automation
 
+
+* n8n 
+    * Workflow Automation Tool. Easily automate tasks across different services. in browser
+    * https://github.com/n8n-io/n8n
+    * module integration list https://n8n.io/integrations
+* beehive 
+    * Beehive is an event and agent system, which allows you to create your own agents that perform automated tasks triggered by events and filters.
+    * https://github.com/muesli/beehive
+    * module integration list https://github.com/muesli/beehive/wiki/Available-Hives
+* node-red
+    * Create automation in browser (more for IoT)
+    * Node-RED is a programming tool for wiring together hardware devices, APIs and online services
+    * https://nodered.org/
+    * docker version https://hub.docker.com/r/nodered/node-red/
+    * module integration list https://github.com/node-red/node-red-nodes
 
 ### Generic download tools
 
@@ -183,20 +205,31 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
 
 * a cross-seed script : http://torrentinvites.org/f44/automatic-cross-seeding-script-240559/#post886162
 
+
+* Autoremove-torrents
+    * https://github.com/jerrymakesjelly/autoremove-torrents
+    * remove shared torrent according to your strategies
+    * compatible with qBittorrent/Transmission/μTorren
+    * docker version : https://github.com/dantebarba/docker-autoremove-torrents
+
 ## Music
 
 
 ### Tools
 
 * Server
-    * plays music from local disk, Spotify, SoundCloud, Google Play Music, and more.
-    * https://github.com/mopidy/mopidy
+    * Modipy 
+        * plays music from local disk, Spotify, SoundCloud, Google Play Music, and more.
+        * https://github.com/mopidy/mopidy
+    * Ampache
+        * https://ampache.org/
 
 * Player
-    * Modipy web client https://github.com/martijnboland/moped (inactive)
-    * Modipy web client https://github.com/dirkgroenen/mopidy-mopify (active)
-    * Modipy web client https://github.com/jaedb/Iris (active) (best ?)
-    * Modipy client https://github.com/pimusicbox/mopidy-musicbox-webclient (active)
+    * Modipy
+        * Modipy web client https://github.com/martijnboland/moped (inactive)
+        * Modipy web client https://github.com/dirkgroenen/mopidy-mopify (active)
+        * Modipy web client https://github.com/jaedb/Iris (active) (best ?)
+        * Modipy client https://github.com/pimusicbox/mopidy-musicbox-webclient (active)
     * Plexamp - A beautiful Plex music player for audiophiles, curators, and hipsters
         * https://plexamp.com/
         * ios/android/macos/windows/linux
@@ -1133,7 +1166,7 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
 ### Emulators
 
 * list of emulators http://nonmame.retrogames.com/
-
+* definition for MAME roms https://choccyhobnob.com/demystifying-mame-roms/
 
 ### Web Emulators
 
@@ -1157,7 +1190,15 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
     * https://github.com/bengarrett/DOSee
     * web frontend (based on work from emularity) for dos games wjhch embed em-dosbox
 
+
+
 ### Web launcher
+
+
+* Web retroarch
+    * based on Retroarch and includes severals core compiled with emscript : https://buildbot.libretro.com/stable/1.9.9/emscripten/
+    * https://web.libretro.com/
+    * sample docker image standalone : https://github.com/Inglebard/dockerfiles/tree/retroarch-web
 
 * WebtroPie
     * https://github.com/gazpan/WebtroPie
@@ -1186,7 +1227,7 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
 * Retrojolt
     * https://github.com/gamejolt/retrojolt 
     * it is a wrapper around emularity AND an emulators builder for emularity
-    * example usage of retrojolt from inside gamejolt website : https://github.com/gamejolt/gamejolt/blob/master/src/gameserver/components/embed/rom/rom.ts 
+    * example usage of retrojolt from inside gamejolt website : https://github.com/gamejolt/gamejolt/blob/ce912503b7e2cb7c59023c5b6077c1209b537278/src/gameserver/components/embed/rom/rom.ts
     * example retrojolt emulator compile scripts https://github.com/gamejolt/retrojolt/tree/main/scripts
     * test retroljolt
         ```
@@ -1223,6 +1264,14 @@ Restart windows session OR http://comicrack.cyolito.com/forum/8-help/39259-mappi
         yarn run dev
         see http://localhost:port/test
        ```
+
+* Emupedia
+    * web os with some web version of old games embedded
+    * https://github.com/Emupedia/emupedia.github.io
+    * demo : https://emupedia.net/beta/emuos/
+    * list of games : https://github.com/orgs/Emupedia/repositories?page=1
+
+
 
 ### Website running emulators
 

@@ -76,15 +76,15 @@ DEBUG="${9:-0}"
 # --------------------------------
 if [ "$DEBUG" = "1" ]; then
     echo "<!-- ARGS_BEBIN"
-    echo $CALIBREDB_PATH
-    echo $TEMPLATE_FILE
-    echo $ITEMS_NAME
-    echo $TITLE
-    echo $LIMIT
-    echo $RANDOM_ORDER
-    echo $DAYS_OLD_FILTER
-    echo $URL
-    echo $DEBUG
+    echo CALIBREDB_PATH : $CALIBREDB_PATH
+    echo TEMPLATE_FILE : $TEMPLATE_FILE
+    echo ITEMS_NAME : $ITEMS_NAME
+    echo TITLE : $TITLE
+    echo LIMIT : $LIMIT
+    echo RANDOM_ORDER : $RANDOM_ORDER
+    echo DAYS_OLD_FILTER : $DAYS_OLD_FILTER
+    echo URL : $URL
+    echo DEBUG : $DEBUG
     echo "ARGS_END -->"
 fi
 
@@ -110,12 +110,10 @@ cat "${GENERATED_XML_FILE}" | xq -r 'if .calibredb!=null then . else .calibredb=
 # { "calibredb": { "record": {...} } ==> { "calibredb": { "record": [{...}] }
 cat "${GENERATED_JSON_FILE}" | jq -r 'if (.calibredb|type != "string") then if (.calibredb["record"]|type == "object") then .calibredb.record=[.calibredb.record] else . end else . end' | sponge "${GENERATED_JSON_FILE}"
 
-# replace tmp folder reference
-#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then (.calibredb["record"]) | .[].library_name=$database_name | .[].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
-#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name=$database_name | .calibredb["record"][].cover |= sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
-#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then if (.calibredb["record"]|type == "array") then .calibredb["record"][].library_name=$database_name | .calibredb["record"][].cover |= sub($tmp;$CALIBREDB_PATH) else .calibredb["record"].library_name=$database_name | .calibredb["record"].cover |= sub($tmp;$CALIBREDB_PATH) end else . end' | sponge "${GENERATED_JSON_FILE}"
-cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name|=$database_name | .calibredb["record"][].cover|=sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
-
+# replace tmp folder reference and check if cover field exist or create it empty
+#cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then .calibredb["record"][].library_name|=$database_name | .calibredb["record"][].cover|=sub($tmp;$CALIBREDB_PATH) else . end' | sponge "${GENERATED_JSON_FILE}"
+# https://stackoverflow.com/a/48763533
+cat "${GENERATED_JSON_FILE}" | jq --arg tmp "$tmp" --arg CALIBREDB_PATH "$CALIBREDB_PATH" --arg database_name "$database_name" -r 'if (.calibredb|type != "string") then select(.calibredb["record"] != null) .calibredb["record"][].library_name|=$database_name | .calibredb["record"]|=(map(. + (if .cover==null then {cover:""} else {cover: (.cover | sub($tmp;$CALIBREDB_PATH) )}  end) )  ) else . end' | sponge "${GENERATED_JSON_FILE}"
 
 # render template
 python - "${TEMPLATE_FILE}" "${GENERATED_JSON_FILE}" "${GENERATED_HTML_FILE}" "${LIMIT}" "${RANDOM_ORDER}" "${TITLE}" "${ITEMS_NAME}" "${URL}" "${DEBUG}" <<-EOF

@@ -4,7 +4,6 @@
 # FUNCTION USED INSIDE PLUGIN
 # NEED transmission volumes
 # WAIT for transmission service up
-# sample to forward port with PIA in shell and set transmission (torrent) service
 #   https://github.com/haugene/docker-transmission-openvpn/blob/master/transmission/updatePort.sh
 __transmission_set_port() {
     local new_port="$1"
@@ -67,20 +66,29 @@ __transmission_set_context() {
         fi
     fi
 
-    [ "$TRANSMISSION_AUTH_ENABLED" = "true" ] && __tango_log "DEBUG" "transmission" "Transmission auth basic is enabled in settings"
+    [ "$TRANSMISSION_AUTH_ENABLED" = "true" ] && __tango_log "DEBUG" "transmission" "Transmission auth is enabled in settings"
     
+    export TRANSMISSION_AUTO_AUTH_ENABLED
+    __add_declared_variables "TRANSMISSION_AUTO_AUTH_ENABLED"
+    if [ "$TRANSMISSION_AUTH_ENABLED" = "true" ]; then
+        # enable auto login
+        TRANSMISSION_AUTO_AUTH_ENABLED="true"
+    else
+        TRANSMISSION_AUTO_AUTH_ENABLED="false"
+    fi
     if ! $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
         __tango_log "DEBUG" "transmission" "Organizr2 is not declared as an active service in TANGO_SERVICES_ACTIVE. Disable auto login to internal transmission url"
-        TRANSMISSION_AUTH_ENABLED="false"
+        TRANSMISSION_AUTO_AUTH_ENABLED="false"
     fi
     if [ ! "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
         __tango_log "DEBUG" "transmission" "Organizr2 auth system is OFF in ORGANIZR2_AUTHORIZATION. Disable auto login to internal transmission url"
-        TRANSMISSION_AUTH_ENABLED="false"
+        TRANSMISSION_AUTO_AUTH_ENABLED="false"
     fi
+
 
     export TRANSMISSION_AUTH_BASIC=
     __add_declared_variables "TRANSMISSION_AUTH_BASIC"
-    if [ "$TRANSMISSION_AUTH_ENABLED" = "true" ]; then
+    if [ "$TRANSMISSION_AUTO_AUTH_ENABLED" = "true" ]; then
         # enable auto login
         __tango_log "DEBUG" "transmission" "Enable auto login to internal transmission url"
         TRANSMISSION_AUTH_BASIC="$(__base64_basic_authentification "$TRANSMISSION_USER" "$TRANSMISSION_PASSWORD")"
@@ -99,7 +107,7 @@ __transmission_set_context() {
 # manage auto login middleware for transmission
 __transmission_auth() {
     
-    if [ ! "$TRANSMISSION_AUTH_ENABLED" = "true" ]; then
+    if [ ! "$TRANSMISSION_AUTO_AUTH_ENABLED" = "true" ]; then
         # disable auto login
         if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then
             __tango_log "DEBUG" "transmission" "Disable auto login to internal transmission url in generated compose file"
@@ -120,13 +128,13 @@ __transmission_auth() {
 
 __transmission_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "transmission"; then
+        __tango_log "DEBUG" "transmission" "transmission init"
         __transmission_init_files
         # configure
         __transmission_settings
     fi
 }
 
-# sabnzbd auto generate api keys at first launch
 __transmission_init_files() {
     if [ ! -f "${TRANSMISSION_CFG_PATH}" ]; then
         # generate settings file

@@ -13,6 +13,7 @@ __medusa_set_context() {
 
 __medusa_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "medusa"; then
+        __tango_log "DEBUG" "medusa" "medusa init"
         __medusa_init_files
         # configure
         __medusa_settings
