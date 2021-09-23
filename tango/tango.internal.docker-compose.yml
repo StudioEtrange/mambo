@@ -233,8 +233,8 @@ services:
       - "traefik.http.middlewares.traefik_api-redirect2.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)(/)+$$"
       - "traefik.http.middlewares.traefik_api-redirect2.redirectregex.replacement=$${1}/dashboard/"
 
-      # to take care of websocket on HTTPS entrypoint
-      - "traefik.http.middlewares.headers-secure.headers.customrequestheaders.X-Forwarded-Proto=https"
+      # usefull to get support of secured websocket
+      - "traefik.http.middlewares.forwarded-proto-header.headers.customrequestheaders.X-Forwarded-Proto=https"
       # Auth middleware
       - 'traefik.http.middlewares.traefik_api_rest-auth.basicauth.users=${TRAEFIK_API_USER}:${TRAEFIK_API_HASH_PASSWORD}'
       # Security middleware

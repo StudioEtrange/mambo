@@ -1,5 +1,12 @@
 #!/bin/bash
 
+
+if [ "${DEBUG}" = "1" ]; then
+	VERBOSE="1"
+	TANGO_LOG_STATE="ON"
+	TANGO_LOG_LEVEL="DEBUG"
+fi
+
 # TANGO APP
 TANGO_NOT_IN_APP=
 [ "${TANGO_APP_NAME}" = "" ] && TANGO_APP_NAME="${APP}" || TANGO_APP_NAME="${TANGO_APP_NAME}"
@@ -102,25 +109,29 @@ case ${ACTION} in
 		# modules -----
 		# test if some modules are declared by command line and add them
 		# so --module option is cumulative with TANGO_SERVICES_MODULES
+		# but if a module is declared through both, command line declaration override the other
 		[ "${TANGO_SERVICES_MODULES}" = "" ] && tango_services_modules_env_var_empty=1
 		if [ ! "${MODULE}" = "" ]; then
-			TANGO_SERVICES_MODULES="${TANGO_SERVICES_MODULES} ${MODULE//:/ }"
+			__add_item_declaration_from_cmdline "module"
 		fi
+		# filter exising modules
+		[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_items_exists "module"
+		
 
 		# generate bash env file
 		# bash env files priority :
 		# 	- user env file
 		# 	- app env file
 		# 	- default env file
-		# if TANGO_SERVICES_MODULES exists as env var or --module option was used then modules env files are processed whith __create_env_for_bash call and the order is instead
+		# if TANGO_SERVICES_MODULES exists as env var or --module option was used then modules env files are processed with __create_env_files "bash" call and the order is instead
 		# 			- user env file
 		# 			- modules env file
 		# 			- app env file
 		# 			- default env file
-		[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __create_env_for_bash
+		[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __create_env_files "bash"
 
-		# if TANGO_SERVICES_MODULES exist in any env files but not as env var we need to recreate __create_env_for_bash 
-		# because TANGO_SERVICES_MODULES value in env files was not used when we first call __create_env_for_bash
+		# if TANGO_SERVICES_MODULES exist in any env files but not as env var we need to recreate __create_env_files "bash"
+		# because TANGO_SERVICES_MODULES value in env files was not used when we first call __create_env_files "bash"
 		if [ "${tango_services_modules_env_var_empty}" = "1" ]; then
 			# reinit value of TANGO_SERVICES_MODULES with value from env files
 			__tmp_services_modules="$(env -i bash --noprofile --norc -c ". ${GENERATED_ENV_FILE_FOR_BASH}; echo \$TANGO_SERVICES_MODULES")"
@@ -128,10 +139,11 @@ case ${ACTION} in
 			if [ ! "${__tmp_services_modules}" = "" ]; then
 				rebuild_env_for_bash=1
 				TANGO_SERVICES_MODULES="${__tmp_services_modules}"
-				# dont forget to update TANGO_SERVICES_MODULES value with --module option
 				if [ ! "${MODULE}" = "" ]; then
-					TANGO_SERVICES_MODULES="${TANGO_SERVICES_MODULES} ${MODULE//:/ }"
+					__add_item_declaration_from_cmdline "module"
 				fi
+				# filter exising modules
+				[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_items_exists "module"
 			fi
 		fi
 		# some modules have been defined in one of env files but not as env var
@@ -142,12 +154,11 @@ case ${ACTION} in
 		# 			- default env file
 		if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then
 			if [ "${rebuild_env_for_bash}" = "1" ]; then
-				__create_env_for_bash
+				__create_env_files "bash"
 			fi
 		fi
 
-		# filter exising modules
-		[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_items_exists "module"
+		
 
 
 		# plugins -----
@@ -158,8 +169,9 @@ case ${ACTION} in
 		fi
 		# test if some plugins are declared by command line and add them
 		# so --plugin option is cumulative with TANGO_PLUGINS
+		# but if a plugin is declared through both, command line declaration override the other
 		if [ ! "${PLUGIN}" = "" ]; then
-			TANGO_PLUGINS="${TANGO_PLUGINS} ${PLUGIN//:/ }"
+			__add_item_declaration_from_cmdline "plugin"
 		fi
 		# check plugins exist and build list and map
 		[ ! "${TANGO_PLUGINS}" = "" ] && __filter_items_exists "plugin"
@@ -167,7 +179,7 @@ case ${ACTION} in
 		
 
 		# generate compose env files
-		[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __create_env_for_docker_compose
+		[ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ] && __create_env_files "docker_compose"
 
 		# fill VARIABLES_LIST declared variables from all env files
 		__init_declared_variable_names
@@ -181,12 +193,12 @@ case ${ACTION} in
 
 		# STEP 2 ------ process command line and shell env variables
 
-
-		
+		# this is done twice : here and at the beginning of this script
+		# not sure if we need twice - but we at least need to activate debut at the beginning of this script
 		if [ "${DEBUG}" = "1" ]; then
-			VERBOSE="1"
-			TANGO_LOG_STATE="ON"
-			TANGO_LOG_LEVEL="DEBUG"
+		 	VERBOSE="1"
+		 	TANGO_LOG_STATE="ON"
+		 	TANGO_LOG_LEVEL="DEBUG"
 		fi
 		[ "${TANGO_USER_ID}" = "" ] && [ ! "${PUID}" = "" ] && TANGO_USER_ID="${PUID}"
 		[ "${TANGO_GROUP_ID}" = "" ] && [ ! "${PGID}" = "" ] && TANGO_GROUP_ID="${PGID}"
@@ -338,7 +350,7 @@ case ${ACTION} in
 		TANGO_DATA_PATH_SUBPATH_CREATE=
 
 		# manage generic path
-		__tango_log "DEBUG" "tango" "path management -- list of path to manage : TANGO_PATH_LIST=${TANGO_PATH_LIST}"
+		__tango_log "DEBUG" "tango" "path management -- list of paths to manage : TANGO_PATH_LIST=${TANGO_PATH_LIST}"
 
 		for p in ${TANGO_PATH_LIST}; do
 			__tango_log "DEBUG" "tango" "       -L manage $p"
@@ -445,8 +457,10 @@ case ${ACTION} in
 		__add_declared_variables "TANGO_HOSTNAME"
 		if [ "${NETWORK_INTERNET_EXPOSED}" = "1" ]; then
 			# TODO CATCH HTTP ERROR like 502
-			TANGO_EXTERNAL_IP="$(curl -s ipinfo.io/ip)"
+			TANGO_EXTERNAL_IP="$(__tango_curl -s ipinfo.io/ip)"
+			__tango_log "INFO" "tango" "Declared being exposed on internet, external IP detected : $TANGO_EXTERNAL_IP"
 		else
+			__tango_log "DEBUG" "tango" "Not declared as exposed on internet."
 			TANGO_EXTERNAL_IP=
 		fi
 		__add_declared_variables "TANGO_EXTERNAL_IP"

@@ -89,24 +89,39 @@ case ${ACTION} in
 		fi
 	;;
 
+	exec )
+		__compose_exec "${TARGET}" "${OTHER_ARG_EVAL}" "$USERROOT"
+	;;
+
 	shell )
-		if [ "${TARGET}" = "" ]; then
-			echo "** ERROR : specify a running service in which you want a shell access"
-			exit 1
-		else
-			case ${TARGET} in
-				traefik )
-					docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${TARGET} /bin/sh
-				;;
-				* )
-					docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${TARGET} /bin/sh
-				;;
-			esac
-		fi
+		__compose_exec "${TARGET}" "set -- /bin/sh" "$USERROOT"
 	;;
 
 	info )
 		case "${TARGET}" in
+			vpn_* )			
+				echo "---------==---- VPN ----==---------"
+				echo "* VPN Service"
+				echo "L-- vpn list : ${VPN_SERVICES_LIST}"
+				echo "L-- check dns leaks :  https://dnsleaktest.com/"
+				
+				for v in ${VPN_SERVICES_LIST}; do
+					if [ "$v" = "${TARGET}" ]; then
+						echo "* VPN Infos"
+						echo "L-- vpn id : ${v}"
+						for var in $(compgen -A variable | grep ^${v^^}_); do
+							case ${var} in
+								*PASSWORD*|*AUTH* ) echo "  + ${var}=*****";;
+								* ) echo "  + ${var}=${!var}";;
+							esac
+						done
+						printf "  * external ip : "
+						__compose_exec "${TARGET}" "set -- curl -s ipinfo.io/ip"
+						echo ""
+					fi
+				done
+
+			;;
 			* )
 				docker-compose up service_info
 			;;
@@ -152,7 +167,7 @@ case ${ACTION} in
 	;;
 
 	status )
-		docker-compose ps ${TARGET}
+		docker-compose ps -a ${TARGET}
 	;;
 
 	logs )

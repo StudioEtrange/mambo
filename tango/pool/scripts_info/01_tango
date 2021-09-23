@@ -33,9 +33,9 @@ for service in ${TANGO_SERVICES_AVAILABLE}; do
     
     echo "* ${service}"
     if [[ " ${TANGO_SERVICES_DISABLED} " =~ .*\ ${service,,}\ .* ]]; then
-        echo "L-- status : DISABLED"
+        echo "L-- service status : DISABLED"
     else
-        echo "L-- status : ENABLED"
+        echo "L-- service status : DECLARED"
     fi
    
     # filter information to show
@@ -48,27 +48,12 @@ for service in ${TANGO_SERVICES_AVAILABLE}; do
             fi
             ;;
     esac
+    echo "L-- service version : ${version}"
 
     if [ "${info_extended}" = "1" ]; then
-        echo "L-- version : ${version}"
-
-        rlist="${service}_ROUTERS_LIST"
-        echo "L-- routers list : ${!rlist}"
-
-        for r in ${!rlist}; do
-            echo "L-- router : $r"
-            __var="${r^^}_ENTRYPOINTS"; __entrypoints="${!__var}"; 
-            __var="${r^^}_ENTRYPOINTS_SECURE"; __entrypoints="${__entrypoints} ${!__var}";
-            __entrypoints="${__entrypoints#"${e%%[![:space:]]*}"}"   # remove leading whitespace characters
-            __entrypoints="${__entrypoints%"${var##*[![:space:]]}"}" # remove trailing whitespace characters
-            if [ ! "${__entrypoints}" = "" ]; then
-                echo "  + entrypoints : ${__entrypoints}"
-            fi
-
-        done
-
-      
-        echo "L-- For all ${service} HTTP entrypoints :"
+       
+          
+        echo "L-- for all ${service} HTTP entrypoints :"
         echo -n "  + use letsencrypt : "
         __letsencrypt=
         for s in ${LETS_ENCRYPT_SERVICES}; do
@@ -84,40 +69,70 @@ for service in ${TANGO_SERVICES_AVAILABLE}; do
         [ "${__redirected}" = "1" ] && echo YES || echo NO
         
         __direct_access="${service}_DIRECT_ACCESS_PORT"; __direct_access="${!__direct_access}";
-        echo "L-- direct access port : ${__direct_access}"
+        [ ! "${__direct_access}" = "" ] && echo "L-- direct access port (bypass traefik) : ${__direct_access}"
 
         __connected_vpn="VPN_SERVICE_${service}"; __connected_vpn="${!__connected_vpn}"
         echo "L-- connected to vpn : ${__connected_vpn}"
 
-        __urls=
-        __urls_api_get=
-        __urls_api_data=
-        __urls_api_rest=
-        for u in $(compgen -A variable | grep -Ev DEFAULT | grep ^${service}_URI_); do
-            __urls="${__urls} ${!u}"
-            if [ "${service^^}" = "TRAEFIK" ]; then
+        rlist="${service}_ROUTERS_LIST"
+        echo "L-- service routers list : ${!rlist}"
+
+        for r in ${!rlist}; do
+
+            echo "L-- router : $r"
+            __var="${r^^}_ENTRYPOINTS"; __entrypoints="${!__var}"; 
+            __var="${r^^}_ENTRYPOINTS_SECURE"; __entrypoints="${__entrypoints} ${!__var}";
+            __entrypoints="${__entrypoints#"${e%%[![:space:]]*}"}"   # remove leading whitespace characters
+            __entrypoints="${__entrypoints%"${var##*[![:space:]]}"}" # remove trailing whitespace characters
+            if [ ! "${__entrypoints}" = "" ]; then
+                echo "  + traefik entrypoints : ${__entrypoints}"
+            fi
+            
+            __var="${r^^}_HOSTNAME"
+            __hostname="${!__var}"
+            echo "  + hostname : ${__hostname}"
+
+            if [ ! "${__hostname}" = "" ]; then
+                # NOTE crt.sh do not need domain to be reacheable from internet : it is a search engine for certificate
+                echo "  + certificate status : https://crt.sh/?q=${__hostname}"
+                if [ "$VERBOSE" = "1" ]; then
+                    if [ "${NETWORK_INTERNET_EXPOSED}" = "1" ]; then
+                        echo "  L-- diagnostic dns, cert, content : https://check-your-website.server-daten.de/?q=${__hostname}"
+                        echo "  L-- ssl analysis : https://www.ssllabs.com/ssltest/analyze.html?d=${__hostname}"
+                    fi
+                fi
+            fi
+
+            __urls=
+            __urls_default=
+            __urls_api_get=
+            __urls_api_data=
+            __urls_api_rest=
+            for u in $(compgen -A variable | grep -Ev DEFAULT | grep ^${r^^}_URI_); do
+                __urls="${__urls} ${!u}"   
+            done
+            for u in $(compgen -A variable | grep -E DEFAULT | grep ^${r^^}_URI); do
+                __urls_default="${__urls_default} ${!u}"
                 __urls_api_get="${__urls_api_get} ${!u}/api"
                 __urls_api_data="${__urls_api_data} ${!u}/api/rawdata"
                 __urls_api_rest="${__urls_api_rest} ${!u}/api/providers/rest"
+            done
+            echo "  + all available uri : ${__urls}"
+            echo "  + default uri : ${__urls_default}"
+            if [ "${r^^}" = "TRAEFIK_API" ]; then
+                echo "  L-- API GET default endpoints : ${__urls_api_get}"
+                echo "  L-- API GET all data : ${__urls_api_data}"
             fi
-        done
+            if [ "${r^^}" = "TRAEFIK_API_REST" ]; then
+                echo "  L-- API PUT (REST API) : ${__urls_api_rest}"
 
-        __var="${service^^}_HOSTNAME"
-        __hostname="${!__var}"
-        if [ ! "${__entrypoints}" = "" ]; then
-            echo "L-- URLs : ${__urls}"
-            if [ "${service^^}" = "TRAEFIK" ]; then
-                echo "L -- API GET endpoint : ${__urls_api_get}"
-                echo "L -- API GET all data : ${__urls_api_data}"
-                echo "L -- API PUT (REST API) : ${__urls_api_rest}"
             fi
-            # NOTE crt.sh do not need domain to be reacheable from internet : it is a search engine for certificate
-            echo "L-- certificate status : https://crt.sh/?q=${__hostname}"
-            if [ "${NETWORK_INTERNET_EXPOSED}" = "1" ]; then
-                echo "L-- diagnostic dns, cert, content : https://check-your-website.server-daten.de/?q=${__hostname}"
-                echo "L-- ssl analysis : https://www.ssllabs.com/ssltest/analyze.html?d=${__hostname}"
-            fi
-        fi
+
+        done
+    
+
+       
+       
     fi
     if [ "${info_variables}" = "1" ]; then
         echo "L-- variables list :"
@@ -206,7 +221,7 @@ echo L-- Host name : $TANGO_HOSTNAME
 echo L-- Host default local IP : $TANGO_HOST_DEFAULT_IP
 echo L-- Host local IPs : $TANGO_HOST_IP
 echo L-- Random free ports mode :  $([ "${TANGO_FREEPORT_MODE}" = "1" ] && echo "ON [$GENERATED_ENV_FILE_FREEPORT]" || echo "OFF")
-
+echo "* NETWORK AREA declaration : ${NETWORK_SERVICES_AREA_LIST}"
 for area in ${NETWORK_SERVICES_AREA_LIST}; do
     IFS="|" read -r name proto internal_port secure_port <<<$(echo ${area})
 

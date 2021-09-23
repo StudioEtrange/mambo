@@ -9,11 +9,12 @@ usage() {
 	echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
 	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
-	echo "L     info [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
+	echo "L     info [vpn_<id>] [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see service status."
 	echo "L     logs [service] [-f] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
-	echo "L     shell <service> : launch a shell into a running service."
+	echo "L     shell <service> [--userroot] : launch a shell into a running service. Can be launched as root user instead of setted user."
+	echo "L     exec <service> [--userroot] -- command : exec a command into a running service. Can be launched as root user instead of setted user."
 	echo "L     services|modules|plugins|scripts list : list available modules or plugins. A module is a predefined service. A plugin is plug onto a service."
 	echo "L     plugins exec-service <service>|exec <plugin> : exec all plugin attached to a service OR exec a plugin into all serviced attached."
 	echo "L     scripts exec <script> : exec a script."
@@ -31,7 +32,7 @@ usage() {
 
 # COMMAND LINE
 PARAMETERS="
-ACTION=										'action' 			a				'update info shell up down status install logs restart services modules plugins scripts cert vendor letsencrypt' '1'
+ACTION=										'action' 			a				'update info shell exec up down status install logs restart services modules plugins scripts cert vendor letsencrypt' '1'
 TARGET=										'target' 			s				''	'0'
 ARGUMENT=									'argument' 			s				''	'0'
 "
@@ -51,4 +52,5 @@ PUID='' 					'u' 			'string'			s 			0			''		  user id - set TANGO_USER_ID variab
 PGID='' 					'g' 			'string'			s 			0			''		  group id - set TANGO_GROUP_ID variable - will own bind mount created folder/files - Default current user group $(id -g).
 FREEPORT=''				    ''				''					b			0		''			  When up or restart services, will pick free random ports for network areas. Otherwise will pick previous setted random port.
 FOLLOW=''				    'f'				''					b			0		''			  Follow mode for logs.
+USERROOT=''				    'r'				''					b			0		''			  Launch shell as root instead of setted user
 "

@@ -3,6 +3,10 @@
 # patched version of docker-mods to fix a problem relative of getting token from dockerhub
 # https://github.com/linuxserver/docker-baseimage-ubuntu/pull/69
 
+# TO use it mount this patch while docker-mods script not fixed
+#volumes:
+#- ${TANGO_ROOT}/pool/patch_linuxserver/docker-mods:/docker-mods
+
 
 # Exit if mods is not set
 if [ -z ${DOCKER_MODS+x} ]; then

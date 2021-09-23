@@ -9,7 +9,7 @@
         http.redirection entrypoint priority ?
         tls ?
 
-* [ ] scripts are sourced when exec => they should not be ? => to inehrit the env var of tango context ? (which is by the way the only main purpose of this 'script' functionality)
+* [ ] scripts are sourced when exec => they should not be ? => to inehrit the env var of tango context ? (which is by the way the only main purpose of this 'script' functionality) ==> DEPRECATE script usage ?
 
 * [ ] remove script_init ? (scripts init are always launched with a predefined image) do we really need this as we used ansible in mambo and in init phase we often need to control docker itself and its not really easy to control it from inside a container ?
 
@@ -17,8 +17,7 @@
 
 * [] tango_set_context.sh : TODO CATCH >HTTP ERROR like 502
 		if [ "${NETWORK_INTERNET_EXPOSED}" = "1" ]; then
-
-			TANGO_EXTERNAL_IP="$(curl -s ipinfo.io/ip)"
+			TANGO_EXTERNAL_IP="$(__tango_curl -s ipinfo.io/ip)"
 
 * [ ] add possibility to add external link as a router
 

@@ -126,7 +126,7 @@ __update_env_files() {
 	for __variable in ${VARIABLES_LIST}; do
 		[ -z ${!__variable+x} ] || echo "${__variable}=${!__variable}" >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
 		# NOTE : we need to export variables because some software like ansible need to access them
-		# 		 we export variables only when update file (__update_env_files) not when file is created (__create_env_for_bash) because it easier
+		# 		 we export variables only when update file (__update_env_files) not when file is created (__create_env_files "bash") because it easier
 		[ -z ${!__variable+x} ] || echo "export ${__variable}=\"$(echo ${!__variable} | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\$/\\$/g')\"" >> "${GENERATED_ENV_FILE_FOR_BASH}"	
 	done
 
@@ -190,60 +190,67 @@ __add_declared_associative_array() {
 
 
 
-# generate an env file from various env files (tango, app, modules and user env files) to be used as env-file in environment section of docker compose file (GENERATED_ENV_FILE_FOR_COMPOSE)
-__create_env_for_docker_compose() {
-	echo "# ------ CREATE : create_env_for_docker_compose : $(date)" > "${GENERATED_ENV_FILE_FOR_COMPOSE}"
+# generate an env file from various env files (tango, app, modules and user env files) 
+# 		__target bash : to be used as env-file in environment section of docker compose file (GENERATED_ENV_FILE_FOR_COMPOSE)
+# 		__target docker_compose : to be sourced (GENERATED_ENV_FILE_FOR_BASH)
+# __target : bash | docker_compose
+__create_env_files() {
+	local __target="$1"
+
+	local __file=
+	case $__target in
+		bash )
+			__file="${GENERATED_ENV_FILE_FOR_BASH}"
+		;;
+		docker_compose )
+			__file="${GENERATED_ENV_FILE_FOR_COMPOSE}"
+		;;
+	esac
+
+	__tango_log "DEBUG" "tango" "create_env_files for $__target : init ${__file}"
+	echo "# ------ CREATE : __create_env_files for $__target : $(date)" > "${__file}"
 
 	# add default tango env file
-	cat <(echo \# --- PART FROM default tango env file ${TANGO_ENV_FILE}) <(echo) <(echo) "${TANGO_ENV_FILE}" <(echo) >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
-	
-	# add app env file
-	[ -f "${TANGO_APP_ENV_FILE}" ] &&  cat <(echo \# --- PART FROM app env file ${TANGO_APP_ENV_FILE}) <(echo) <(echo) "${TANGO_APP_ENV_FILE}" <(echo) >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
+	__tango_log "DEBUG" "tango" "create_env_files for $__target : add default tango env file ${TANGO_ENV_FILE}"
+	cat <(echo \# --- PART FROM default tango env file ${TANGO_ENV_FILE}) <(echo) <(echo) "${TANGO_ENV_FILE}" <(echo) >> "${__file}"
 
-	# add modules env file
+	# add app env file
+	if [ -f "${TANGO_APP_ENV_FILE}" ]; then 
+		__tango_log "DEBUG" "tango" "create_env_files for $__target : add app env file ${TANGO_APP_ENV_FILE}"
+		cat <(echo \# --- PART FROM app env file ${TANGO_APP_ENV_FILE}) <(echo) <(echo) "${TANGO_APP_ENV_FILE}" <(echo) >> "${__file}"
+	fi
+
+	# add modules env files
+	__tango_log "DEBUG" "tango" "create_env_files for $__target : add modules env files for modules : ${TANGO_SERVICES_MODULES}"
 	for s in ${TANGO_SERVICES_MODULES}; do
 		# app modules overrides tango modules
 		if [ -f "${TANGO_APP_MODULES_ROOT}/${s}.env" ]; then
-			cat <(echo \# --- PART FROM modules env file ${TANGO_APP_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_APP_MODULES_ROOT}/${s}.env" <(echo) >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
+			__tango_log "DEBUG" "tango" "create_env_files for $__target : add app module env file for this module : ${TANGO_APP_MODULES_ROOT}/${s}.env"
+			cat <(echo \# --- PART FROM modules env file ${TANGO_APP_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_APP_MODULES_ROOT}/${s}.env" <(echo) >> "${__file}"
 		else
-			[ -f "${TANGO_MODULES_ROOT}/${s}.env" ] && cat <(echo \# --- PART FROM modules env file ${TANGO_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_MODULES_ROOT}/${s}.env" <(echo) >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
+			if [ -f "${TANGO_MODULES_ROOT}/${s}.env" ]; then
+				__tango_log "DEBUG" "tango" "create_env_files for $__target : add tango module env file for this module : ${TANGO_MODULES_ROOT}/${s}.env"
+				cat <(echo \# --- PART FROM modules env file ${TANGO_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_MODULES_ROOT}/${s}.env" <(echo) >> "${__file}"
+			else
+				__tango_log "DEBUG" "tango" "create_env_files for $__target : module $s do not have an env file (${TANGO_APP_MODULES_ROOT}/${s}.env nor ${TANGO_MODULES_ROOT}/${s}.env do not exists) maybe anormal or not"
+			fi
 		fi
 	done
 
 	# add user env file
-	[ -f "${TANGO_USER_ENV_FILE}" ] && cat <(echo \# --- PART FROM user env file ${TANGO_USER_ENV_FILE}) <(echo) <(echo) "${TANGO_USER_ENV_FILE}" <(echo) >> "${GENERATED_ENV_FILE_FOR_COMPOSE}"
+	if [ -f "${TANGO_USER_ENV_FILE}" ]; then
+		__tango_log "DEBUG" "tango" "create_env_files for $__target : add user env file ${TANGO_USER_ENV_FILE}"
+		cat <(echo \# --- PART FROM user env file ${TANGO_USER_ENV_FILE}) <(echo) <(echo) "${TANGO_USER_ENV_FILE}" <(echo) >> "${__file}"
+	fi
 
-	__parse_env_file "${GENERATED_ENV_FILE_FOR_COMPOSE}"
-}
+	__parse_env_file "${__file}"
 
-# generate an env file from various env files (tango, app, modules and user env files) to be sourced (GENERATED_ENV_FILE_FOR_BASH)
-__create_env_for_bash() {
-	echo "# ------ CREATE : create_env_for_bash : $(date)" > "${GENERATED_ENV_FILE_FOR_BASH}"
+	if [ "$__target" = "bash" ]; then
+		# add quote for variable bash support
+		sed -i -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\$/\\$/g' "${__file}"
+		sed -i 's/^\([a-zA-Z0-9_-]*\)=\(.*\)$/\1=\"\2\"/g' "${__file}"
+	fi
 
-	# add default tango env file
-	cat <(echo \# --- PART FROM default tango env file ${TANGO_ENV_FILE}) <(echo) <(echo) "${TANGO_ENV_FILE}" <(echo) >> "${GENERATED_ENV_FILE_FOR_BASH}"
-	
-	# add app env file
-	[ -f "${TANGO_APP_ENV_FILE}" ] &&  cat <(echo \# --- PART FROM app env file ${TANGO_APP_ENV_FILE}) <(echo) <(echo) "${TANGO_APP_ENV_FILE}" <(echo) >> "${GENERATED_ENV_FILE_FOR_BASH}"
-
-	# add modules env file
-	for s in ${TANGO_SERVICES_MODULES}; do
-		# app modules overrides tango modules
-		if [ -f "${TANGO_APP_MODULES_ROOT}/${s}.env" ]; then
-			cat <(echo \# --- PART FROM modules env file ${TANGO_APP_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_APP_MODULES_ROOT}/${s}.env" <(echo) >> "${GENERATED_ENV_FILE_FOR_BASH}"
-		else
-			[ -f "${TANGO_MODULES_ROOT}/${s}.env" ] && cat <(echo \# --- PART FROM modules env file ${TANGO_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_MODULES_ROOT}/${s}.env" <(echo) >> "${GENERATED_ENV_FILE_FOR_BASH}"
-		fi
-	done
-
-	# add user env file
-	[ -f "${TANGO_USER_ENV_FILE}" ] && cat <(echo \# --- PART FROM user env file ${TANGO_USER_ENV_FILE}) <(echo) <(echo) "${TANGO_USER_ENV_FILE}" <(echo) >> "${GENERATED_ENV_FILE_FOR_BASH}"
-
-	__parse_env_file "${GENERATED_ENV_FILE_FOR_BASH}"
-
-	# add quote for variable bash support
-	sed -i -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\$/\\$/g' "${GENERATED_ENV_FILE_FOR_BASH}"
-	sed -i 's/^\([a-zA-Z0-9_-]*\)=\(.*\)$/\1=\"\2\"/g' "${GENERATED_ENV_FILE_FOR_BASH}"
 }
 
 
@@ -252,6 +259,7 @@ __create_env_for_bash() {
 __parse_env_file() {
 	local _file="$1"
 
+	__tango_log "DEBUG" "tango" "parse_env_file : ${_file}"
 	local _temp=$(mktmp)
 
 	awk -F= '
@@ -378,6 +386,9 @@ __create_docker_compose_file() {
 	# because it remove some network definition
 	# and because some methods below add service to VPN_x_SERVICES
 	__set_vpn_service_all
+
+
+	__tango_log "INFO" "tango" "Available services and subservices : ${TANGO_SERVICES_AVAILABLE} ${TANGO_SUBSERVICES_ROUTER}"
 }
 
 
@@ -638,6 +649,12 @@ __set_routers_info_service_all() {
 			continue
 		fi
 
+		
+		__entrypoints="${__service^^}_ENTRYPOINTS"
+		__entrypoints="${!__entrypoints}"
+		__entrypoint_default="${__service^^}_ENTRYPOINT_DEFAULT"
+		__entrypoint_default="${!__entrypoint_default}"
+
 		if [ "${__subservice_flag}" = "1" ]; then
 			__parent="$(__get_subservice_parent "${__service}")"
 			__router_list="${__parent^^}_ROUTERS_LIST"
@@ -645,21 +662,20 @@ __set_routers_info_service_all() {
 			eval "export ${__parent^^}_ROUTERS_LIST=\"${__router_list}\""
 			__add_declared_variables "${__parent^^}_ROUTERS_LIST"
 		else
-			eval "export ${__service^^}_ROUTERS_LIST=\"${__service}\""
-			__add_declared_variables "${__service^^}_ROUTERS_LIST"
+			# add non-subservice to routers list only if they have entrypoints, because they might be a non real docker compose service
+			if [ ! "${__entrypoints}" = "" ]; then
+				eval "export ${__service^^}_ROUTERS_LIST=\"${__service}\""
+				__add_declared_variables "${__service^^}_ROUTERS_LIST"
+			fi
 		fi
 
-
-		__entrypoints="${__service^^}_ENTRYPOINTS"
-		__entrypoints="${!__entrypoints}"
-		__entrypoint_default="${__service^^}_ENTRYPOINT_DEFAULT"
-		__entrypoint_default="${!__entrypoint_default}"
 
 
 		if [ ! "${__entrypoints}" = "" ]; then
 			__var="${__service^^}_SUBDOMAIN"
 			if [ -z ${!__var+x} ]; then
 				if [ "${__subservice_flag}" = "1" ]; then
+					# by default each router of a subservice have its parent service name as subdomin name value
 					__subdomain="$(__get_subservice_parent "${__service}")."
 				else
 					# by default each router of a service have the service name as subdomin name value
@@ -694,6 +710,10 @@ __set_routers_info_service_all() {
 
 			proto="NETWORK_SERVICES_AREA_${area^^}_PROTO"
 			proto="${!proto}"
+
+			eval "export ${__service^^}_PROTO_${area^^}=${proto}"
+			__add_declared_variables "${__service^^}_PROTO_${area^^}"
+
 			case $proto in
 				http ) __uri="http://${__address}" ;;
 				tcp ) __uri="tcp://${__address}" ;;
@@ -847,7 +867,7 @@ __set_entrypoints_service_all() {
 
 		# assign each declared service or subservice attached to this area
 		for s in ${!var}; do
-			__tango_log "DEBUG" "tango" "service : ${s} is attached to network area : ${name}"
+			__tango_log "DEBUG" "tango" "* service : ${s} is attached to network area : ${name}"
 			__set_entrypoint_service "${s}" "${name}"
 		done
 	done
@@ -864,10 +884,12 @@ __set_entrypoints_subservice_all() {
 	local parent_entrypoints_list
 	local parent_entrypoint_default
 
+	__tango_log "DEBUG" "tango" "* assign subservices list : ${TANGO_SUBSERVICES_ROUTER}"
 	for s in ${TANGO_SUBSERVICES_ROUTER}; do
 
 		parent=$(__get_subservice_parent "$s")
-		
+		__tango_log "DEBUG" "tango" "* parent service : ${parent}"
+
 		parent_entrypoints_list="${parent^^}_ENTRYPOINTS"
 		parent_entrypoints_list="${!parent_entrypoints_list}"
 		parent_entrypoint_default="${parent^^}_ENTRYPOINT_DEFAULT"
@@ -880,10 +902,10 @@ __set_entrypoints_subservice_all() {
 				__add_declared_variables "${var}"
 				eval "export ${s^^}_ENTRYPOINT_DEFAULT=${parent_entrypoint_default}"
 				__add_declared_variables "${s^^}_ENTRYPOINT_DEFAULT"
-				__tango_log "DEBUG" "tango" "assign subservice : ${s}, child of service : ${parent}, to its parent entrypoints : ${parent_entrypoints_list}"
+				__tango_log "DEBUG" "tango" "L-- assign subservice : ${s} to its parent entrypoints : ${parent_entrypoints_list}"
 			fi
 		else
-			__tango_log "DEBUG" "tango" "subservice : ${s}, child of service : ${parent}, was already assigned to its own entrypoints : ${!var}"
+			__tango_log "DEBUG" "tango" "L-- subservice : ${s} was already assigned to its own entrypoints : ${!var}"
 		fi
 
 		var="${s^^}_ENTRYPOINTS_SECURE"
@@ -897,7 +919,7 @@ __set_entrypoints_subservice_all() {
 				eval "export ${var}=${parent_entrypoints_list}"
 				__add_declared_variables "${var}"
 
-				__tango_log "DEBUG" "tango" "assign subservice : ${s}, child of service : ${parent}, to its parent secure entrypoints : ${parent_entrypoints_list}"
+				__tango_log "DEBUG" "tango" "L-- assign subservice : ${s} to its parent secure entrypoints : ${parent_entrypoints_list}"
 				
 				eval "export ${s^^}_ENTRYPOINT_DEFAULT_SECURE=${parent_entrypoint_default}"
 				__add_declared_variables "${s^^}_ENTRYPOINT_DEFAULT_SECURE"
@@ -915,6 +937,7 @@ __set_priority_router_all() {
 	local __previous_parent
 	local __current_offset=0
 	
+	__tango_log "DEBUG" "tango" "set_priority_router_all : set priority for declared subservices : ${TANGO_SUBSERVICES_ROUTER}"
 	# for each declared subservices
 	for s in ${TANGO_SUBSERVICES_ROUTER}; do
 
@@ -936,6 +959,7 @@ __set_priority_router_all() {
 
 	
 	# affect priority to other services
+	__tango_log "DEBUG" "tango" "set_priority_router_all : set priority for other services : ${TANGO_SERVICES_AVAILABLE}"
 	for s in ${TANGO_SERVICES_AVAILABLE}; do
 		__set_priority_router "${s}" "${__default_priority}"
 	done
@@ -1015,10 +1039,10 @@ __add_service_direct_port_access_all() {
 			if __check_docker_compose_service_exist "${service}"; then
 				port_inside="$(yq r "${GENERATED_DOCKER_COMPOSE_FILE}" services.$service.expose[0])"
 				if [ ! "${port_inside}" = "" ]; then
-					__tango_log "INFO" "tango" "Activate direct access to $service : mapping $port to $port_inside"
+					__tango_log "INFO" "tango" "Setting direct access to $service port (bypass reverse proxy) : mapping $port to $port_inside"
 					yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.$service.ports[+]" "$port:$port_inside"
 				else
-					__tango_log "WARN" "tango" "cannot activate direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
+					__tango_log "WARN" "tango" "can not set direct access to $service through $port : Unknown inside port to map to. Inside port must be declared as first port in expose section."
 				fi
 			else
 				__tango_log "WARN" "tango" "unknow service ${service} declared in ${s}"
@@ -1041,10 +1065,10 @@ __set_module_all() {
 __set_module() {
 	local __module="$1"
 
-	__tango_log "DEBUG" "tango" "set_module : process module declaration form : ${__module}"
+	__tango_log "DEBUG" "tango" "set_module : process module declared with this form : ${__module}"
 	__parse_item "module" "${__module}" "_MODULE"
 
-	__tango_log "DEBUG" "tango" "set_module : module name : ${_MODULE_NAME}"
+	__tango_log "DEBUG" "tango" "set_module : parsed module name : ${_MODULE_NAME}"
 	__module="${_MODULE_NAME}"
 
 	# add yml to docker compose file
@@ -1067,44 +1091,53 @@ __set_module() {
 	# NOTE : _MODULE_NETWORK_AREA is setted by __parse_item()
 	local __area=
 	local __area_services=
+	# module is attached to a network via its form <module>[@<network area>]
 	if [ ! "${_MODULE_NETWORK_AREA}" = "" ]; then
 		__tango_log "DEBUG" "tango" "set_module : network area declared : $_MODULE_NETWORK_AREA"
-		__area="${_MODULE_NETWORK_AREA}"
-		__area="NETWORK_SERVICES_AREA_${__area^^}"
-		eval "export ${__area}=\"${!__area} ${__module}\""
+
+		# detect if module is attached to some network area through variable declaration NETWORK_SERVICES_AREA_*
+		for a in ${NETWORK_SERVICES_AREA_LIST}; do
+			IFS="|" read -r name proto internal_port secure_port <<<$(echo ${a})
+			__area_services="NETWORK_SERVICES_AREA_${name^^}"
+			if $STELLA_API list_contains "${!__area_services}" "${__module}"; then
+				__tango_log "DEBUG" "tango" "set_module : ${__module} dettach from network area : $name"
+				eval "export ${__area_services}=\"$($STELLA_API filter_list_with_list "${!__area_services}" "${__module}")\""
+			fi
+		done
+		
+
+		__area_services="NETWORK_SERVICES_AREA_${_MODULE_NETWORK_AREA^^}"
+		eval "export ${__area_services}=\"${!__area_services} ${__module}\""
 		__tango_log "DEBUG" "tango" "set_module : ${__module} is now attached to network area : $_MODULE_NETWORK_AREA"
+
 	else
 		__tango_log "DEBUG" "tango" "set_module : no network area in ${__module} form declaration"
 		if ! __check_traefik_router_exist ${__module}; then
 			# attach module to a default network area value only if module name have an associated traefik router
 			__tango_log "DEBUG" "tango" "set_module : ${__module} not have any traefik router defined in compose file. May have only subservices."
 		else
-			# check if module is attached to a network area through variable declaration NETWORK_SERVICES_AREA_* instead of declared via its form <module>[@<network area>]
+			# check if module is attached to some network area through variable declaration NETWORK_SERVICES_AREA_*
 			for a in ${NETWORK_SERVICES_AREA_LIST}; do
 				IFS="|" read -r name proto internal_port secure_port <<<$(echo ${a})
 				__area_services="NETWORK_SERVICES_AREA_${name^^}"
-				for s in ${!__area_services}; do
-					if [ "${s}" = "${__module}" ]; then
-						__area="${name}"
-						break
-					fi
-				done
-				[ ! "${__area}" = "" ] && break
+				if $STELLA_API list_contains "${!__area_services}" "${__module}"; then
+					__area="${name}"
+					__tango_log "DEBUG" "tango" "set_module : ${__module} is declared being attached to network area : $name through variable : ${__area_services}"
+				fi
 			done
+			# if there is no attached network area, attach to the default one
 			if [ "$__area" = "" ]; then
 				__area="main"
 				__tango_log "DEBUG" "tango" "set_module : ${__module} is now attached to the default tango network area : $__area"
-				
-				__area="NETWORK_SERVICES_AREA_${__area^^}"
-				eval "export ${__area}=\"${!__area} ${_MODULE_NAME}\""
-			else
-				__tango_log "DEBUG" "tango" "set_module : ${__module} is declared being attached to network area : $__area through variable : ${__area_services}"
+				__area_services="NETWORK_SERVICES_AREA_${__area^^}"
+				eval "export ${__area_services}=\"${!__area_services} ${_MODULE_NAME}\""
 			fi
-			
+						
 		fi
 	fi	
 
 	# dependencies
+	__tango_log "DEBUG" "tango" "set_module : ${__module} is declared depends on : ${_MODULE_LINKS}"
 	local __dep_disabled="$($STELLA_API filter_list_with_list "${_MODULE_LINKS}" "${TANGO_SERVICES_DISABLED}" "FILTER_KEEP")"
 	[ ! -z "${__dep_disabled}" ] && echo " ** WARN : if ${__module} is enabled, these disabled services will be reactivated as dependencies : ${__dep_disabled}"
 	for d in ${_MODULE_LINKS}; do
@@ -1112,6 +1145,7 @@ __set_module() {
 	done
 
 	local _vpn=
+	__tango_log "DEBUG" "tango" "set_module : ${__module} is declared to be attached to vpn id : ${_MODULE_VPN_ID}"
 	if [ ! "${_MODULE_VPN_ID}" = "" ]; then 
 		_vpn="${_MODULE_VPN_ID^^}_SERVICES" && eval "export ${_vpn}=\"${!_vpn} ${__module}\""
 	fi
@@ -1132,7 +1166,7 @@ __exec_auto_plugin_all_by_service() {
 	local __plugins="${TANGO_PLUGINS_BY_SERVICE_FULL_AUTO_EXEC[$__service]}"
 
 	if [ ! "${__plugins}" = "" ]; then
-		for p in ${__plugins}; do 
+		for p in ${__plugins}; do			
 			__exec_plugin "${__service}" "${p}"
 		done
 	fi
@@ -1179,12 +1213,68 @@ __exec_plugin() {
 	docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} ${__service} /bin/sh -c '[ "'${PLUGIN_OWNER}'" = "APP" ] && /pool/'${TANGO_APP_NAME}'/plugins/'${PLUGIN_NAME}' '${PLUGIN_ARG_LIST}' || /pool/tango/plugins/'${PLUGIN_NAME}' '${PLUGIN_ARG_LIST}
 }
 
+
+# add items activated through command line
+# if item was activated twice through variable AND command line
+# keeping only command line declaration which override the other
+# type : module | plugin
+__add_item_declaration_from_cmdline() {
+	local __type="${1}"
+
+	local __list_full=
+	local __cmd_line_option=
+	local __list_names_from_cmd_line=
+	local __name=
+	local __result_list=
+	case ${__type} in
+		module )
+			__list_full="${TANGO_SERVICES_MODULES}"
+			__tango_log "DEBUG" "tango" "add_item_declaration_from_cmdline : TANGO_SERVICES_MODULES : $TANGO_SERVICES_MODULES"
+			__cmd_line_option="${MODULE//:/ }"
+			__tango_log "DEBUG" "tango" "add_item_declaration_from_cmdline : cmd_line_option : $__cmd_line_option "
+		;;
+		plugin )
+			__list_full="${TANGO_PLUGINS}"
+			__tango_log "DEBUG" "tango" "add_item_declaration_from_cmdline : TANGO_PLUGINS : $TANGO_PLUGINS"
+			__cmd_line_option="${PLUGIN//:/ }"
+			__tango_log "DEBUG" "tango" "add_item_declaration_from_cmdline : cmd_line_option : $__cmd_line_option"
+		;;
+	esac
+
+	__list_names_from_cmd_line="$(echo "${__cmd_line_option//:/ }" | sed -e 's/[@%\^#][^ ]* */ /g')"
+	__result_list="${__cmd_line_option}"
+	for m in ${__list_full}; do
+		case ${__type} in
+			module ) __name="$(echo $m | sed 's,^\([^@%\^]*\).*$,\1,')" ;;
+			plugin ) __name="$(echo $m | sed 's,^\([^#%]*\).*$,\1,')" ;;
+		esac
+		if ! $STELLA_API list_contains "${__list_names_from_cmd_line}" "${__name}"; then
+			__result_list="${__result_list} ${m}"
+		else
+			__tango_log "WARN" "tango" "${__type} ${__name} was activated twice through variable and command line. Picking command line activation : ${m}."
+		fi
+	done
+
+	__tango_log "DEBUG" "tango" "add_item_declaration_from_cmdline : result_list : $__result_list "
+	case ${__type} in
+		module )
+			TANGO_SERVICES_MODULES="${__result_list}"
+		;;
+		plugin )
+			TANGO_PLUGINS="${__result_list}"
+		;;
+	esac
+}
+
 # filter existing items
 # split item list between full list and name list
 # build associative array for mapping service and plugin that are attached to 
 # type : module | plugin
 __filter_items_exists() {
+
 	local __type="${1}"
+
+	__tango_log "DEBUG" "tango" "filter_items_exists ${__type}s"
 
 	local __list_full=
 	local __list_names=
@@ -1209,6 +1299,8 @@ __filter_items_exists() {
 	esac
 	__list_names="$(echo "${__list_full}" | sed -e 's/[@%\^#][^ ]* */ /g')"
 
+
+
 	# filter existing items
 	local __name
 	local __full
@@ -1231,6 +1323,8 @@ __filter_items_exists() {
 			fi
 		fi
 
+
+
 		if [ "${__item_exists}" = "1" ]; then
 			__list_names="${__list_names} ${__name}"
 			__list_full="${__list_full} ${__full}"
@@ -1245,7 +1339,7 @@ __filter_items_exists() {
 				done
 			fi
 		else
-			echo "* WARN : ${__type} ${__name} not found."
+			__tango_log "WARN" "tango" "${__type} ${__name} not found."
 		fi
 	done
 
@@ -1255,10 +1349,15 @@ __filter_items_exists() {
 		module )
 			TANGO_SERVICES_MODULES_FULL="${__list_full}"
 			TANGO_SERVICES_MODULES="${__list_names}"
+			__tango_log "DEBUG" "tango" "filter_items_exists : existing modules full format list : ${TANGO_SERVICES_MODULES_FULL}"
+			__tango_log "DEBUG" "tango" "filter_items_exists : existing modules only names list : ${TANGO_SERVICES_MODULES}"
+			
 		;;
 		plugin )
 			TANGO_PLUGINS_FULL="${__list_full}"
 			TANGO_PLUGINS="${__list_names}"
+			__tango_log "DEBUG" "tango" "filter_items_exists : existing plugins full format list : ${TANGO_PLUGINS_FULL}"
+			__tango_log "DEBUG" "tango" "filter_items_exists : existing plugins only names list : ${TANGO_PLUGINS}"
 		;;
 	esac
 
@@ -1524,7 +1623,7 @@ __pick_free_port() {
 	fi
 }
 
-# service_name : attatch vpn to a service_name
+# service_name : attach vpn to a service_name
 # vpn_id : integer id of vpn
 # vpn_service_name : vpn docker service
 __set_vpn_service() {
@@ -1532,6 +1631,7 @@ __set_vpn_service() {
 	local __vpn_id="$2"
  	local __vpn_service_name="$3"
 
+	__tango_log "INFO" "tango" "VPN : attach $__service_name to $__vpn_service_name"
 	yq d -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service_name}.networks"
 	yq d -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service_name}.expose"
 	yq d -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service_name}.ports"
@@ -1594,6 +1694,8 @@ __create_vpn() {
 	[ "${__route6}" ] && yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service_name}.environment[+]" "ROUTE6=${__route6}"
 
 	export TANGO_TIME_VOLUME_SERVICES="${TANGO_TIME_VOLUME_SERVICES} ${__service_name}"
+
+	__tango_log "DEBUG" "tango" "create vpn $__service_name using file $__vpn_files"
 }
 
 # NOTE : check a docker compose service exist (not a subservice)
@@ -1743,7 +1845,7 @@ __set_entrypoint_service() {
 		__proto="NETWORK_SERVICES_AREA_${__network_area_name^^}_PROTO"
 		__proto="${!__proto}"
 		eval "export ${__service^^}_ENTRYPOINT_DEFAULT=entry_${__network_area_name}_${__proto}"
-		__tango_log "DEBUG" "tango" "assign service : ${s} to entrypoint : entry_${__network_area_name}_${__proto}"
+		__tango_log "DEBUG" "tango" "L-- assign service : ${s} to entrypoint : entry_${__network_area_name}_${__proto}"
 	fi
 	eval "export ${__var}=entry_${__network_area_name}_${__proto}${__previous}"
 	__add_declared_variables "${__var}"
@@ -1760,7 +1862,7 @@ __set_entrypoint_service() {
 			__proto="NETWORK_SERVICES_AREA_${__network_area_name^^}_PROTO"
 			__proto="${!__proto}"
 			eval "export ${__service^^}_ENTRYPOINT_DEFAULT_SECURE=entry_${__network_area_name}_${__proto}_secure"
-			__tango_log "DEBUG" "tango" "assign service : ${s} to entrypoint : entry_${__network_area_name}_${__proto}_secure"
+			__tango_log "DEBUG" "tango" "L-- assign service : ${s} to entrypoint : entry_${__network_area_name}_${__proto}_secure"
 		fi
 		eval "export ${__var}=entry_${__network_area_name}_${__proto}_secure${__previous}"
 		__add_declared_variables "${__var}"
@@ -1779,6 +1881,8 @@ __set_priority_router() {
 
 	eval "export ${__var}=${__priority}"
 	__add_declared_variables "${__var}"
+
+	__tango_log "DEBUG" "tango" "set priority : ${__priority} to traefik router : ${__service}"
 	
 }
 
@@ -1878,6 +1982,41 @@ __container_is_running() {
 }
 
 
+# exec a command inside a running container
+# sammple : __compose_exec "${TARGET}" "set -- /bin/sh" "1"
+__compose_exec() {
+	local __name="$1"
+	local __cmd="$2"
+	local __isroot="$3"
+
+	if [ "$__name" = "" ]; then
+		__tango_log "ERROR" "tango" "${__name} can not be empty."
+		exit 1
+	fi
+
+	# process command
+	#__tango_log "DEBUG" "tango" "Command to evaluate : ${__cmd}"
+	if [ "${__cmd}" = "" ]; then
+		__tango_log "ERROR" "tango" "You must provide a command to execute."
+		exit 1
+	fi
+
+	eval "${__cmd}"
+
+	local _tmp="$@"
+	#__tango_log "DEBUG" "tango" "Command evaluated : ${_tmp}"
+	if [ "${_tmp}" = "" ]; then
+		__tango_log "ERROR" "tango" "You must provide a command to execute."
+		exit 1
+	fi
+
+	if [ "$__isroot" = "1" ]; then
+		docker-compose exec --user 0:0 "${__name}" "$@"
+	else
+		docker-compose exec --user ${TANGO_USER_ID}:${TANGO_GROUP_ID} "${__name}" "$@"
+	fi
+
+}
 
 
 # OPTIONS
@@ -1963,7 +2102,7 @@ __base64_basic_authentification() {
 # launch a curl command from a docker image in priority if docker is available or from curl from host if not
 __tango_curl() {
 	if __is_docker_client_available; then
-		local __id="mambo_$($STELLA_API md5 "$@")"
+		local __id="$TANGO_APP_NAME_$($STELLA_API md5 "$@")"
 		docker stop $__id 1>&2 2>/dev/null
 		docker rm $__id 1>&2 2>/dev/null
 		docker run --name $__id --user "${TANGO_USER_ID}:${TANGO_GROUP_ID}" --network "${TANGO_APP_NETWORK_NAME}" --rm curlimages/curl:7.70.0 "$@"
