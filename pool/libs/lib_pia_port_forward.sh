@@ -1,8 +1,9 @@
 
 # NEED to be connected with PIA vpn
-# NEED jq
+# NEED awk
 # NEED curl
-
+# NEED ip
+# NEED jq
 # WAIT for vpn service up
 
 # script that get a forwarding port with PIA VPN provider
@@ -28,8 +29,9 @@ pia_install_script() {
 
 
 pia_setup_script() {
+    local __plugin_name="$1"
     # change default path used by pia provided scripts
-    find "${PIA_FOLDER}/manual-connections" -type f -exec sed -i s,/opt/piavpn-manual,/plugins_data/transmission_pia_port,g {} \;
+    find "${PIA_FOLDER}/manual-connections" -type f -exec sed -i s,/opt/piavpn-manual,/plugins_data/${__plugin_name},g {} \;
     # do not verify certificate because there seems to have a problem with crt file provided by pia scritps
     # https://github.com/pia-foss/manual-connections/issues/85
     sed -i "s,curl -,curl -k -,g" ${PIA_FOLDER}/manual-connections/port_forwarding.sh

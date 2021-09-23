@@ -149,7 +149,7 @@ __transmission_init_files() {
     fi
 }
 
-# configure sabnzbd
+# configure transmission
 __transmission_settings() {
     if [ "$TANGO_LOG_LEVEL" = "DEBUG" ]; then
         $STELLA_API ansible_play_localhost "$TANGO_APP_ROOT/pool/ansible/ansible-playbook.yml" "$TANGO_APP_ROOT/pool/ansible/roles" "TAGS transmission DEBUG"

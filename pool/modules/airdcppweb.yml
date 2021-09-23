@@ -19,7 +19,7 @@ volumes:
 
 services:
   airdcppweb:
-    image: studioetrange/docker-airdcppweb:${AIRDCPPWEB_VERSION:-latest}
+    image: studioetrange/airdcpp-webclient:${AIRDCPPWEB_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_airdcppweb
     depends_on:
       - service_init

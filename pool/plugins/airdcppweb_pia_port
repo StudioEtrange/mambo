@@ -26,7 +26,7 @@ pia_install_script "${DATA}"
 
 echo "  -"
 echo "L-- STEP : setup plugin"
-pia_setup_script
+pia_setup_script "${PLUGIN}"
 
 echo "  -"
 echo "L-- STEP : run plugin"
@@ -35,7 +35,7 @@ pia_get_port
 if [ ! "$PIA_FORWARD_PORT" = "" ]; then
 	echo "  - we use port $PIA_FORWARD_PORT, setting airdcppweb with it"
 	# set airdcppweb with this port
- 	# TODO__airdcppweb_set_port "$PIA_FORWARD_PORT"
+ 	__airdcppweb_set_port "$PIA_FORWARD_PORT"
 else
 	echo "  - ERROR while getting PIA port"
 fi

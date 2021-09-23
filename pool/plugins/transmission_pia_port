@@ -26,7 +26,7 @@ pia_install_script "${DATA}"
 
 echo "  -"
 echo "L-- STEP : setup plugin"
-pia_setup_script
+pia_setup_script "${PLUGIN}"
 
 echo "  -"
 echo "L-- STEP : run plugin"

@@ -72,11 +72,11 @@ usage() {
 	echo "o-- commands :"
 	echo "L     install : deploy this app."
 	echo "L     init plex [--claim] : init plex service. Do it at least once before launch for plex. - will stop plex --claim : will force to claim server even it is already registred"
-	echo "L     init [sabnzbd|medusa|nzbtomedia|transmission|organizr2] : init all or one services. Will stop service if running and configure some default settings without modifying other settings."
+	echo "L     init [sabnzbd|medusa|nzbtomedia|transmission|organizr2|airdcppweb] : init all or one services. Will stop service if running and configure some default settings without modifying other settings."
     echo "L     up [service [-b]] [--module module] [--plugin plugin] [--freeport]: launch all available services or one service"
 	echo "L     down [service] [--mods mod-name] [--all]: down all services or one service. Except shared internal service when in shared mode (--all force stop shared service)."
 	echo "L     restart [service] [--module module] [--plugin plugin] [--freeport]: restart all services or one service. (same action than up & down)"
-	echo "L     info [plex|sabnzbd|medusa|tautulli|overseerr] [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
+	echo "L     info [plex|sabnzbd|medusa|tautulli|overseerr|airdcppweb|vpn_<id>] [--freeport] [-v] : give info. Will generate conf files and print configuration used when launching any service."
 	echo "L     status [service] : see service status."
 	echo "L     logs [service] [-f] : see service logs."
 	echo "L     update <service> : get last version of docker image service. Will stop service if it was running."
@@ -132,7 +132,7 @@ case ${ACTION} in
     ;;
     info )
         case ${TARGET} in
-            plex|sabnzbd|medusa|tautulli|overseerr )
+            plex|sabnzbd|medusa|tautulli|overseerr|airdcppweb )
                 __action_done_by_mambo="1"
             ;;
         esac
@@ -165,6 +165,8 @@ case ${ACTION} in
         __transmission_set_context
         __tango_log "DEBUG" "mambo" "set context : sabnzbd"
         __sabnzbd_set_context
+        __tango_log "DEBUG" "mambo" "set context : airdcppweb"
+        __airdcppweb_set_context
         __tango_log "DEBUG" "mambo" "set context : medusa"
         __medusa_set_context
         __tango_log "DEBUG" "mambo" "set context : tautulli"
@@ -243,6 +245,10 @@ case ${ACTION} in
                 __tango_log "INFO" "mambo" "Init service sabnzbd"
                 __sabnzbd_init
             ;;
+            airdcppweb )
+                __tango_log "INFO" "mambo" "Init service airdcppweb"
+                __airdcppweb_init
+            ;;
             medusa )
                 # we compute this only if we need it because it take times
                 export PLEX_AUTH_TOKEN="$(__get_plex_x_plex_auth_token ${PLEX_USER} ${PLEX_PASSWORD})"
@@ -274,6 +280,9 @@ case ${ACTION} in
                 __tango_log "INFO" "mambo" "Init service transmission"
                 __transmission_init
                 [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring transmission" && exit 1
+                __tango_log "INFO" "mambo" "Init service airdcppweb"
+                __airdcppweb_init
+                [ $? -ne 0 ] && __tango_log "ERROR" "mambo" "Error while configuring airdcppweb" && exit 1
                 __tango_log "INFO" "mambo" "Init service medusa"
                 # we compute this only if we need it because it take times
                 export PLEX_AUTH_TOKEN="$(__get_plex_x_plex_auth_token ${PLEX_USER} ${PLEX_PASSWORD})"
@@ -329,8 +338,13 @@ case ${ACTION} in
                 echo "L-- NZB KEY : ${SABNZBD_NZB_KEY}"
             ;;
             tautulli )
-                echo "---------==---- Tautulli ----==---------"
+                echo "---------==---- TAUTULLI ----==---------"
                 echo "L-- API KEY : ${TAUTULLI_API_KEY}"
+            ;;
+            airdcppweb )
+                echo "---------==---- AIRDCPPWEB ----==---------"
+                echo "L-- User : ${AIRDCPPWEB_USER}"
+                echo "L-- Password : ${AIRDCPPWEB_PASSWORD}"
             ;;
             medusa )
                 echo "---------==---- MEDUSA ----==---------"
@@ -339,7 +353,7 @@ case ${ACTION} in
                 echo "L-- API KEY : ${MEDUSA_API_KEY}"
             ;;
             overseerr )
-                echo "---------==---- Overseerr ----==---------"
+                echo "---------==---- OVERSEERR ----==---------"
                 echo "L-- API KEY : ${OVERSEERR_API_KEY}"
             ;;
         esac

@@ -21,7 +21,7 @@
     rix1337/docker-myjd-api:latest
     ```
 
-* [ ] Advanced Direct Connect and Direct Connect protocols
+* [X] Advanced Direct Connect and Direct Connect protocols
     * AirDC++ https://airdcpp.net/
     * AirDC++ Web Client 
         * https://github.com/airdcpp-web/airdcpp-webclient

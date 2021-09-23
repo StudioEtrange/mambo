@@ -17,7 +17,7 @@ __medusa_init() {
         __medusa_init_files
         # configure
         __medusa_settings
-        # we need to reread some values, because sabnzbd may have generate values like api key
+        # we need to reread some values, because medusa may have generate values like api key
         __medusa_set_context
     fi
 }
@@ -37,7 +37,7 @@ __medusa_init_files() {
     fi
 }
 
-# configure sabnzbd
+# configure medusa
 __medusa_settings() {
 
     # if not exist generate an api key
