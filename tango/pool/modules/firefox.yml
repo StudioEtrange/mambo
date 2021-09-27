@@ -31,6 +31,9 @@ services:
       - "traefik.http.routers.firefox-secure.service=firefox"
       - "traefik.http.routers.firefox-secure.tls=true"
       - "traefik.http.routers.firefox-secure.tls.domains[0].main=firefox.${TANGO_DOMAIN:-.*}"
+      # service router middlewares : firefox
+      - "traefik.http.routers.firefox.middlewares=error-middleware"
+      - "traefik.http.routers.firefox-secure.middlewares=error-middleware"
     networks:
       - default
     expose:

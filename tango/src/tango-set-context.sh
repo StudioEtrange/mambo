@@ -309,6 +309,17 @@ case ${ACTION} in
 		TANGO_SERVICES_ACTIVE="$($STELLA_API filter_list_with_list "${TANGO_SERVICES_AVAILABLE}" "${TANGO_SERVICES_DISABLED}")"
 		__add_declared_variables "TANGO_SERVICES_ACTIVE"
 
+		# create a list of active subservices (which parent are services or modules)
+		TANGO_SUBSERVICES_ROUTER_ACTIVE=
+		for s in $TANGO_SUBSERVICES_ROUTER; do
+			__parent="$(__get_subservice_parent "${s}")"
+			[ "${__parent}" = "" ] && __parent="${s}"
+			if $STELLA_API list_contains "$TANGO_SERVICES_ACTIVE" "$__parent"; then
+				TANGO_SUBSERVICES_ROUTER_ACTIVE="$TANGO_SUBSERVICES_ROUTER_ACTIVE $s"
+			fi
+		done
+		__add_declared_variables "TANGO_SUBSERVICES_ROUTER_ACTIVE"
+
 		# default hardcoded user
 		[ "${TANGO_USER_ID}" = "" ] && TANGO_USER_ID="$(id -u)"
 		[ "${TANGO_GROUP_ID}" = "" ] && TANGO_GROUP_ID="$(id -g)"

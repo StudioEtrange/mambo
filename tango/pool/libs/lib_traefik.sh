@@ -99,7 +99,7 @@ __traefik_api_rest_update_launch() {
     fi 
 }
 
-# __traefik_api_request "PUT" {}"
+# __traefik_api_request "PUT" "{}"
 __traefik_api_rest_request() {
     __traefik_api_url
     local __http_command="$1"
@@ -114,6 +114,7 @@ __traefik_api_rest_request() {
      case $__http_command in
         GET )
             # NOTE : maybe there is NO "GET" method implemented for rest provider
+            __tango_log "DEBUG" "WARN" "__traefik_api_rest_request() : GET method not supported for rest endpoint $TRAEFIK_API_URL/providers/rest"
             __url="${__url}/${__request}"
         ;;
         PUT )
@@ -133,7 +134,7 @@ __traefik_api_rest_request() {
             echo "$__result"
         ;;
         PUT )
-            __tango_log "DEBUG" "INFO" "__traefik_api_rest_request() : PUT request result is : $__result"   
+            __tango_log "DEBUG" "INFO" "__traefik_api_rest_request() : PUT request result is : $__result"
         ;;
     esac
 

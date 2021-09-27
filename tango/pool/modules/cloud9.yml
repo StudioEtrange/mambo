@@ -23,6 +23,9 @@ services:
       - "traefik.http.routers.cloud9-secure.service=cloud9"
       - "traefik.http.routers.cloud9-secure.tls=true"
       - "traefik.http.routers.cloud9-secure.tls.domains[0].main=cloud9.${TANGO_DOMAIN:-.*}"
+      # service router middlewares : whoami
+      - "traefik.http.routers.cloud9.middlewares=error-middleware"
+      - "traefik.http.routers.cloud9-secure.middlewares=error-middleware"
     networks:
       - default
     expose:

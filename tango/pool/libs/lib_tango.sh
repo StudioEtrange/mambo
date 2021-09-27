@@ -388,7 +388,8 @@ __create_docker_compose_file() {
 	__set_vpn_service_all
 
 
-	__tango_log "INFO" "tango" "Available services and subservices : ${TANGO_SERVICES_AVAILABLE} ${TANGO_SUBSERVICES_ROUTER}"
+	__tango_log "INFO" "tango" "Active services and subservices : ${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER_ACTIVE}"
+
 }
 
 
@@ -1708,6 +1709,10 @@ __check_docker_compose_service_exist() {
 
 
 # if service is a subservice return parent service
+# return empty if service is not a subservice
+# usage sample :
+#	local __parent="$(__get_subservice_parent "${__service}")"
+#	[ "${__parent}" = "" ] && __parent="${__service}"
 __get_subservice_parent() {
 	local __service="$1"
 	if $STELLA_API list_contains "${TANGO_SUBSERVICES_ROUTER}" "${__service}"; then
@@ -1741,7 +1746,15 @@ __get_network_area_name_from_entrypoint() {
 __check_traefik_router_exist() {
 	local __service="$1"
 
-	[ ! -z "$(sed -n 's/traefik\.[^.]*\.routers\.'${__service}'\.service=/\0/p' "${GENERATED_DOCKER_COMPOSE_FILE}")" ]
+	[ ! -z "$(sed -n 's/^[^#]*traefik\.[^.]*\.routers\.'${__service}'\.service=.*$/\0/p' "${GENERATED_DOCKER_COMPOSE_FILE}")" ]
+	return $?
+}
+
+
+__check_traefik_router_have_secured_version() {
+	local __service="$1"
+
+	__check_traefik_router_exist "${__service}-secure"
 	return $?
 }
 
@@ -1804,13 +1817,179 @@ __add_volume_for_time() {
 }
 
 
+# attach a middleware to a service and its optional secured version  in compose file
+# It will add middleware to secured version ONLY if secured version exists
+# option FIRST or LAST(default) or POS N (N start at 1 for first position) for middleware position
+# __attach_middleware_to_service "airdcppweb" "error-middleware" "LAST" add : - "traefik.http.routers.airdcppweb-secure.middlewares=error-middleware"
+__attach_middleware_to_service() {
+	local __service="$1"
+	local __middleware_name="$2"
+	local __opt="$3"
+	
+	if __check_traefik_router_have_secured_version "${__service}"; then
+		__opt="SECURE $__opt"
+	fi
+
+	__tango_log "DEBUG" "tango" "attach middleware : $__middleware_name to service : $__service with options : $__opt"
+	__modify_services_middlewares "$__service" "$__middleware_name" "ADD $__opt"
+}
+
+
+# remove an attached middleware to a service and its secured version in compose file
+# It will remove middleware to secured version ONLY if secured version exists
+# __detach_middleware_from_service "airdcppweb" "error-middleware" remove line - "traefik.http.routers.airdcppweb-secure.middlewares=error-middleware"
+__detach_middleware_from_service() {
+	local __service="$1"
+	local __middleware_name="$2"
+
+	local __opt=
+	if __check_traefik_router_have_secured_version "${__service}"; then
+		__opt="SECURE $__opt"
+	fi
+
+	__tango_log "DEBUG" "tango" "detach middleware : $__middleware_name from service : $__service with options : $__opt"
+	__modify_services_middlewares "$__service" "$__middleware_name" "REMOVE $__opt"
+}
+
+
+__modify_services_middlewares() {
+	local __service="$1"
+	local __middleware_name="$2"
+	local __opt="$3"
+
+	local __pos="LAST"
+	local __action="ADD"
+	local __secure=
+	local __flag_pos=
+
+	if ! __check_traefik_router_exist "$__service"; then
+		__tango_log "WARN" "tango" "modify_services_middlewares : SKIP $__service do not exist"
+		return
+	fi
+	for o in ${__opt}; do
+		[ "${__flag_pos}" = "1" ] && __pos="$o" && __flag_pos="0" && continue
+		case $o in
+			ADD|REMOVE )
+				__action="$o"
+			;;
+
+			LAST|FIRST )
+				__pos="$o"
+			;;
+			SECURE )
+				__secure="1"
+			;;
+			POS )
+				__flag_pos="1"
+			;;
+		esac
+	done
+
+	local __middlewares_list=
+	local __middlewares_list_secure=
+	local __parent=
+	local __done=
+	local __temp_list=
+	local __temp_list_secure=
+	# extract actual middlewares values
+	__middlewares_list="$(sed -n -e 's/^[^#]*traefik\.http\.routers\.'${__service}'\.middlewares=\(.*\)["]*$/\1/p' "${GENERATED_DOCKER_COMPOSE_FILE}" | sed -e 's/[",]/ /g')"
+	[ "$__secure" = "1" ] && __middlewares_list_secure="$(sed -n -e 's/^[^#]*traefik\.http\.routers\.'${__service}'-secure\.middlewares=\(.*\)["]*$/\1/p' "${GENERATED_DOCKER_COMPOSE_FILE}" | sed -e 's/[",]/ /g')"
+
+	case $__action in
+
+		ADD )
+			__middlewares_list="$($STELLA_API filter_list_with_list "$__middlewares_list" "$__middleware_name")"
+			__middlewares_list="$($STELLA_API trim "${__middlewares_list}")"
+			if [ "$__secure" = "1" ]; then
+				__middlewares_list_secure="$($STELLA_API filter_list_with_list "$__middlewares_list_secure" "$__middleware_name")"
+				__middlewares_list_secure="$($STELLA_API trim "${__middlewares_list_secure}")"
+			fi
+
+			case ${__pos} in
+				LAST )
+					__middlewares_list="${__middlewares_list} ${__middleware_name}"
+					__middlewares_list_secure="${__middlewares_list_secure} ${__middleware_name}"
+				;;
+
+				FIRST )
+					__middlewares_list="${__middleware_name} ${__middlewares_list}"
+					__middlewares_list_secure="${__middleware_name} ${__middlewares_list_secure}"
+				;;
+				# POS N (N start at 1 for first position)
+				[0-9]* )
+					i=1
+					for m in ${__middlewares_list}; do
+						if [ $i -eq $__pos ]; then 
+							__temp_list="${__temp_list} ${__middleware_name} ${m}"
+							__done="1"
+						else
+							__temp_list="${__temp_list} ${m}"
+						fi
+						(( i++ ))
+					done
+					if [ "${__done}" = "1" ]; then
+						__middlewares_list="${__temp_list}"
+					else
+						__middlewares_list="${__middlewares_list} ${__middleware_name}"
+					fi
+					__middlewares_list="$($STELLA_API trim "${__middlewares_list}")"
+
+					if [ "$__secure" = "1" ]; then
+						i=1
+						for m in ${__middlewares_list_secure}; do
+							if [ $i -eq $__pos ]; then 
+								__temp_list_secure="${__temp_list_secure} ${__middleware_name} ${m}"
+								__done="1"
+							else
+								__temp_list_secure="${__temp_list_secure} ${m}"
+							fi
+							(( i++ ))
+						done
+						if [ "${__done}" = "1" ]; then
+							__middlewares_list_secure="${__temp_list_secure}"
+						else
+							__middlewares_list_secure="${__middlewares_list_secure} ${__middleware_name}"
+						fi
+						__middlewares_list_secure="$($STELLA_API trim "${__middlewares_list_secure}")"
+					fi
+				;;
+			esac
+		;;
+
+		REMOVE )
+			__middlewares_list="$($STELLA_API filter_list_with_list "$__middlewares_list" "$__middleware_name")"
+			__middlewares_list="$($STELLA_API trim "${__middlewares_list}")"
+			if [ "$__secure" = "1" ]; then
+				__middlewares_list_secure="$($STELLA_API filter_list_with_list "$__middlewares_list_secure" "$__middleware_name")"
+				__middlewares_list_secure="$($STELLA_API trim "${__middlewares_list_secure}")"
+			fi
+		;;
+	esac
+
+	__middlewares_list="${__middlewares_list// /,}"
+	# remove previous value
+	sed -i -e '/^[^#]*traefik\.http\.routers\.'${__service}'\.middlewares=/d' "${GENERATED_DOCKER_COMPOSE_FILE}"
+	# set new value
+	__parent="$(__get_subservice_parent "${__service}")"
+	[ "${__parent}" = "" ] && __parent="${__service}"
+	[ ! "${__middlewares_list}" = "" ] && yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__parent}.labels[+]" "traefik.http.routers.${__service}.middlewares=${__middlewares_list}"
+
+	if [ "$__secure" = "1" ]; then
+		__middlewares_list_secure="${__middlewares_list_secure// /,}"
+		# remove previous value
+		sed -i -e '/^[^#]*traefik\.http\.routers\.'${__service}'-secure\.middlewares=/d' "${GENERATED_DOCKER_COMPOSE_FILE}"
+		# set new value
+		[ ! "${__middlewares_list_secure}" = "" ] && yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__parent}.labels[+]" "traefik.http.routers.${__service}-secure.middlewares=${__middlewares_list_secure}"
+	fi
+}
+
 __add_letsencrypt_service() {
 	local __service="$1"
 
 	# subservice support
 	local __parent="$(__get_subservice_parent "${__service}")"
-	[ "${__parent}" = "" ] && __parent="${__service}"
 
+	[ "${__parent}" = "" ] && __parent="${__service}"
 	if __check_docker_compose_service_exist "${__parent}"; then
 		yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__parent}.labels[+]" "traefik.http.routers.${__service}-secure.tls.certresolver=tango"
 	else
@@ -1822,8 +2001,7 @@ __add_letsencrypt_service() {
 # it will update a list of entrypoint for the service
 # __service : service name
 # __network_area : area name
-# __secure : "secure|<empty>" declare the entrypoint as secure
-# __set_entrypoint_service "web1" "entry_main_http" "secure"
+# __set_entrypoint_service "web1" "main"
 __set_entrypoint_service() {
 	local __service="$1"
 	local __network_area_name="$2"
@@ -1941,6 +2119,8 @@ __set_network_as_external() {
 	yq d -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "networks.${__name}.name"
 	yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "networks.${__name}.external.name" "${__full_name}"
 }
+
+
 
 
 # DOCKER ---------------------------------

@@ -158,9 +158,6 @@ case ${ACTION} in
     install|cert|letsencrypt|modules|services|vendor )
     ;;
     * )
-        # set variables specific to mambo services
-        __tango_log "DEBUG" "mambo" "set context : organizr2"
-        __organizr2_set_context
         __tango_log "DEBUG" "mambo" "set context : transmission"
         __transmission_set_context
         __tango_log "DEBUG" "mambo" "set context : sabnzbd"
@@ -177,6 +174,10 @@ case ${ACTION} in
         __overseerr_set_context
         __tango_log "DEBUG" "mambo" "set context : airdcppweb"
         __airdcppweb_set_context
+
+        __tango_log "DEBUG" "mambo" "set context : organizr2"
+        # add organizr2 auth middlewares to services
+        __organizr2_set_context
     ;;
 esac
 
@@ -202,7 +203,7 @@ fi
 # BEFORE ACTION ------------------------
 if [ "${TANGO_INSTANCE_MODE}" = "shared" ]; then
     if [ ! "${INSTANCE_MODE_SHARED_OK}" = "1" ]; then
-        echo "* ERROR cannot use TANGO from ${TANGO_ROOT} in instance mode ${TANGO_INSTANCE_MODE}"
+        __tango_log "ERROR" "mambo" "cannot use TANGO from ${TANGO_ROOT} in instance mode ${TANGO_INSTANCE_MODE}"
         exit 1
     fi
 fi
@@ -302,15 +303,15 @@ case ${ACTION} in
         case ${TARGET} in
             sync )
                 __tango_log "INFO" "mambo" "Sync authorization between traefik and organizr2"
-                __organizr2_auth "PRINT"
+                __organizr2_auth_sync "PRINT"
             ;;
             disable )
-                __tango_log "INFO" "mambo" "Temporary disable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable to OFF"
-                __organizr2_scheduler_shutdown
+                __tango_log "INFO" "mambo" "Temporary stop syncing auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable to OFF"
+                __organizr2_auth_sync_scheduler_shutdown
             ;;
             enable )
-                __tango_log "INFO" "mambo" "Temporary enable auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable to ON"
-                __organizr2_scheduler_set
+                __tango_log "INFO" "mambo" "Temporary enable syncing auth - To be permanent modify ORGANIZR2_AUTHORIZATION variable to ON"
+                __organizr2_auth_sync_scheduler_set
             ;;
         esac
     ;;
@@ -361,8 +362,6 @@ case ${ACTION} in
     install|cert|letsencrypt|modules|services|vendor )
     ;;
     * )
-        # manage auto login middleware for transmission
-        __transmission_auth
     ;;
 esac
 
@@ -393,12 +392,13 @@ if [ "${__action_done_by_mambo}" = "" ]; then
     # after action hook
     . "${TANGO_ROOT}/src/tango-after-action.sh" $@
 
+    # complete actions made by tango with specific supplementary steps for mambo
     case ${ACTION} in 
         up|restart )
             case ${TARGET} in
                 ""|tango|organizr2 )
                     # organizr2 - manage scheduler task
-                    __organizr2_scheduler_set
+                    __organizr2_auth_sync_scheduler_set
                     ;;
             esac
         ;;
@@ -406,7 +406,7 @@ if [ "${__action_done_by_mambo}" = "" ]; then
             case ${TARGET} in
                 ""|tango|organizr2 )
                     # organizr2 - manage scheduler task
-                    __organizr2_scheduler_shutdown
+                    __organizr2_auth_sync_scheduler_shutdown
                     ;;
             esac
         ;;
@@ -420,7 +420,7 @@ if [ "${__action_done_by_mambo}" = "" ]; then
             # rename yq python binary to avoid conflict with yq go tool
             $STELLA_API feature_info miniconda3 MINICONDA
             __tango_log "DEBUG" "mambo" "miniconda3 is in $MINICONDA_FEAT_INSTALL_ROOT"
-            mv $MINICONDA_FEAT_INSTALL_ROOT/bin/yq $MINICONDA_FEAT_INSTALL_ROOT/bin/pyyq
+            mv $MINICONDA_FEAT_INSTALL_ROOT/bin/yq $MINICONDA_FEAT_INSTALL_ROOT/bin/pyyq 2>/dev/null
         ;;
 
     esac

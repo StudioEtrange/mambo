@@ -1,0 +1,61 @@
+volumes:
+  booksonic_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${BOOKSONIC_DATA_PATH}
+    name: ${TANGO_APP_NAME}_booksonic_data
+    
+services:
+  # Audiobook and podcast streamer
+  # https://booksonic.org/
+  # https://github.com/popeen/Booksonic-Air
+  # https://hub.docker.com/r/linuxserver/booksonic-air
+  # https://github.com/linuxserver/docker-booksonic-air
+  booksonic:
+    image: ghcr.io/linuxserver/booksonic-air:${BOOKSONIC_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_booksonic
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - booksonic_data:/config
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - CONTEXT_PATH=/
+      # FIX https/http mixed content error into web browser
+      # https://github.com/popeen/Booksonic-Air/issues/23
+      - "JAVA_OPTS=-Dserver.use-forward-headers=true"
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : booksonic
+      - "traefik.http.services.booksonic.loadbalancer.server.port=4040"
+      - "traefik.http.services.booksonic.loadbalancer.server.scheme=http"
+      - "traefik.http.services.booksonic.loadbalancer.passhostheader=true"
+      # middlewares : booksonic
+      # service router : booksonic
+      - "traefik.http.routers.booksonic.entrypoints=${BOOKSONIC_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.booksonic.rule=HostRegexp(`{subdomain:${BOOKSONIC_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.booksonic.priority=${BOOKSONIC_PRIORITY}"
+      - "traefik.http.routers.booksonic.service=booksonic"
+      - "traefik.http.routers.booksonic-secure.entrypoints=${BOOKSONIC_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.booksonic-secure.rule=HostRegexp(`{subdomain:${BOOKSONIC_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.booksonic-secure.priority=${BOOKSONIC_PRIORITY}"
+      - "traefik.http.routers.booksonic-secure.service=booksonic"
+      - "traefik.http.routers.booksonic-secure.tls=true"
+      - "traefik.http.routers.booksonic-secure.tls.domains[0].main=${BOOKSONIC_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : booksonic
+      - "traefik.http.routers.booksonic.middlewares=booksonic-auth@rest,error-middleware"
+      - "traefik.http.routers.booksonic-secure.middlewares=booksonic-auth@rest,error-middleware"
+      # airsonic (and booksonic) cannot be correctly print into an iframe
+      #     https://github.com/airsonic/airsonic/issues/583
+      #     airsonic fix an X-Frame-Options to SAMEORIGIN to not allow be print into an iframe
+      #     we can override this with the middleware xframe-allow-all
+      #     but it do not really work well
+    networks:
+      - default
+    expose:
+      - 4040/tcp

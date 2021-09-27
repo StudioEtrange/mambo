@@ -1,0 +1,56 @@
+volumes:
+  lazylibrarian_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LAZYLIBRARIAN_DATA_PATH}
+    name: ${TANGO_APP_NAME}_lazylibrarian_data
+
+services:
+  # Lazylibrarian
+  # https://github.com/linuxserver/docker-lazylibrarian
+  # https://hub.docker.com/r/linuxserver/lazylibrarian
+  lazylibrarian:
+    image: ghcr.io/linuxserver/lazylibrarian:${LAZYLIBRARIAN_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_lazylibrarian
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # will contain lazylibrarian configuration
+      - lazylibrarian_data:/config
+      # different paths used by lazylibrarian
+      - download:/download
+      - calibredb_books_media:/calibredb/books
+      - calibredb_press_media:/calibredb/press
+      - calibredb_pgames_media:/calibredb/pgames
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : lazylibrarian
+      - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
+      - "traefik.http.services.lazylibrarian.loadbalancer.server.scheme=http"
+      - "traefik.http.services.lazylibrarian.loadbalancer.passhostheader=true"
+      # middlewares : lazylibrarian
+      # service router : lazylibrarian
+      - "traefik.http.routers.lazylibrarian.entrypoints=${LAZYLIBRARIAN_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.lazylibrarian.rule=HostRegexp(`{subdomain:${LAZYLIBRARIAN_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.lazylibrarian.priority=${LAZYLIBRARIAN_PRIORITY}"
+      - "traefik.http.routers.lazylibrarian.service=lazylibrarian"
+      - "traefik.http.routers.lazylibrarian-secure.entrypoints=${LAZYLIBRARIAN_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.lazylibrarian-secure.rule=HostRegexp(`{subdomain:${LAZYLIBRARIAN_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.lazylibrarian-secure.priority=${LAZYLIBRARIAN_PRIORITY}"
+      - "traefik.http.routers.lazylibrarian-secure.service=lazylibrarian"
+      - "traefik.http.routers.lazylibrarian-secure.tls=true"
+      - "traefik.http.routers.lazylibrarian-secure.tls.domains[0].main=${LAZYLIBRARIAN_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+       # service router middlewares : lazylibrarian
+      - "traefik.http.routers.lazylibrarian.middlewares=error-middleware"
+      - "traefik.http.routers.lazylibrarian-secure.middlewares=error-middleware"
+    networks:
+      - default
+    expose:
+      - 5299/tcp

@@ -15,7 +15,9 @@ echo "L-- user env file : ${TANGO_USER_ENV_FILE}"
 echo "L-- user compose file : ${TANGO_USER_COMPOSE_FILE}"
 echo "---------==---- INFO SERVICES ----==---------"
 echo "* Available services : ${TANGO_SERVICES_AVAILABLE}"
+echo "* Active services : ${TANGO_SERVICES_ACTIVE}"
 echo "* Available subservices : ${TANGO_SUBSERVICES_ROUTER}"
+echo "* Active subservices : ${TANGO_SUBSERVICES_ROUTER_ACTIVE}"
 # precompute service attached to vpn service
 for v in ${VPN_SERVICES_LIST}; do
     _tmp="${v^^}_SERVICES"

@@ -1,0 +1,38 @@
+volumes:
+  jdownloader2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${JDOWNLOADER2_DATA_PATH}
+    name: ${TANGO_APP_NAME}_jdownloader2_data
+  jdownloader2_download:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${JDOWNLOADER2_DOWNLOAD_PATH}
+    name: ${TANGO_APP_NAME}_jdownloader2_download
+
+services:
+  # direct download manager
+  # https://github.com/PlusMinus0/headless-jd2-docker
+  jdownloader2:
+    image: plusminus/jdownloader2-headless:${JDOWNLOADER2_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_jdownloader2
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - jdownloader2_download:/opt/JDownloader/Downloads
+      - jdownloader2_data:/opt/JDownloader/cfg
+    environment:
+      - UID=${TANGO_USER_ID:-0}
+      - GID=${TANGO_GROUP_ID:-0}
+      - EMAIL=${JDOWNLOADER2_EMAIL:-}
+      - PASSWORD=${JDOWNLOADER2_PASSWORD:-}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=false"
+    networks:
+      - default

@@ -1,0 +1,51 @@
+volumes:
+  overseerr_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${OVERSEERR_DATA_PATH}
+    name: ${TANGO_APP_NAME}_overseerr_data
+
+services:
+
+  # https://hub.docker.com/r/linuxserver/overseerr/
+  # https://github.com/sct/overseerr
+  # https://overseerr.dev/
+  overseerr:
+    image: ghcr.io/linuxserver/overseerr:${OVERSEERR_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_overseerr
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/overseerr will contain overseerr configuration
+      - overseerr_data:/config
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : overseerr
+      - "traefik.http.services.overseerr.loadbalancer.server.port=5055"
+      - "traefik.http.services.overseerr.loadbalancer.server.scheme=http"
+      - "traefik.http.services.overseerr.loadbalancer.passhostheader=true"
+      # middlewares : overseerr
+      # service router : overseerr
+      - "traefik.http.routers.overseerr.entrypoints=${OVERSEERR_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.overseerr.rule=HostRegexp(`{subdomain:${OVERSEERR_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.overseerr.priority=${OVERSEERR_PRIORITY}"
+      - "traefik.http.routers.overseerr.service=overseerr"
+      - "traefik.http.routers.overseerr-secure.entrypoints=${OVERSEERR_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.overseerr-secure.rule=HostRegexp(`{subdomain:${OVERSEERR_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.overseerr-secure.priority=${OVERSEERR_PRIORITY}"
+      - "traefik.http.routers.overseerr-secure.service=overseerr"
+      - "traefik.http.routers.overseerr-secure.tls=true"
+      - "traefik.http.routers.overseerr-secure.tls.domains[0].main=${OVERSEERR_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : overseerr
+      - "traefik.http.routers.overseerr.middlewares=error-middleware"
+      - "traefik.http.routers.overseerr-secure.middlewares=error-middleware"
+
+
+

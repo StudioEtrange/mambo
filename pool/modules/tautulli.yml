@@ -1,0 +1,55 @@
+volumes:
+  tautulli_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TAUTULLI_DATA_PATH}
+    name: ${TANGO_APP_NAME}_tautulli_data
+
+services:
+    # Plex statistics and management tools
+  # https://github.com/Tautulli/Tautulli
+  # https://hub.docker.com/r/linuxserver/tautulli
+  # https://github.com/linuxserver/docker-tautulli
+  tautulli:
+    image: ghcr.io/linuxserver/tautulli:${TAUTULLI_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_tautulli
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/tautulli will contain tautulli configuration
+      - tautulli_data:/config
+      # newsletter templates
+      - ebooks_list_data:/custom_template
+      - ${TANGO_APP_ROOT}/pool/ebooks:/default_template:ro
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : tautulli
+      - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
+      - "traefik.http.services.tautulli.loadbalancer.server.scheme=http"
+      - "traefik.http.services.tautulli.loadbalancer.passhostheader=true"
+      # middlewares : tautulli
+      # service router : tautulli
+      - "traefik.http.routers.tautulli.entrypoints=${TAUTULLI_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.tautulli.rule=HostRegexp(`{subdomain:${TAUTULLI_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli.priority=${TAUTULLI_PRIORITY}"
+      - "traefik.http.routers.tautulli.service=tautulli"
+      - "traefik.http.routers.tautulli-secure.entrypoints=${TAUTULLI_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.tautulli-secure.rule=HostRegexp(`{subdomain:${TAUTULLI_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.tautulli-secure.priority=${TAUTULLI_PRIORITY}"
+      - "traefik.http.routers.tautulli-secure.service=tautulli"
+      - "traefik.http.routers.tautulli-secure.tls=true"
+      - "traefik.http.routers.tautulli-secure.tls.domains[0].main=${TAUTULLI_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : tautulli
+      - "traefik.http.routers.tautulli.middlewares=error-middleware"
+      - "traefik.http.routers.tautulli-secure.middlewares=error-middleware"
+    networks:
+      - default
+    expose:
+      - 8181

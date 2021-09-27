@@ -460,6 +460,9 @@ __organizr2_set_context() {
 
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
         __tango_log "DEBUG" "organizr2" "Organizr2 authorization is enabled - organizr2 instance used : ${ORGANIZR2_INSTANCE}"
+
+        __organizr2_auth_make_syncable
+
         if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
         
             if __is_docker_client_available; then
@@ -486,6 +489,8 @@ __organizr2_set_context() {
             __tango_log "WARN" "organizr2" "Organizr2 is not declared as an active service in TANGO_SERVICES_ACTIVE dispite the fact that ORGANIZR2_AUTHORIZATION is ON"
         fi
     fi
+
+
 
 }
 
@@ -569,9 +574,34 @@ __organizr2_init_files() {
     
 }
 
-# set permission on each service and subservice by syncing traefik and organizr2 api
+# prepare compose file and add a middleware for each service which have access controled by organizer
+__organizr2_auth_make_syncable() {
+    if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then
+        __tango_log "DEBUG" "organizr2" "organizr2_auth_make_syncable : these services and subservices can have authorization sync with organizr2 user group : $ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE"
+        local __name=
+        local __pos=
+        local __temp_list="$($STELLA_API filter_list_with_list "${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER_ACTIVE}" "$(echo ${ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE} | sed -e 's/%[A-Z0-9]*//g')" "FILTER_KEEP")"
+        for s in ${__temp_list}; do
+            __name="$(echo $s | sed 's,^\([^%]*\).*$,\1,')"
+            if [ -z "${s##*%*}" ]; then
+                __pos="$(echo $s | sed 's,^.*%\(.*\)$,\1,')"
+            else
+                __pos="FIRST"
+            fi
+
+            case ${__pos} in
+                [0-9]* ) __pos="POS ${__pos}";;
+            esac
+
+            __attach_middleware_to_service "${__name}" "${__name}-auth@rest" "$__pos"
+        done
+    fi
+}
+
+
+# set permission on each service and subservice by syncing traefik api and organizr2 api
 # in PRINT mode - show some output
-__organizr2_auth() {
+__organizr2_auth_sync() {
     local __mode="$1"
 
     [ "$__mode" = "" ] && __mode="PRINT"
@@ -583,7 +613,7 @@ __organizr2_auth() {
         fi
 
         # if organizr2 is not active nor healthy the middleware will be ignored which is perfect here
-        __organizr2_set_auth_service_all "$ORGANIZR2_DEFAULT_GROUP"
+        __organizr2_create_auth_middleware_all "$ORGANIZR2_DEFAULT_GROUP"
     fi
 
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
@@ -598,7 +628,7 @@ __organizr2_auth() {
                 echo "L-- services (equivalent to organizr tab) : group authorized (group id)"
                 for i in "${!ORGANIZR2_AUTH_GROUP_BY_SERVICE[@]}";do _gid="${ORGANIZR2_AUTH_GROUP_BY_SERVICE[$i]}"; printf "  + %s : %s (%s)\n" "$i" "${ORGANIZR2_AUTH_GROUP_NAME_BY_ID[$_gid]}" "${_gid}";done;
             fi
-            __organizr2_set_auth_service_all "$ORGANIZR2_DEFAULT_GROUP"
+            __organizr2_create_auth_middleware_all "$ORGANIZR2_DEFAULT_GROUP"
         fi
     fi
 }
@@ -606,17 +636,17 @@ __organizr2_auth() {
 
 # manage crontab job
 # launched each 30 seconds
-__organizr2_scheduler_set() {
+__organizr2_auth_sync_scheduler_set() {
     local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
     if [ "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
         $STELLA_API crontab_add "* * * * * ${TANGO_APP_ROOT}/mambo auth sync -d 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
     else
-        # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
+        # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, code below can not remove it
         $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync -d 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
     fi
 }
-__organizr2_scheduler_shutdown() {
-    # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, this can not remove it
+__organizr2_auth_sync_scheduler_shutdown() {
+    # TODO : if ORGANIZR2_INSTANCE name changed and crontab was active, code below can not remove it
     local __data_path="${ORGANIZR2_INSTANCE^^}_DATA_PATH"
     $STELLA_API crontab_remove "* * * * * ${TANGO_APP_ROOT}/mambo auth sync -d 2>&1 > ${!__data_path}/cron.log" "$(id -un ${TANGO_USER_ID:-0})"
 }
@@ -709,7 +739,7 @@ __organizr2_auth_group_by_service_all() {
                         #             ;;
                         #     esac
                         # fi
-                        [ "$__found" = "1" ] && break;
+                        #[ "$__found" = "1" ] && break;
                     done
                     
                     ORGANIZR2_AUTH_GROUP_BY_SERVICE["${__tab_name}"]="${__group_id}"
@@ -760,28 +790,32 @@ __organizr2_auth_group_name_by_id_all() {
 }
 
 
-# add traefik authentification system for all services
-__organizr2_set_auth_service_all() {
+# add traefik authentification middleware to all services through traefik API
+__organizr2_create_auth_middleware_all() {
     local __default_group="${1}"
 
     [ "${__default_group}" == "" ] && __default_group="999"
     local __group_id=
-    for s in ${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER}; do
+    local __temp_list=
+    __temp_list="$($STELLA_API filter_list_with_list "${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER_ACTIVE}" "$(echo ${ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE} | sed -e 's/%[A-Z0-9]*//g')" "FILTER_KEEP")"
+    __tango_log "DEBUG" "organizr2" "organizr2_create_auth_middleware_all : will create auth middleware for services/subservices : $__temp_list"
+    for s in ${__temp_list}; do
+
         __group_id="${ORGANIZR2_AUTH_GROUP_BY_SERVICE[${s}]}"
         if [ "${__group_id}" = "" ]; then 
             # this service have not any authorised group to protect it - so use default
-            # even if the service will not used this created forwardauth middleware (ie : a useless traefik-auth@rest middleware will be created)
-            __organizr2_traefik_api_set_auth_service "${s}" "${__default_group}"
+            __organizr2_create_auth_middleware "${s}" "${__default_group}"
         else
-            __organizr2_traefik_api_set_auth_service "${s}" "${__group_id}"
+            __organizr2_create_auth_middleware "${s}" "${__group_id}"
         fi
     done
 }
 
 
 
-# add traefik authentification system for a service to traefik API
-__organizr2_traefik_api_set_auth_service() {
+# add traefik authentification middleware for a service through traefik API
+# create auth middleware by calling traefik api
+__organizr2_create_auth_middleware() {
     local __service="$1"
     local __group_id="$2"
 
@@ -789,8 +823,8 @@ __organizr2_traefik_api_set_auth_service() {
     local __midname="${__service}-auth"
     local __body=
 
-    #__organizr2_api_url
-
+    __tango_log "DEBUG" "organizr2" "organizr2_create_auth_middleware : create auth middleware $__midname for $__service with groupid $__group_id"
+    # create auth middleware
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.tls.insecureSkipVerify = true'
 
     case $ORGANIZR2_API_VERSION in
@@ -805,7 +839,6 @@ __organizr2_traefik_api_set_auth_service() {
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.trustforwardheader = true'
     # X-Organizr-User is the header returned by organizr when used
     __traefik_api_rest_update '.http.middlewares.'\"${__midname}\"'.forwardauth.authResponseHeaders = ["X-Organizr-User"]'
-
 
 }
 

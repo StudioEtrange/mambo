@@ -1,0 +1,77 @@
+volumes:
+  sabnzbd_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${SABNZBD_DATA_PATH}
+    name: ${TANGO_APP_NAME}_sabnzbd_data
+
+services:
+  # Newzgroup downloader
+  # https://hub.docker.com/r/linuxserver/sabnzbd/
+  # https://github.com/linuxserver/docker-sabnzbd
+  # https://sabnzbd.org/
+  sabnzbd:
+    image: ghcr.io/linuxserver/sabnzbd:${SABNZBD_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_sabnzbd
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      # data/sabnzbd will contain sabnzbd configuration
+      - sabnzbd_data:/config
+      # different paths used by sabnzbd
+      - download:/download
+      - vault:/vault
+      - nzbtomedia_data:/scripts
+      #- artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - DEBUG=yes
+      #- UMASK=002
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : sabnzbd
+      - "traefik.http.services.sabnzbd.loadbalancer.server.port=8080"
+      - "traefik.http.services.sabnzbd.loadbalancer.server.scheme=http"
+      - "traefik.http.services.sabnzbd.loadbalancer.passhostheader=true"
+      # middlewares : sabnzbd
+      # service router : sabnzbd
+      - "traefik.http.routers.sabnzbd.entrypoints=${SABNZBD_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.sabnzbd.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.sabnzbd.priority=${SABNZBD_PRIORITY}"
+      - "traefik.http.routers.sabnzbd.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.sabnzbd-secure.rule=HostRegexp(`{subdomain:${SABNZBD_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.sabnzbd-secure.priority=${SABNZBD_PRIORITY}"
+      - "traefik.http.routers.sabnzbd-secure.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd-secure.tls=true"
+      - "traefik.http.routers.sabnzbd-secure.tls.domains[0].main=${SABNZBD_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : sabnzbd
+      #- "traefik.http.routers.sabnzbd.middlewares=xframe-allow-all,sabnzbd-auth@rest,error-middleware"
+      #- "traefik.http.routers.sabnzbd-secure.middlewares=xframe-allow-all,sabnzbd-auth@rest,error-middleware"
+      - "traefik.http.routers.sabnzbd.middlewares=xframe-allow-all,error-middleware"
+      - "traefik.http.routers.sabnzbd-secure.middlewares=xframe-allow-all,error-middleware"
+      # sub service router : sabnzbd_api
+      - "traefik.http.routers.sabnzbd_api.entrypoints=${SABNZBD_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.sabnzbd_api.rule=HostRegexp(`{subdomain:${SABNZBD_API_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`) && Query(`apikey=${SABNZBD_API_KEY:-}`)"
+      - "traefik.http.routers.sabnzbd_api.priority=${SABNZBD_API_PRIORITY}"
+      - "traefik.http.routers.sabnzbd_api.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd_api-secure.entrypoints=${SABNZBD_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.sabnzbd_api-secure.rule=HostRegexp(`{subdomain:${SABNZBD_API_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`) && Query(`apikey=${SABNZBD_API_KEY:-}`)"
+      - "traefik.http.routers.sabnzbd_api-secure.priority=${SABNZBD_API_PRIORITY}"
+      - "traefik.http.routers.sabnzbd_api-secure.service=sabnzbd"
+      - "traefik.http.routers.sabnzbd_api-secure.tls=true"
+      - "traefik.http.routers.sabnzbd_api-secure.tls.domains[0].main=${SABNZBD_API_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # sub service router middlewares : sabnzbd_api
+      - "traefik.http.routers.sabnzbd_api.middlewares=error-middleware"
+      - "traefik.http.routers.sabnzbd_api-secure.middlewares=error-middleware"
+    networks:
+      - default
+    expose:
+      - 8080
+      # HTTPS port
+      - 8081

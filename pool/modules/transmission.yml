@@ -1,0 +1,101 @@
+volumes:  
+  transmission_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TRANSMISSION_DATA_PATH}
+    name: ${TANGO_APP_NAME}_transmission_data
+  transmission_watch:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULT_TORRENT_PATH}
+    name: ${TANGO_APP_NAME}_transmission_watch
+
+services:
+  # https://github.com/linuxserver/docker-transmission
+  # NOTE : there is 2 subservices transmission_internal and transmission_external which wrap transmission webui and rpc
+  #     transmission_internal (http://internal-transmission.domain.com) is protected by organizr auth and will auto login with transmission auth basic --> Use this from portal access (organizr)
+  #               if organizr auth is disabled, this subservices will have auto login disabled
+  #     transmission_external (http://transmission.domain.com) is NOT protected by organizr auth and USE a basic authentification --> Use this for api access with 3rd tool
+  #                                                         tested with chrome "Transmission easy client"
+  # NOTE : we can not use an errormiddleware because at first request on /transmission/rpc, server respond a 409 AND a special header and the client must retry, an error middleware will cancel the retry !
+  transmission:
+    image: ghcr.io/linuxserver/transmission:${TRANSMISSION_VERSION:-latest}
+    container_name: ${TANGO_APP_NAME}_transmission
+    depends_on:
+      - service_init
+    restart: unless-stopped
+    volumes:
+      - transmission_data:/config
+      - download:/download
+      - transmission_watch:/watch
+      - nzbtomedia_data:/scripts
+    environment:
+      - PUID=${TANGO_USER_ID:-0}
+      - PGID=${TANGO_GROUP_ID:-0}
+      - TRANSMISSION_WEB_HOME=${TRANSMISSION_UI}
+      - USER=${TRANSMISSION_USER:-}
+      - PASS=${TRANSMISSION_PASSWORD:-}
+    labels:
+      - "${TANGO_INSTANCE_NAME}.managed=true"
+      - "traefik.enable=true"
+      # service : transmission
+      # transmission port for rpc and webui : 9091
+      - "traefik.http.services.transmission.loadbalancer.server.port=9091"
+      - "traefik.http.services.transmission.loadbalancer.server.scheme=http"
+      - "traefik.http.services.transmission.loadbalancer.passhostheader=true"
+      # middlewares : transmission
+      # this middleware is used to auto login
+      - 'traefik.http.middlewares.transmission-autoauthbasic.headers.customrequestheaders.Authorization=Basic ${TRANSMISSION_AUTH_BASIC}'
+      # transmission have a lot of problem with url endpoint and HTTP error 409, we need to add /
+      - 'traefik.http.middlewares.transmission-slash1.redirectregex.regex=^(https?://[^/]+/transmission/web)$$'
+      - 'traefik.http.middlewares.transmission-slash1.redirectregex.replacement=$${1}/'
+      - 'traefik.http.middlewares.transmission-slash2.redirectregex.regex=^(https?://[^/]+/transmission/rpc)$$'
+      - 'traefik.http.middlewares.transmission-slash2.redirectregex.replacement=$${1}/'
+      # service router : transmission
+      # not defined
+      # service router middlewares : transmission
+      # not defined
+      # sub service router : transmission_internal
+      - "traefik.http.routers.transmission_internal.entrypoints=${TRANSMISSION_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.transmission_internal.rule=HostRegexp(`{subdomain:internal-${TRANSMISSION_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_internal.priority=${TRANSMISSION_INTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_internal.service=transmission"
+      - "traefik.http.routers.transmission_internal-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.transmission_internal-secure.rule=HostRegexp(`{subdomain:internal-${TRANSMISSION_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_internal-secure.priority=${TRANSMISSION_INTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_internal-secure.service=transmission"
+      - "traefik.http.routers.transmission_internal-secure.tls=true"
+      - "traefik.http.routers.transmission_internal-secure.tls.domains[0].main=internal-${TRANSMISSION_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # sub service router middlewares : transmission_internal
+      # - traefik.http.routers.transmission_internal.middlewares=transmission_internal-auth@rest,transmission-slash1,transmission-slash2,transmission-autoauthbasic
+      # - traefik.http.routers.transmission_internal-secure.middlewares=transmission_internal-auth@rest,transmission-slash1,transmission-slash2,transmission-autoauthbasic
+      - "traefik.http.routers.transmission_internal.middlewares=transmission-slash1,transmission-slash2,transmission-autoauthbasic"
+      - "traefik.http.routers.transmission_internal-secure.middlewares=transmission-slash1,transmission-slash2,transmission-autoauthbasic"
+      # sub service router : transmission_external
+      - "traefik.http.routers.transmission_external.entrypoints=${TRANSMISSION_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.transmission_external.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_external.priority=${TRANSMISSION_EXTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_external.service=transmission"
+      - "traefik.http.routers.transmission_external-secure.entrypoints=${TRANSMISSION_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.transmission_external-secure.rule=HostRegexp(`{subdomain:${TRANSMISSION_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.transmission_external-secure.priority=${TRANSMISSION_EXTERNAL_PRIORITY}"
+      - "traefik.http.routers.transmission_external-secure.service=transmission"
+      - "traefik.http.routers.transmission_external-secure.tls=true"
+      - "traefik.http.routers.transmission_external-secure.tls.domains[0].main=${TRANSMISSION_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # sub service router middlewares : transmission_external
+      - "traefik.http.routers.transmission_external.middlewares=transmission-slash1,transmission-slash2"
+      - "traefik.http.routers.transmission_external-secure.middlewares=transmission-slash1,transmission-slash2"
+    networks:
+      - default
+    expose:
+      - 51413/tcp
+      - 51413/udp
+    ports:
+      - ${TRANSMISSION_PORT}:51413/tcp
+      - ${TRANSMISSION_PORT}:51413/udp
+    build:
+      context: https://github.com/StudioEtrange/docker-transmission.git#master

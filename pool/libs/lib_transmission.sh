@@ -66,7 +66,7 @@ __transmission_set_context() {
         fi
     fi
 
-    [ "$TRANSMISSION_AUTH_ENABLED" = "true" ] && __tango_log "DEBUG" "transmission" "Transmission auth is enabled in settings"
+    [ "$TRANSMISSION_AUTH_ENABLED" = "true" ] && __tango_log "DEBUG" "transmission" "transmission_set_context : Transmission auth is enabled in settings"
     
     export TRANSMISSION_AUTO_AUTH_ENABLED
     __add_declared_variables "TRANSMISSION_AUTO_AUTH_ENABLED"
@@ -77,47 +77,36 @@ __transmission_set_context() {
         TRANSMISSION_AUTO_AUTH_ENABLED="false"
     fi
     if ! $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "${ORGANIZR2_INSTANCE}"; then
-        __tango_log "DEBUG" "transmission" "Organizr2 is not declared as an active service in TANGO_SERVICES_ACTIVE. Disable auto login to internal transmission url"
+        __tango_log "DEBUG" "transmission" "transmission_set_context : Organizr2 is not declared as an active service in TANGO_SERVICES_ACTIVE. Disable auto login to internal transmission url"
         TRANSMISSION_AUTO_AUTH_ENABLED="false"
     fi
     if [ ! "${ORGANIZR2_AUTHORIZATION}" = "ON" ]; then
-        __tango_log "DEBUG" "transmission" "Organizr2 auth system is OFF in ORGANIZR2_AUTHORIZATION. Disable auto login to internal transmission url"
+        __tango_log "DEBUG" "transmission" "transmission_set_context : Organizr2 auth system is OFF in ORGANIZR2_AUTHORIZATION. Disable auto login to internal transmission url"
         TRANSMISSION_AUTO_AUTH_ENABLED="false"
     fi
 
-
     export TRANSMISSION_AUTH_BASIC=
     __add_declared_variables "TRANSMISSION_AUTH_BASIC"
-    if [ "$TRANSMISSION_AUTO_AUTH_ENABLED" = "true" ]; then
-        # enable auto login
-        __tango_log "DEBUG" "transmission" "Enable auto login to internal transmission url"
-        TRANSMISSION_AUTH_BASIC="$(__base64_basic_authentification "$TRANSMISSION_USER" "$TRANSMISSION_PASSWORD")"
-    else
-        # disable auto login
-        if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then
-            __tango_log "DEBUG" "transmission" "Disable auto login to internal transmission url in generated compose file"
-            # remove auto login middleware
-            sed -i -e '/transmission-autoauthbasic\.headers\.customrequestheaders\.Authorization/d' "${GENERATED_DOCKER_COMPOSE_FILE}"
-             # remove use of auto login middleware
-            sed -i 's/[^,=]transmission-autoauthbasic[,]\?//g' "${GENERATED_DOCKER_COMPOSE_FILE}"
-        fi
-    fi
+    __transmission_auth
+   
 }
 
 # manage auto login middleware for transmission
 __transmission_auth() {
-    
-    if [ ! "$TRANSMISSION_AUTO_AUTH_ENABLED" = "true" ]; then
+    if [ "$TRANSMISSION_AUTO_AUTH_ENABLED" = "true" ]; then
+        # enable auto login
+        __tango_log "DEBUG" "transmission" "transmission_auth : Enable auto login to internal transmission url"
+        TRANSMISSION_AUTH_BASIC="$(__base64_basic_authentification "$TRANSMISSION_USER" "$TRANSMISSION_PASSWORD")"
+    else
         # disable auto login
         if [ "${TANGO_ALTER_GENERATED_FILES}" = "ON" ]; then
-            __tango_log "DEBUG" "transmission" "Disable auto login to internal transmission url in generated compose file"
-            # remove auto login middleware
+            __tango_log "DEBUG" "transmission" "transmission_auth : Disable auto login to internal transmission url in generated compose file"
+            # remove definition of auto login middleware
             sed -i -e '/transmission-autoauthbasic\.headers\.customrequestheaders\.Authorization/d' "${GENERATED_DOCKER_COMPOSE_FILE}"
-             # remove use of auto login middleware
-            sed -i 's/[^,=]transmission-autoauthbasic[,]\?//g' "${GENERATED_DOCKER_COMPOSE_FILE}"
+            # remove use of auto login middleware
+            #sed -i 's/[^,=]transmission-autoauthbasic[,]\?//g' "${GENERATED_DOCKER_COMPOSE_FILE}"
+            __detach_middleware_from_service "transmission_internal" "transmission-autoauthbasic"
         fi
-    else
-        __tango_log "DEBUG" "transmission" "Auto login to internal transmission url in generated compose file stays active"
     fi
 
 }
@@ -128,7 +117,7 @@ __transmission_auth() {
 
 __transmission_init() {
     if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE}" "transmission"; then
-        __tango_log "DEBUG" "transmission" "transmission init"
+        __tango_log "DEBUG" "transmission" "transmission_init"
         __transmission_init_files
         # configure
         __transmission_settings
@@ -138,7 +127,7 @@ __transmission_init() {
 __transmission_init_files() {
     if [ ! -f "${TRANSMISSION_CFG_PATH}" ]; then
         # generate settings file
-        __tango_log "DEBUG" "transmission" "Creating settings file"
+        __tango_log "DEBUG" "transmission" "transmission_init_files : Creating settings file"
 
         __service_down "transmission" "NO_DELETE"
         __service_up "transmission"

@@ -55,8 +55,10 @@ services:
       # service router middlewares : airdcppweb
       #- "traefik.http.routers.airdcppweb.middlewares=airdcppweb-auth@rest,error-middleware,airdcppweb-autoauthbasic"
       #- "traefik.http.routers.airdcppweb-secure.middlewares=airdcppweb-auth@rest,error-middleware,airdcppweb-autoauthbasic"
-      - "traefik.http.routers.airdcppweb.middlewares=airdcppweb-auth@rest,error-middleware"
-      - "traefik.http.routers.airdcppweb-secure.middlewares=airdcppweb-auth@rest,error-middleware"
+      #- "traefik.http.routers.airdcppweb.middlewares=airdcppweb-auth@rest,error-middleware"
+      #- "traefik.http.routers.airdcppweb-secure.middlewares=airdcppweb-auth@rest,error-middleware"
+      - "traefik.http.routers.airdcppweb.middlewares=error-middleware"
+      - "traefik.http.routers.airdcppweb-secure.middlewares=error-middleware"
     networks:
       - default
     expose:

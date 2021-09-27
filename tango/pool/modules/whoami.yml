@@ -24,6 +24,9 @@ services:
       - "traefik.http.routers.whoami-secure.service=whoami"
       - "traefik.http.routers.whoami-secure.tls=true"
       - "traefik.http.routers.whoami-secure.tls.domains[0].main=whoami.${TANGO_DOMAIN:-.*}"
+      # service router middlewares : whoami
+      - "traefik.http.routers.whoami.middlewares=error-middleware"
+      - "traefik.http.routers.whoami-secure.middlewares=error-middleware"
     networks:
       - default
     expose:
