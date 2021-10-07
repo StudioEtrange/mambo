@@ -114,8 +114,8 @@ case ${ACTION} in
 		if [ ! "${MODULE}" = "" ]; then
 			__add_item_declaration_from_cmdline "module"
 		fi
-		# filter exising modules
-		[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_items_exists "module"
+		# filter list with exising modules and keep only names in TANGO_SERVICES_MODULES
+		[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_and_scale_items "module"
 		
 
 		# generate bash env file
@@ -143,7 +143,7 @@ case ${ACTION} in
 					__add_item_declaration_from_cmdline "module"
 				fi
 				# filter exising modules
-				[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_items_exists "module"
+				[ ! "${TANGO_SERVICES_MODULES}" = "" ] && __filter_and_scale_items "module"
 			fi
 		fi
 		# some modules have been defined in one of env files but not as env var
@@ -174,7 +174,7 @@ case ${ACTION} in
 			__add_item_declaration_from_cmdline "plugin"
 		fi
 		# check plugins exist and build list and map
-		[ ! "${TANGO_PLUGINS}" = "" ] && __filter_items_exists "plugin"
+		[ ! "${TANGO_PLUGINS}" = "" ] && __filter_and_scale_items "plugin"
 
 		
 
@@ -252,8 +252,12 @@ case ${ACTION} in
 		__add_declared_variables "GENERATED_ENV_FILE_FREEPORT"
 		__add_declared_variables "TANGO_NOT_IN_APP"
 
+		# contains list of modules names (including scaled modules)
 		__add_declared_variables "TANGO_SERVICES_MODULES"
+		# contains list of modules in full definition format (including scaled modules)
 		__add_declared_variables "TANGO_SERVICES_MODULES_FULL"
+		# contains list of modules names which have been scaled to a number of instances
+		__add_declared_variables "TANGO_SERVICES_MODULES_SCALED"
 		__add_declared_variables "TANGO_PLUGINS"
 		__add_declared_variables "TANGO_PLUGINS_FULL"
 
@@ -492,19 +496,6 @@ case ${ACTION} in
 							[ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${!v1}")" = "TRUE" ] && eval NETWORK_PORT_${name^^}_SECURE_REACHABLE=1
 							__add_declared_variables "NETWORK_PORT_${name^^}_SECURE_REACHABLE"
 						fi
-						#[ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${NETWORK_PORT_MAIN}")" = "TRUE" ] && NETWORK_PORT_MAIN_REACHABLE=1
-						#__add_declared_variables "NETWORK_PORT_MAIN_REACHABLE"
-						# [ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${NETWORK_PORT_MAIN_SECURE}")" = "TRUE" ] && NETWORK_PORT_MAIN_SECURE_REACHABLE=1
-						# __add_declared_variables "NETWORK_PORT_MAIN_SECURE_REACHABLE"
-						# [ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${NETWORK_PORT_SECONDARY}")" = "TRUE" ] && NETWORK_PORT_SECONDARY_REACHABLE=1
-						# __add_declared_variables "NETWORK_PORT_SECONDARY_REACHABLE"
-						# [ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${NETWORK_PORT_SECONDARY_SECURE}")" = "TRUE" ] && NETWORK_PORT_SECONDARY_SECURE_REACHABLE=1
-						# __add_declared_variables "NETWORK_PORT_SECONDARY_SECURE_REACHABLE"
-						# [ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${NETWORK_PORT_ADMIN}")" = "TRUE" ] && NETWORK_PORT_ADMIN_REACHABLE=1
-						# __add_declared_variables "NETWORK_PORT_ADMIN_REACHABLE"
-						# [ "$(__check_tcp_port_open "${TANGO_EXTERNAL_IP}" "${NETWORK_PORT_ADMIN_SECURE}")" = "TRUE" ] && NETWORK_PORT_ADMIN_SECURE_REACHABLE=1
-						# __add_declared_variables "NETWORK_PORT_ADMIN_SECURE_REACHABLE"
-
 					done
 				fi
 			;;

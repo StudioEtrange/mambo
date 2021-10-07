@@ -151,7 +151,7 @@ done
 echo "---------==---- MODULES ----==---------"
 echo "* Active modules as a service "
 echo "L-- a module is a predefined service"
-echo "L-- format : <module>[@<network area>][%<service dependency1>][%<service dependency2>][^<vpn id>]"
+echo "L-- format : <module>[@<network area>][%<service dependency1>][%<service dependency2>][~<vpn id>][^<nb instances>]"
 echo "L-- list : ${TANGO_SERVICES_MODULES_FULL}"
 echo "* Available Tango Modules"
 echo "L-- tango modules root : [${TANGO_MODULES_ROOT}]"

@@ -20,6 +20,8 @@ echo L-- API version : ${ORGANIZR2_API_VERSION}
 echo L-- API docker service instance : ${ORGANIZR2_INSTANCE}
 echo " * ORGANIZR2 AUTH"
 echo L-- manage mambo services authorization with organizr : $([ "${ORGANIZR2_AUTHORIZATION}" = "ON" ] && echo "ON" || echo "OFF")
+echo L-- services and subservices auth syncable :
+echo "   ${ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE}"
 # cannot launch docker client from a shell container
 # echo "L-- organizr service status : $(docker inspect -f '{{ .State.Health.Status }}' ${TANGO_APP_NAME}_organizr2 )"
 echo "L-- organizr groups list by id"

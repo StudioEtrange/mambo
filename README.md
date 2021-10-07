@@ -263,7 +263,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Plex or choose one
         * Tab Url : `https://organizr2.mydomain.com/plex` (WARN: this is your portal special entrypoint for plex to put here !)
-        * Ping Url : plex - MUST be same name as listed in `mambo services list`
+        * Ping Url : organizr2_plex
         * Choose image : `plex`
     * Tab editor / Tabs list
         * Group : User
@@ -467,7 +467,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Tautulli or choose one
         * Tab Url : `https://tautulli.mydomain.com`
-        * Ping Url : tautulli - MUST be same name as listed in `mambo services list`
+        * Ping Url : tautulli
         * Choose image : tautulli
     * Tab editor / Tabs list
         * Group : User
@@ -510,7 +510,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Sabnzbd or choose one
         * Tab Url : `https://sabnzbd.mydomain.com`
-        * Ping Url : sabnzbd - MUST be same name as listed in `mambo services list`
+        * Ping Url : sabnzbd
         * Choose image : sabnzbd
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -581,7 +581,7 @@ Into Organizr2
         * Tab editor / add a tab ("plus" button)
             * Tab name : KCC or choose one
             * Tab Url : `https://kcc.mydomain.com`
-            * Ping Url : kcc - MUST be same name as listed in `mambo services list`
+            * Ping Url : kcc
             * Choose image : KCC_logo.png
         * Tab editor / Tabs list 
             * Group : Co-Admin
@@ -617,7 +617,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Medusa or chosse one
         * Tab Url : `https://medusa.mydomain.com`
-        * Ping Url : medusa - MUST be same name as listed in `mambo services list`
+        * Ping Url : medusa
         * Choose image : medusa
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -733,7 +733,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Ombi or choose one
         * Tab Url : `https://ombi.mydomain.com/auth/cookie`
-        * Ping Url : ombi - MUST be same name as listed in `mambo services list`
+        * Ping Url : ombi
         * Choose image : `ombi-plex`
     * Tab editor / Tabs list 
         * Group : User
@@ -807,7 +807,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Overseerr or choose one
         * Tab Url : `https://overseerr.mydomain.com`
-        * Ping Url : overseerr - MUST be same name as listed in `mambo services list`
+        * Ping Url : overseerr
         * Choose image : `overseerr`
     * Tab editor / Tabs list 
         * Group : User
@@ -841,7 +841,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : MKVToolNix or choose one
         * Tab Url : `https://mkvtoolnix.mydomain.com`
-        * Ping Url : mkvtoolnix - MUST be same name as listed in `mambo services list`
+        * Ping Url : mkvtoolnix
         * Choose image : `mkvtoolsnix_logo`
     * Tab editor / Tabs list
         * Group : Co-Admin
@@ -878,7 +878,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Lazylibrarian or choose one
         * Tab Url : `https://lazylibrarian.mydomain.com`
-        * Ping Url : lazylibrarian - MUST be same name as listed in `mambo services list`
+        * Ping Url : lazylibrarian
         * Choose image : `lazylibrarian`
     * Tab editor / Tabs list 
         * Group : Co-Admin
@@ -924,8 +924,8 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : Transmission or choose one
         * Tab Url : `https://internal-transmission.mydomain.com`
-        * Ping Url : transmission - MUST be same name as listed in `mambo services list`
-        * Choose image : `transmission`
+        * Ping Url : transmission_internal - MUST be same name as listed in `mambo services list`
+        * Choose image : `transmission_internal`
     * Tab editor / Tabs list
         * Group : Co-Admin
 
@@ -1038,7 +1038,7 @@ Into Organizr2
     * Tab editor / add a tab ("plus" button)
         * Tab name : books or choose one
         * Tab Url : `https://books.mydomain.com`
-        * Ping Url : calibreweb_books - MUST be same name as listed in `mambo services list`
+        * Ping Url : calibreweb_books
         * Choose image : `calibre-web`
     * Tab editor / Tabs list 
         * Group : User
@@ -1102,7 +1102,7 @@ Into Organizr2
 * Tab editor / add a tab ("plus" button)
     * Tab name : Calibre or choose one
     * Tab Url : `https://calibre.mydomain.com`
-    * Ping Url : calibre - MUST be same name as listed in `mambo services list`
+    * Ping Url : calibre
     * Choose image : cops
 * Tab editor / Tabs list 
     * Group : Co-Admin

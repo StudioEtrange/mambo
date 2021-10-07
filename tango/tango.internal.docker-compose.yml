@@ -156,25 +156,6 @@ services:
     command: >
       bash -c "echo Launching VPN."
 
-  # OFELIA DOCS : https://github.com/mcuadros/ofelia/blob/master/docs/jobs.md
-  # TO USE IT declare it in TANGO_SERVICES_DEFAULT and declare OFELIA_VERSION=v0.3.3
-  # ofelia:
-  #   image: mcuadros/ofelia:${OFELIA_VERSION:-v0.3.2}
-  #   container_name: ${TANGO_INSTANCE_NAME}_ofelia
-  #   user: 0:0
-  #   restart: unless-stopped
-  #   privileged: true
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   labels:
-  #     - "${TANGO_INSTANCE_NAME}.managed=true"
-  #     - 'ofelia.job-local.ping-job.schedule=@every 5s'
-  #     - 'ofelia.job-local.ping-job.command=ping'
-  #   networks:
-  #     - default
-  #   command: >
-  #     daemon --docker
-
 
   # Router
   # traefik launch order do not matter. It can be launched before or after all other services

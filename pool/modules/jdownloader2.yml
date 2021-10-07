@@ -1,3 +1,5 @@
+# https://github.com/jlesage/docker-jdownloader-2
+# NOTE to enable myjdownloader go to settings in jdownloader2 GUI
 volumes:
   jdownloader2_data:
     driver: local
@@ -18,21 +20,50 @@ services:
   # direct download manager
   # https://github.com/PlusMinus0/headless-jd2-docker
   jdownloader2:
-    image: plusminus/jdownloader2-headless:${JDOWNLOADER2_VERSION:-latest}
+    image: jlesage/jdownloader-2:${JDOWNLOADER2_VERSION:-latest}
     container_name: ${TANGO_APP_NAME}_jdownloader2
     depends_on:
       - service_init
     restart: unless-stopped
     volumes:
-      - jdownloader2_download:/opt/JDownloader/Downloads
-      - jdownloader2_data:/opt/JDownloader/cfg
+      - jdownloader2_download:/output
+      - jdownloader2_data:/config
     environment:
-      - UID=${TANGO_USER_ID:-0}
-      - GID=${TANGO_GROUP_ID:-0}
-      - EMAIL=${JDOWNLOADER2_EMAIL:-}
-      - PASSWORD=${JDOWNLOADER2_PASSWORD:-}
+      - USER_ID=${TANGO_USER_ID:-0}
+      - GROUP_ID=${TANGO_GROUP_ID:-0}
+      - KEEP_APP_RUNNING=1
+      - DISPLAY_WIDTH=${JDOWNLOADER2_WIDTH:-1280}
+      - DISPLAY_HEIGHT=${JDOWNLOADER2_HEIGHT-:768}
+      - SECURE_CONNECTION=0
+      - CLEAN_TMP_DIR=1
     labels:
       - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=false"
+      - "traefik.enable=true"
+      # service : jdownloader2
+      - "traefik.http.services.jdownloader2.loadbalancer.server.port=5800"
+      - "traefik.http.services.jdownloader2.loadbalancer.server.scheme=http"
+      - "traefik.http.services.jdownloader2.loadbalancer.passhostheader=true"
+      # middlewares : jdownloader2
+      # service router : jdownloader2
+      - "traefik.http.routers.jdownloader2.entrypoints=${JDOWNLOADER2_ENTRYPOINTS:-entry_main_http}"
+      - "traefik.http.routers.jdownloader2.rule=HostRegexp(`{subdomain:${JDOWNLOADER2_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.jdownloader2.priority=${JDOWNLOADER2_PRIORITY}"
+      - "traefik.http.routers.jdownloader2.service=jdownloader2"
+      - "traefik.http.routers.jdownloader2-secure.entrypoints=${JDOWNLOADER2_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+      - "traefik.http.routers.jdownloader2-secure.rule=HostRegexp(`{subdomain:${JDOWNLOADER2_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+      - "traefik.http.routers.jdownloader2-secure.priority=${JDOWNLOADER2_PRIORITY}"
+      - "traefik.http.routers.jdownloader2-secure.service=jdownloader2"
+      - "traefik.http.routers.jdownloader2-secure.tls=true"
+      - "traefik.http.routers.jdownloader2-secure.tls.domains[0].main=${JDOWNLOADER2_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+      # service router middlewares : jdownloader2
+      - "traefik.http.routers.jdownloader2.middlewares=error-middleware"
+      - "traefik.http.routers.jdownloader2-secure.middlewares=error-middleware"
     networks:
       - default
+    expose:
+      - 5800
+      # VNC Port
+      # - 5900
+      # MyJdownloader Direct Connect Port
+      # - 3128
+

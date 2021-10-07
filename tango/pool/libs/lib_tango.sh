@@ -198,6 +198,9 @@ __create_env_files() {
 	local __target="$1"
 
 	local __file=
+	local __instances_list=
+	local __modules_list=
+	local __scaled_modules_processed=
 	case $__target in
 		bash )
 			__file="${GENERATED_ENV_FILE_FOR_BASH}"
@@ -220,22 +223,54 @@ __create_env_files() {
 		cat <(echo \# --- PART FROM app env file ${TANGO_APP_ENV_FILE}) <(echo) <(echo) "${TANGO_APP_ENV_FILE}" <(echo) >> "${__file}"
 	fi
 
+
+
+	# add modules env files for scaled modules
+	__modules_list="${TANGO_SERVICES_MODULES}"
+	__scaled_modules_processed=
+	if [ ! "$TANGO_SERVICES_MODULES_SCALED" = "" ]; then
+		__tango_log "DEBUG" "tango" "create_env_files for $__target : create env files and add modules env files for *scaled* modules : $TANGO_SERVICES_MODULES_SCALED"
+		for m in ${TANGO_SERVICES_MODULES_SCALED}; do
+			__instances_list="${m^^}_INSTANCES_LIST"
+
+			for i in ${!__instances_list}; do
+				# app modules overrides tango modules
+				if [ -f "${TANGO_APP_MODULES_ROOT}/${m}.env" ]; then
+					__tango_log "DEBUG" "tango" "create_env_files for $__target : app module ${m} instance ${i} : add env file : ${TANGO_APP_MODULES_ROOT}/${m}.env"
+					sed -e "s/${m}\([^a-zA-Z0-9]\)*/${i}\1/" -e "s/${m^^}\([^a-zA-Z0-9]\)*/${i^^}\1/g" <(echo \# --- PART FROM modules env file ${TANGO_APP_MODULES_ROOT}/${m}.env) <(echo) <(echo) "${TANGO_APP_MODULES_ROOT}/${m}.env" <(echo) >> "${__file}"
+				else
+					if [ -f "${TANGO_MODULES_ROOT}/${m}.env" ]; then
+						__tango_log "DEBUG" "tango" "create_env_files for $__target : tango module ${m} instance ${i} : add env file : ${TANGO_MODULES_ROOT}/${m}.env"
+						sed -e "s/${m}\([^a-zA-Z0-9]\)*/${i}\1/" -e "s/${m^^}\([^a-zA-Z0-9]\)*/${i^^}\1/g" <(echo \# --- PART FROM modules env file ${TANGO_MODULES_ROOT}/${m}.env) <(echo) <(echo) "${TANGO_MODULES_ROOT}/${m}.env" <(echo) >> "${__file}"
+					else
+						__tango_log "DEBUG" "tango" "create_env_files for $__target : *scaled* module $m do not have an env file (${TANGO_APP_MODULES_ROOT}/${m}.env nor ${TANGO_MODULES_ROOT}/${m}.env do not exists) might be an error"
+					fi
+				fi
+				__scaled_modules_processed="${__scaled_modules_processed} ${i}"
+			done
+		done
+		# remove from list scaled modules already processed
+		__modules_list="$($STELLA_API filter_list_with_list "${__modules_list}" "${__scaled_modules_processed}")"
+	fi
+
 	# add modules env files
-	__tango_log "DEBUG" "tango" "create_env_files for $__target : add modules env files for modules : ${TANGO_SERVICES_MODULES}"
-	for s in ${TANGO_SERVICES_MODULES}; do
+	__tango_log "DEBUG" "tango" "create_env_files for $__target : add modules env files for modules : ${__modules_list}"
+	for s in ${__modules_list}; do
 		# app modules overrides tango modules
 		if [ -f "${TANGO_APP_MODULES_ROOT}/${s}.env" ]; then
-			__tango_log "DEBUG" "tango" "create_env_files for $__target : add app module env file for this module : ${TANGO_APP_MODULES_ROOT}/${s}.env"
+			__tango_log "DEBUG" "tango" "create_env_files for $__target : app module ${s} : add env file : ${TANGO_APP_MODULES_ROOT}/${s}.env"
 			cat <(echo \# --- PART FROM modules env file ${TANGO_APP_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_APP_MODULES_ROOT}/${s}.env" <(echo) >> "${__file}"
 		else
 			if [ -f "${TANGO_MODULES_ROOT}/${s}.env" ]; then
-				__tango_log "DEBUG" "tango" "create_env_files for $__target : add tango module env file for this module : ${TANGO_MODULES_ROOT}/${s}.env"
+				__tango_log "DEBUG" "tango" "create_env_files for $__target : tango module ${s} : add env file : ${TANGO_MODULES_ROOT}/${s}.env"
 				cat <(echo \# --- PART FROM modules env file ${TANGO_MODULES_ROOT}/${s}.env) <(echo) <(echo) "${TANGO_MODULES_ROOT}/${s}.env" <(echo) >> "${__file}"
 			else
 				__tango_log "DEBUG" "tango" "create_env_files for $__target : module $s do not have an env file (${TANGO_APP_MODULES_ROOT}/${s}.env nor ${TANGO_MODULES_ROOT}/${s}.env do not exists) maybe anormal or not"
 			fi
 		fi
 	done
+
+
 
 	# add user env file
 	if [ -f "${TANGO_USER_ENV_FILE}" ]; then
@@ -357,9 +392,13 @@ __create_docker_compose_file() {
 	# define network area
 	__set_network_area_all
 
-
+	# add module to compose file
 	__set_module_all
+
+	# declare all active service as "tango" service depdenciess in compose file
 	__set_active_services_all
+
+	# manage times volume
 	__set_time_all
 	
 	# attach all services to entrypoints
@@ -375,16 +414,23 @@ __create_docker_compose_file() {
 	# set priority for error router after to override default setted values for any service
 	__set_error_engine
 	__add_service_direct_port_access_all
+
+	# environnment var management
+	__add_environment_service_all
 	__add_gpu_all
+
+	# volume management
 	__add_volume_artefact_all
 	__add_volume_pool_and_plugins_data_all
+	__add_volume_service_all
+
 	__add_generated_env_file_all
 	__set_letsencrypt_service_all
 	__create_vpn_all
 
 	# do this after other compose modification 	
 	# because it remove some network definition
-	# and because some methods below add service to VPN_x_SERVICES
+	# and because some methods above add service to VPN_x_SERVICES
 	__set_vpn_service_all
 
 
@@ -496,7 +542,46 @@ __set_certificates_all() {
 	done
 }
 
+# attach existing volumes to compose service
+__add_volume_service_all() {
+	local _t=
+	for _s in $(compgen -A variable | grep _ADDITIONAL_VOLUMES$); do
+		_s="${_s%_ADDITIONAL_VOLUMES}"
+		if __check_docker_compose_service_exist "${_s,,}"; then
+			_t="${_s}_ADDITIONAL_VOLUMES"
+			for _v in ${!_t}; do
+				__add_volume_mapping_service "${_s,,}" "${_v}"
+				__tango_log "DEBUG" "tango" "add_volume_service_all : attach volume : ${_v} to compose service : ${_s,,}."
+			done
+		else
+			__tango_log "WARN" "tango" "add_volume_service_all : service compose ${_s,,} declared as ${_s}_ADDITIONAL_VOLUMES do not exist."
+		fi
+	done
+}
 
+# additional eenvironment variable in compose file for each services
+# NOTE in general case we add variable inside service just by using __add_declared_variable
+# but those variables are shared by all services. If we want different values for each service of a variable we need to add them
+# through compose env file
+__add_environment_service_all() {
+
+	local _t=
+	for _s in $(compgen -A variable | grep _SPECIFIC_ENVVAR$); do
+		_s="${_s%_SPECIFIC_ENVVAR}"
+		if __check_docker_compose_service_exist "${_s,,}"; then
+			_t="${_s}_SPECIFIC_ENVVAR"
+			for _e in ${!_t}; do
+				yq w -i -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${_s,,}.environment[+]" "${_e}"
+			done
+		else
+			__tango_log "WARN" "tango" "add_environment_service_all : service compose ${_s,,} declared as ${_s}_SPECIFIC_ENVVAR  do not exist."
+		fi
+	done
+
+
+
+
+}
 
 # add a artefact_xxx named volume defintion
 # attach this artefact_xxx named volume to a /$TANGO_ARTEFACT_MOUNT_POINT/xxxx folder to each service listed in TANGO_ARTEFACT_SERVICES
@@ -1055,16 +1140,32 @@ __add_service_direct_port_access_all() {
 # ITEMS MANAGEMENT (an item is a module or a plugin) -----------------------------------------
 
 __set_module_all() {
-	local __array_list_names=( ${TANGO_SERVICES_MODULES} )
-	local __array_list_full=( ${TANGO_SERVICES_MODULES_FULL} )
 
-	for index in ${!__array_list_names[*]}; do
-		__set_module "${__array_list_full[$index]}"
+
+	__tango_log "DEBUG" "tango" "set_module_all : process scaled modules : ${TANGO_SERVICES_MODULES_SCALED}"
+	local __instances_list_full=
+	local __scaled_modules_processed=
+	for m in ${TANGO_SERVICES_MODULES_SCALED}; do
+		__instances_list_full="${m^^}_INSTANCES_LIST_FULL"
+		for i in ${!__instances_list_full}; do
+			__set_module "$i" "${m}"
+			__scaled_modules_processed="${__scaled_modules_processed} ${i}"
+		done
+	done
+
+	
+	# remove from list scaled modules already processed
+	local __array_list_full=( $($STELLA_API filter_list_with_list "${TANGO_SERVICES_MODULES_FULL}" "${__scaled_modules_processed}") )
+	__tango_log "DEBUG" "tango" "set_module_all : process other modules : ${__array_list_full[*]}"
+	for m in ${__array_list_full[*]}; do
+		__set_module "${m}"
 	done
 }
 
 __set_module() {
 	local __module="$1"
+	# optional - name of the module which have been scaled
+	local __original_module_scaled="$2"
 
 	__tango_log "DEBUG" "tango" "set_module : process module declared with this form : ${__module}"
 	__parse_item "module" "${__module}" "_MODULE"
@@ -1076,14 +1177,22 @@ __set_module() {
 	case ${_MODULE_OWNER} in
 		APP )
 			__tango_log "DEBUG" "tango" "set_module : ${__module} is an app module"
-			# NOTE : if problem appears with anchors in module
-			yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_APP_MODULES_ROOT}/${_MODULE_NAME}.yml")
+			if [ "$__original_module_scaled" = "" ]; then
+				yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_APP_MODULES_ROOT}/${_MODULE_NAME}.yml")
+			else
+				__tango_log "DEBUG" "tango" "set_module : ${__module} is an instance of scaled module : $__original_module_scaled"
+				yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_APP_MODULES_ROOT}/${__original_module_scaled}.yml" | sed -e "s/${__original_module_scaled}\([^a-zA-Z0-9]\)*/${_MODULE_NAME}\1/g" -e "s/${__original_module_scaled^^}\([^a-zA-Z0-9]\)*/${_MODULE_NAME^^}\1/g")
+			fi
 			#yq m -i -a=overwrite -- "${GENERATED_DOCKER_COMPOSE_FILE}" "${TANGO_APP_MODULES_ROOT}/${_MODULE_NAME}.yml"
 		;;
 		TANGO )
 			__tango_log "DEBUG" "tango" "set_module : ${__module} is a tango module"
-			# NOTE : if problem appears with anchors in module
-			yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_MODULES_ROOT}/${_MODULE_NAME}.yml")
+			if [ "$__original_module_scaled" = "" ]; then
+				yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_MODULES_ROOT}/${_MODULE_NAME}.yml")
+			else
+				__tango_log "DEBUG" "tango" "set_module : ${__module} is an instance of scaled module : $__original_module_scaled"
+				yq m -i -a=append -- "${GENERATED_DOCKER_COMPOSE_FILE}" <(yq r --explodeAnchors "${TANGO_MODULES_ROOT}/${__original_module_scaled}.yml" | sed -e "s/${__original_module_scaled}\([^a-zA-Z0-9]\)*/${_MODULE_NAME}\1/g" -e "s/${__original_module_scaled^^}\([^a-zA-Z0-9]\)*/${_MODULE_NAME^^}\1/g")
+			fi
 			#yq m -i -a=overwrite -- "${GENERATED_DOCKER_COMPOSE_FILE}" "${TANGO_MODULES_ROOT}/${_MODULE_NAME}.yml"
 		;;
 	esac
@@ -1149,6 +1258,45 @@ __set_module() {
 	__tango_log "DEBUG" "tango" "set_module : ${__module} is declared to be attached to vpn id : ${_MODULE_VPN_ID}"
 	if [ ! "${_MODULE_VPN_ID}" = "" ]; then 
 		_vpn="${_MODULE_VPN_ID^^}_SERVICES" && eval "export ${_vpn}=\"${!_vpn} ${__module}\""
+	fi
+
+}
+
+# get a list of instances name for a scaled modules
+# for a module named mod with MOD_INSTANCES_LIST="foo bar"
+#		__get_scaled_module_instances_list "mod" "4"   --> "foo bar mod_instance_3 mod_instance_4"
+#		__get_scaled_module_instances_list "mod" "1"   --> "foo"
+__get_scaled_module_instances_list() {
+	local __module_name="$1"
+	local __instances_nb="$2"
+
+	local __instances_list=
+	local __size=0
+	local __nb=
+
+	if [ "${__instances_nb}" -le 0 ]; then
+		echo -n
+	else
+		# predefined instances list
+		__instances_list="${__module_name^^}_INSTANCES_LIST"
+		__instances_list="${!__instances_list}"
+
+		for i in ${__instances_list}; do ((__size ++)); done
+		if [ ${__instances_nb} -gt ${__size} ]; then
+			
+			__nb=$(( __instances_nb - ${__size} ))
+			for i in $(seq $((__size+1)) $((__size+__nb)) ); do
+				__instances_list="${__instances_list} ${__module_name}_instance_${i}"
+			done
+			echo -n "$__instances_list"
+		else
+			__nb=0
+			for i in ${__instances_list}; do
+				echo -n "$i "
+				((__nb++))
+				[ ${__nb} -eq ${__instances_nb} ] && break
+			done
+		fi
 	fi
 
 }
@@ -1242,11 +1390,11 @@ __add_item_declaration_from_cmdline() {
 		;;
 	esac
 
-	__list_names_from_cmd_line="$(echo "${__cmd_line_option//:/ }" | sed -e 's/[@%\^#][^ ]* */ /g')"
+	__list_names_from_cmd_line="$(echo "${__cmd_line_option//:/ }" | sed -e 's/[@%\^#~][^ ]* */ /g')"
 	__result_list="${__cmd_line_option}"
 	for m in ${__list_full}; do
 		case ${__type} in
-			module ) __name="$(echo $m | sed 's,^\([^@%\^]*\).*$,\1,')" ;;
+			module ) __name="$(echo $m | sed 's,^\([^@%\^~]*\).*$,\1,')" ;;
 			plugin ) __name="$(echo $m | sed 's,^\([^#%]*\).*$,\1,')" ;;
 		esac
 		if ! $STELLA_API list_contains "${__list_names_from_cmd_line}" "${__name}"; then
@@ -1267,15 +1415,16 @@ __add_item_declaration_from_cmdline() {
 	esac
 }
 
-# filter existing items
-# split item list between full list and name list
-# build associative array for mapping service and plugin that are attached to 
+# filter and scale existing items
+#  - split item list between full list and name list
+#  - build associative array for mapping service and plugin that are attached to 
+#  - parse scaled module and fix modules list
 # type : module | plugin
-__filter_items_exists() {
+__filter_and_scale_items() {
 
 	local __type="${1}"
 
-	__tango_log "DEBUG" "tango" "filter_items_exists ${__type}s"
+	__tango_log "DEBUG" "tango" "filter_and_scale_items ${__type}s"
 
 	local __list_full=
 	local __list_names=
@@ -1298,47 +1447,93 @@ __filter_items_exists() {
 		;;
 	
 	esac
-	__list_names="$(echo "${__list_full}" | sed -e 's/[@%\^#][^ ]* */ /g')"
+
+	__list_names="$(echo "${__list_full}" | sed -e 's/[@%~\^#][^ ]* */ /g')"
 
 
 
 	# filter existing items
 	local __name
 	local __full
+	local __var
 	local __array_list_names=( $__list_names )
 	local __array_list_full=( $__list_full )
 	__list_names=
 	__list_full=
 	for index in ${!__array_list_names[*]}; do
 	
-		__item_exists=""
+		__item_exists=
+		__item_scalable=
 		__name="${__array_list_names[$index]}"
 		__full="${__array_list_full[$index]}"
-		# look for item file in current app
+		# look for an existing item file in current app
 		if [ -f "${__app_folder}/${__name}${__file_ext}" ]; then
 			__item_exists="1"
+			[ -f "${__app_folder}/${__name}.scalable" ] && __item_scalable="1"
 		else
-			# look for item file in tango folder
+			# look for an existing item file in tango folder
 			if [ -f "${__tango_folder}/${__name}${__file_ext}" ]; then
 				__item_exists="1"
+				[ -f "${__tango_folder}/${__name}.scalable" ] && __item_scalable="1"
 			fi
 		fi
 
 
 
 		if [ "${__item_exists}" = "1" ]; then
-			__list_names="${__list_names} ${__name}"
-			__list_full="${__list_full} ${__full}"
-			if [ "${__type}" = "plugin" ]; then
-				__parse_item "plugin" "${__array_list_full[$index]}" "PLUGIN"
-				for s in ${PLUGIN_LINKS}; do
-					TANGO_PLUGINS_BY_SERVICE_FULL["${s}"]="${TANGO_PLUGINS_BY_SERVICE_FULL[$s]} ${__full}"
-					TANGO_SERVICES_BY_PLUGIN_FULL["${__name}"]="${TANGO_SERVICES_BY_PLUGIN_FULL[${__name}]} ${s}"
-				done
-				for s in ${PLUGIN_LINKS_AUTO_EXEC}; do
-					TANGO_PLUGINS_BY_SERVICE_FULL_AUTO_EXEC["${s}"]="${TANGO_PLUGINS_BY_SERVICE_FULL_AUTO_EXEC[$s]} ${__full}"
-				done
-			fi
+			
+			case ${__type} in
+				plugin )
+					__parse_item "plugin" "${__array_list_full[$index]}" "PLUGIN"
+					for s in ${PLUGIN_LINKS}; do
+						TANGO_PLUGINS_BY_SERVICE_FULL["${s}"]="${TANGO_PLUGINS_BY_SERVICE_FULL[$s]} ${__full}"
+						TANGO_SERVICES_BY_PLUGIN_FULL["${__name}"]="${TANGO_SERVICES_BY_PLUGIN_FULL[${__name}]} ${s}"
+					done
+					for s in ${PLUGIN_LINKS_AUTO_EXEC}; do
+						TANGO_PLUGINS_BY_SERVICE_FULL_AUTO_EXEC["${s}"]="${TANGO_PLUGINS_BY_SERVICE_FULL_AUTO_EXEC[$s]} ${__full}"
+					done
+					__list_names="${__list_names} ${__name}"
+					__list_full="${__list_full} ${__full}"
+				;;
+
+				module )
+					__parse_item "module" "${__array_list_full[$index]}" "MODULE"
+					# test if this module is scaled to nb instances
+					if [ ! "$MODULE_INSTANCES_NB" = "" ]; then
+						
+						if [ "${__item_scalable}" = "1" ]; then
+							eval "export ${__name^^}_IS_SCALABLE=1"
+							__add_declared_variables "${__name^^}_IS_SCALABLE"
+
+							TANGO_SERVICES_MODULES_SCALED="${TANGO_SERVICES_MODULES_SCALED} ${__name}"
+								
+							__var="$(__get_scaled_module_instances_list "${__name}" "$MODULE_INSTANCES_NB")"
+							__var="$($STELLA_API trim "${__var}")"
+							eval "export ${__name^^}_INSTANCES_LIST=\"${__var}\""
+							__add_declared_variables "${__name^^}_INSTANCES_LIST"
+							eval "export ${__name^^}_INSTANCES_NB=${MODULE_INSTANCES_NB}"
+							__add_declared_variables "${__name^^}_INSTANCES_NB"
+
+							__list_names="${__list_names} ${__var}"
+							__var="${__var// /$MODULE_EXTENDED_DEF }"
+							__list_full="${__list_full} ${__var}"
+							__list_full="${__list_full}${MODULE_EXTENDED_DEF}"
+
+							eval "export ${__name^^}_INSTANCES_LIST_FULL=\"${__var}${MODULE_EXTENDED_DEF}\""
+							__add_declared_variables "${__name^^}_INSTANCES_LIST_FULL"
+							
+							__tango_log "DEBUG" "tango" "filter_and_scale_items : module ${__name} is scaled to ${MODULE_INSTANCES_NB} instances"
+						else
+							__tango_log "ERROR" "tango" "Trying to scale ${__name} to ${MODULE_INSTANCES_NB}, but this module have not be designed to be scaled (no ${__name}.scalable file found)."
+							exit 1
+						fi
+					else
+						__list_names="${__list_names} ${__name}"
+						__list_full="${__list_full} ${__full}"
+					fi
+				;;
+			esac
+			
 		else
 			__tango_log "WARN" "tango" "${__type} ${__name} not found."
 		fi
@@ -1350,15 +1545,15 @@ __filter_items_exists() {
 		module )
 			TANGO_SERVICES_MODULES_FULL="${__list_full}"
 			TANGO_SERVICES_MODULES="${__list_names}"
-			__tango_log "DEBUG" "tango" "filter_items_exists : existing modules full format list : ${TANGO_SERVICES_MODULES_FULL}"
-			__tango_log "DEBUG" "tango" "filter_items_exists : existing modules only names list : ${TANGO_SERVICES_MODULES}"
+			__tango_log "DEBUG" "tango" "filter_and_scale_items : existing modules full format list : ${TANGO_SERVICES_MODULES_FULL}"
+			__tango_log "DEBUG" "tango" "filter_and_scale_items : existing modules only names list : ${TANGO_SERVICES_MODULES}"
 			
 		;;
 		plugin )
 			TANGO_PLUGINS_FULL="${__list_full}"
 			TANGO_PLUGINS="${__list_names}"
-			__tango_log "DEBUG" "tango" "filter_items_exists : existing plugins full format list : ${TANGO_PLUGINS_FULL}"
-			__tango_log "DEBUG" "tango" "filter_items_exists : existing plugins only names list : ${TANGO_PLUGINS}"
+			__tango_log "DEBUG" "tango" "filter_and_scale_items : existing plugins full format list : ${TANGO_PLUGINS_FULL}"
+			__tango_log "DEBUG" "tango" "filter_and_scale_items : existing plugins only names list : ${TANGO_PLUGINS}"
 		;;
 	esac
 
@@ -1366,7 +1561,7 @@ __filter_items_exists() {
 
 # type : module | plugin
 # item format :
-#	 	<module>[@<network area>][%<service dependency1>][%<service dependency2>][^<vpn id>]
+#	 	<module>[@<network area>][%<service dependency1>][%<service dependency2>][^nb instance][~<vpn id>]
 #		<plugin>[%<auto exec at launch into service1>][%!<manual exec into service2>][#arg1][#arg2]
 # __result_prefix : variable prefix to store result
 __parse_item() {
@@ -1380,6 +1575,8 @@ __parse_item() {
 
 	# name
 	eval ${__result_prefix}_NAME=
+	# extended part of module definition (everything except name)
+	eval ${__result_prefix}_EXTENDED_DEF=
 	# item is in APP or TANGO folder
 	eval ${__result_prefix}_OWNER=
 	# arguments list to pass to item
@@ -1392,19 +1589,25 @@ __parse_item() {
 	eval ${__result_prefix}_LINKS_AUTO_EXEC=
 	# vpn id to bind item to
 	eval ${__result_prefix}_VPN_ID=
+	# scale module to nb instances
+	eval ${__result_prefix}_INSTANCES_NB=
 
-
-	# item name
+	# item name and extended part
 	local __name=
+	local __ext=
 	case ${__type} in 
 		plugin )
 			__name="$(echo $__item | sed 's,^\([^#%]*\).*$,\1,')"
 			eval ${__result_prefix}_NAME="${__name}"
+			__ext="$(echo $__item | sed 's,^\([^#%]*\)\(.*\)$,\2,')"
+			eval ${__result_prefix}_EXTENDED_DEF="${__ext}"
 		;;
 
 		module )
-			__name="$(echo $__item | sed 's,^\([^@%\^]*\).*$,\1,')"
+			__name="$(echo $__item | sed 's,^\([^~@%\^]*\).*$,\1,')"
 			eval ${__result_prefix}_NAME="${__name}"
+			__ext="$(echo $__item | sed 's,^\([^~@%\^]*\)\(.*\)$,\2,')"
+			eval ${__result_prefix}_EXTENDED_DEF="${__ext}"
 			;;
 	esac
 	
@@ -1424,7 +1627,7 @@ __parse_item() {
 		# network area
 		# symbol : @
 		if [ -z "${__item##*@*}" ]; then
-			local __network_area="$(echo $__item | sed 's,^.*@\([^%#\^]*\).*$,\1,')"
+			local __network_area="$(echo $__item | sed 's,^.*@\([^~%#\^]*\).*$,\1,')"
 			eval ${__result_prefix}_NETWORK_AREA="${__network_area}"
 		fi
 	fi
@@ -1432,7 +1635,7 @@ __parse_item() {
 	# links list : service dependency or attach point list
 	# symbol : %
 	if [ -z "${__item##*%*}" ]; then
-		local __service_dependency_list="$(echo $__item | sed 's,^[^%]*%\([^@#\^]*\).*$,\1,')"
+		local __service_dependency_list="$(echo $__item | sed 's,^[^%]*%\([^~@#\^]*\).*$,\1,')"
 		__service_dependency_list="${__service_dependency_list//%/ }"
 		local __tmp_list=
 		local __tmp_list_exec=
@@ -1458,10 +1661,19 @@ __parse_item() {
 	fi
 
 	if [ "${__type}" = "module" ]; then
-		# vpn id
+		# nb instances
 		# symbol : ^
 		if [ -z "${__item##*^*}" ]; then
-			local __vpn_id="$(echo $__item | sed 's,^.*\^\([^@#%]*\).*$,\1,')"
+			local __instances_nb="$(echo $__item | sed 's,^.*\^\([^~@#%]*\).*$,\1,')"
+			eval ${__result_prefix}_INSTANCES_NB="${__instances_nb}"
+		fi
+	fi
+
+	if [ "${__type}" = "module" ]; then
+		# vpn id
+		# symbol : ~
+		if [ -z "${__item##*~*}" ]; then
+			local __vpn_id="$(echo $__item | sed 's,^.*\~\([^@#%\^]*\).*$,\1,')"
 			eval ${__result_prefix}_VPN_ID="${__vpn_id}"
 		fi
 	fi
@@ -1480,7 +1692,7 @@ __parse_item() {
 			;;
 	esac
 
-	# we have already test item exists in __filter_items_exists
+	# we have already test item exists in filter_and_scale_items
 	# so item is either in APP folder or TANGO folder
 	if [ -f "${__app_folder}/${__name}${__file_ext}" ]; then
 		eval ${__result_prefix}_OWNER="APP"
@@ -1543,6 +1755,7 @@ __list_items() {
 
 __set_error_engine() {
 
+	__tango_log "DEBUG" "tango" "set_error_engine"
 
 	__set_priority_router "error" "${ROUTER_PRIORITY_ERROR_VALUE}"
 	case ${NETWORK_REDIRECT_HTTPS} in
@@ -1607,19 +1820,6 @@ __pick_free_port() {
 				echo "NETWORK_PORT_${name^^}_SECURE=${__free_port_list[$i]}" >> "${GENERATED_ENV_FILE_FREEPORT}"
 				(( i ++ ))
 			fi
-			# NETWORK_PORT_MAIN=${__free_port_list[0]}
-			# NETWORK_PORT_MAIN_SECURE=${__free_port_list[1]}
-			# NETWORK_PORT_SECONDARY=${__free_port_list[2]}
-			# NETWORK_PORT_SECONDARY_SECURE=${__free_port_list[3]}
-			# NETWORK_PORT_ADMIN=${__free_port_list[4]}
-			# NETWORK_PORT_ADMIN_SECURE=${__free_port_list[5]}
-
-			# echo "NETWORK_PORT_MAIN=${__free_port_list[0]}" > "${GENERATED_ENV_FILE_FREEPORT}"
-			# echo "NETWORK_PORT_MAIN_SECURE=${__free_port_list[1]}" >> "${GENERATED_ENV_FILE_FREEPORT}"
-			# echo "NETWORK_PORT_SECONDARY=${__free_port_list[2]}" >> "${GENERATED_ENV_FILE_FREEPORT}"
-			# echo "NETWORK_PORT_SECONDARY_SECURE=${__free_port_list[3]}" >> "${GENERATED_ENV_FILE_FREEPORT}"
-			# echo "NETWORK_PORT_ADMIN=${__free_port_list[4]}" >> "${GENERATED_ENV_FILE_FREEPORT}"
-			# echo "NETWORK_PORT_ADMIN_SECURE=${__free_port_list[5]}" >> "${GENERATED_ENV_FILE_FREEPORT}"
 		done
 	fi
 }
@@ -1703,6 +1903,7 @@ __create_vpn() {
 __check_docker_compose_service_exist() {
 	local __service="$1"
 	
+	[ "${__service}" = "" ] && return 1
 	[ ! -z "$(yq r -- "${GENERATED_DOCKER_COMPOSE_FILE}" "services.${__service}.image")" ]
 	return $?
 }
@@ -2049,7 +2250,7 @@ __set_entrypoint_service() {
 }
 
 # set a priority for a traefik router
-__set_priority_router() {	
+__set_priority_router() {
 	local __service="$1"
 	local __priority="$2"
 
@@ -2069,6 +2270,8 @@ __set_redirect_https_service() {
 	local __service="$1"
 	
 	__service="${__service^^}"
+
+	__tango_log "DEBUG" "tango" "set_redirect_https_service : change rule priority of ${__service} to be overriden by the http-catchall redirect to https rule"
 
 	# determine how much priority we have to lower the router
 	local __lower_http_router_priority_value="$(( ROUTER_PRIORITY_DEFAULT_VALUE - ROUTER_PRIORITY_HTTP_TO_HTTPS_VALUE + (ROUTER_PRIORITY_HTTP_TO_HTTPS_VALUE / 2) ))"

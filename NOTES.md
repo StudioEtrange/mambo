@@ -307,32 +307,6 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
 
 
 
-## Backup solutions
-
-* https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
-* Rclone (Mirroring tool)
-    * https://rclone.org/ 
-    * rclone desktop browser : https://github.com/kapitainsky/RcloneBrowser
-    * rclone desktop browser on docker with VNC : https://github.com/romancin/rclonebrowser-docker
-    * rclone for android : https://github.com/x0b/rcx
-
-* restic (backup tool)
-    * https://github.com/restic/restic
-    * have a lot of storage connectivity including using rclone
-
-* Borg (backup tool)
-    * https://www.borgbackup.org/
-
-* Duplicacy
-    * https://duplicacy.com/
-    * command line version is free and open source
-
-* rclone vs restic : 
-    * Rclone is more of a mirroring tool while restic is a backup tool.
-    * https://www.reddit.com/r/DataHoarder/comments/ogfyq2/how_to_sue_google_drive_for_a_large_backup_to_a/h4kus5t?utm_source=share&utm_medium=web2x&context=3
-
-* restic vs borg vs duplicati vs ducplicacy
-    * https://forum.duplicati.com/t/big-comparison-borg-vs-restic-vs-arq-5-vs-duplicacy-vs-duplicati/9952
 
 ### google drive
 
@@ -638,14 +612,25 @@ Into Organizr2
     * https://github.com/linuxserver/docker-calibre
     * https://github.com/cgspeck/docker-rdp-calibre
 
-* scenario 2 : `calibre-web` - alone as server and collection management and reader
+* scenario 2 : `calibre-web` - alone as sweb erver and web collection management and web reader
     * Calibre-Web is a web app providing a clean interface for browsing, reading and downloading eBooks using an existing Calibre database
     * https://github.com/janeczku/calibre-web
     * https://github.com/linuxserver/docker-calibre-web Can convert between ebook formats with a docker mod and can initialize an empty calibre db with my docker mod (from studioetrange)
     * https://github.com/Technosoft2000/docker-calibre-web  <-- NOT CHOOSEN
     * https://github.com/linuxserver/docker-calibre-mod (calibre binaries utilities)
 
-* scenario 3 : `Ubooquity` - alone as server and collection management and reader
+
+* scenario 3 [CHOOSEN] : `calibre-web`for web server and web collection management and web reader AND `calibre management desktop` as desktop collection management and desktop reader  AND dockerised `calibre management desktop` as web collection management
+    * Calibre-Web is a web app providing a clean interface for browsing, reading and downloading eBooks using an existing Calibre database
+    * https://github.com/janeczku/calibre-web
+    * https://github.com/linuxserver/docker-calibre-web Can convert between ebook formats with a docker mod and can initialize an empty calibre db with my docker mod (from studioetrange)
+    * https://github.com/Technosoft2000/docker-calibre-web  <-- NOT CHOOSEN
+    * https://github.com/linuxserver/docker-calibre-mod (calibre binaries utilities)
+
+
+
+
+* scenario 4 : `Ubooquity` - alone as server and collection management and reader
     * Ubooquity is a free home server for your comics and ebooks library
     * http://vaemendis.net/ubooquity/
     * https://github.com/linuxserver/docker-ubooquity
@@ -717,6 +702,19 @@ Into Organizr2
     * Universal assistant download manga script
     * https://github.com/manga-py/manga-py
     * 200 manga provider referenced
+
+
+### OCR Tools
+
+* ocrmypdf
+    * OCR pdf in command line
+    * https://github.com/jbarlow83/OCRmyPDF
+    * https://ocrmypdf.readthedocs.io/en/latest/
+
+* paperless-ng
+    * https://github.com/jonaswinkler/paperless-ng
+    * platform to manage pdf from scan to storage including OCR
+    * paperless-ng uses ocrmypdf internally to OCR since dec 2020 v0.9.5 https://github.com/jonaswinkler/paperless-ng/releases/tag/ng-0.9.5
 
 
 ### Shoko

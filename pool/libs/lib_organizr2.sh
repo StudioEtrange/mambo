@@ -471,8 +471,8 @@ __organizr2_set_context() {
                     __organizr2_auth_group_by_service_all
                     # init ORGANIZR2_AUTH_GROUP_NAME_BY_ID
                     __organizr2_auth_group_name_by_id_all
-                    # by default authorize service not defined as an organizr tab to everybody - use Guest group (999)
-                    ORGANIZR2_DEFAULT_GROUP="999"
+                    # by default authorize service not defined as an organizr tab to simple user - use User group (4)
+                    ORGANIZR2_DEFAULT_GROUP="4"
                 else
                     # organizr2 is not yet healthy, so global array variable (ORGANIZR2_AUTH_GROUP_BY_SERVICE and ORGANIZR2_AUTH_GROUP_NAME_BY_ID) might not yet setted
                     # so block everybody not admin - use Admin group (0)
@@ -580,20 +580,23 @@ __organizr2_auth_make_syncable() {
         __tango_log "DEBUG" "organizr2" "organizr2_auth_make_syncable : these services and subservices can have authorization sync with organizr2 user group : $ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE"
         local __name=
         local __pos=
-        local __temp_list="$($STELLA_API filter_list_with_list "${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER_ACTIVE}" "$(echo ${ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE} | sed -e 's/%[A-Z0-9]*//g')" "FILTER_KEEP")"
-        for s in ${__temp_list}; do
+        #local __temp_list="$($STELLA_API filter_list_with_list "${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER_ACTIVE}" "$(echo ${ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE} | sed -e 's/%[A-Z0-9]*//g')" "FILTER_KEEP")"
+        for s in ${ORGANIZR2_AUTHORIZATION_SERVICES_SYNCABLE}; do
             __name="$(echo $s | sed 's,^\([^%]*\).*$,\1,')"
-            if [ -z "${s##*%*}" ]; then
-                __pos="$(echo $s | sed 's,^.*%\(.*\)$,\1,')"
-            else
-                __pos="FIRST"
+            if $STELLA_API list_contains "${TANGO_SERVICES_ACTIVE} ${TANGO_SUBSERVICES_ROUTER_ACTIVE}" "${__name}"; then
+                if [ -z "${s##*%*}" ]; then
+                    __pos="$(echo $s | sed 's,^.*%\(.*\)$,\1,')"
+                else
+                    __pos="FIRST"
+                fi
+
+                case ${__pos} in
+                    [0-9]* ) __pos="POS ${__pos}";;
+                esac
+
+
+                __attach_middleware_to_service "${__name}" "${__name}-auth@rest" "$__pos"
             fi
-
-            case ${__pos} in
-                [0-9]* ) __pos="POS ${__pos}";;
-            esac
-
-            __attach_middleware_to_service "${__name}" "${__name}-auth@rest" "$__pos"
         done
     fi
 }
@@ -686,7 +689,7 @@ __organizr2_api_launch_request() {
 
 
 # tabs name from organizr will be matched with docker compose service names. Ignoring case.
-# by default the 'ping url' field defined in organizr is used as tab name to match a service
+# by default the 'ping url' field defined in organizr is usedto match a service
 # if 'ping url' is null or empty then the real tab name defined in organir is used
 # http://organizr2.mydomain.com/api/?v1/tab/list
 # http://organizr2.mydomain.com/api/v2/tabs
@@ -794,6 +797,7 @@ __organizr2_auth_group_name_by_id_all() {
 __organizr2_create_auth_middleware_all() {
     local __default_group="${1}"
 
+    # 999 is Guest group, so anybody even not auth on organizr5
     [ "${__default_group}" == "" ] && __default_group="999"
     local __group_id=
     local __temp_list=

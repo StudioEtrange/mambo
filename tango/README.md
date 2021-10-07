@@ -160,6 +160,12 @@ For full list see `tango.internal.env` file
         TANGO_SERVICES_AVAILABLE+=blog
     ```
 
+* Some declared env can be reused with `{{var}}` as value.
+    ```
+        A=1
+        B={{A}}
+    ```
+Recursive parsing do not work `C={{B}}` will not work
 
 ### Using command line variables
 
@@ -297,7 +303,7 @@ A service match a docker container.
 * To activate a module into the current app 
     * use variable list `TANGO_SERVICES_MODULES` or `--module` command line option
     * `--module` command line option is cumulative with variable list `TANGO_SERVICES_MODULES`
-    * Item format of the list is `<module>[@<network area>][%<service dependency1>][%<service dependency2>][^<vpn id>]`
+    * Item format of the list is `<module>[@<network area>][%<service dependency1>][%<service dependency2>][~<vpn id>][^<nb instances>]`
     * by default, will use default tango network area which is main - to choose another area when activating it, either use `--module <module>[@<network area>]` or `TANGO_SERVICES_MODULES=<module>[@<network area>]`. Also, you can set a default network area by adding module to NETWORK_SERVICES_AREA_entrypoint_protocol list (NETWORK_SERVICES_AREA_MAIN_HTTP+=module) in dedicated module.env file.
 
     ```

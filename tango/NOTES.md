@@ -40,3 +40,38 @@
 * Let's encrypt
     * challenge types : https://letsencrypt.org/fr/docs/challenge-types/
 
+
+
+## Backup solutions
+
+* Duplicity
+    * https://geek-cookbook.funkypenguin.co.nz/recipes/duplicity/
+    * docker volume backup system based on duplicity
+
+* docker volume backup system
+    * https://github.com/futurice/docker-volume-backup
+    * https://github.com/offen/docker-volume-backup
+
+* Rclone (Mirroring tool)
+    * https://rclone.org/ 
+    * rclone desktop browser : https://github.com/kapitainsky/RcloneBrowser
+    * rclone desktop browser on docker with VNC : https://github.com/romancin/rclonebrowser-docker
+    * rclone for android : https://github.com/x0b/rcx
+
+* restic (backup tool)
+    * https://github.com/restic/restic
+    * have a lot of storage connectivity including using rclone
+
+* Borg (backup tool)
+    * https://www.borgbackup.org/
+
+* Duplicacy
+    * https://duplicacy.com/
+    * command line version is free and open source
+
+* rclone vs restic : 
+    * Rclone is more of a mirroring tool while restic is a backup tool.
+    * https://www.reddit.com/r/DataHoarder/comments/ogfyq2/how_to_sue_google_drive_for_a_large_backup_to_a/h4kus5t?utm_source=share&utm_medium=web2x&context=3
+
+* restic vs borg vs duplicati vs duplicacy
+    * https://forum.duplicati.com/t/big-comparison-borg-vs-restic-vs-arq-5-vs-duplicacy-vs-duplicati/9952

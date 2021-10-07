@@ -215,11 +215,11 @@ services:
       - "traefik.http.routers.organizr2_plex-secure.tls.domains[0].main=${ORGANIZR2_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
       # sub service router middlewares : organizr2_plex
       # add plex-auth to authorize access to these url http://organizr2.domain.com/plex http://organizr2.domain.com/web only after logged into organizr
-      - "traefik.http.routers.organizr2_plex.middlewares=organizr2_plex-stripprefix,plex-auth@rest"
-      - "traefik.http.routers.organizr2_plex-secure.middlewares=organizr2_plex-stripprefix,plex-auth@rest"
+      - "traefik.http.routers.organizr2_plex.middlewares=organizr2_plex-stripprefix"
+      - "traefik.http.routers.organizr2_plex-secure.middlewares=organizr2_plex-stripprefix"
       # NOTE : do not activate error-middleware, if so plex service will cannot ask for authentification
-      # - "traefik.http.routers.organizr2_plex.middlewares=organizr2_plex-stripprefix,plex-auth@rest,error-middleware"
-      # - "traefik.http.routers.organizr2_plex-secure.middlewares=organizr2_plex-stripprefix,plex-auth@rest,error-middleware"
+      # - "traefik.http.routers.organizr2_plex.middlewares=organizr2_plex-stripprefix,plex-auth@rest"
+      # - "traefik.http.routers.organizr2_plex-secure.middlewares=organizr2_plex-stripprefix,plex-auth@rest"
       # END SPECIAL tip -------------------------------------------------------------------------------------
     networks:
       - default
@@ -560,8 +560,10 @@ services:
       - "traefik.http.routers.calibre-secure.tls=true"
       - "traefik.http.routers.calibre-secure.tls.domains[0].main=${CALIBRE_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
       # service router middlewares : calibre
-      - "traefik.http.routers.calibre.middlewares=calibre-auth@rest,error-middleware"
-      - "traefik.http.routers.calibre-secure.middlewares=calibre-auth@rest,error-middleware"
+      #- "traefik.http.routers.calibre.middlewares=calibre-auth@rest,error-middleware"
+      #- "traefik.http.routers.calibre-secure.middlewares=calibre-auth@rest,error-middleware"
+      - "traefik.http.routers.calibre.middlewares=error-middleware"
+      - "traefik.http.routers.calibre-secure.middlewares=error-middleware"
     networks:
       - default
     expose:
@@ -604,8 +606,10 @@ services:
       - "traefik.http.routers.calibre_2-secure.tls=true"
       - "traefik.http.routers.calibre_2-secure.tls.domains[0].main=${CALIBRE_2_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
       # service router middlewares : calibre
-      - "traefik.http.routers.calibre_2.middlewares=calibre_2-auth@rest,error-middleware"
-      - "traefik.http.routers.calibre_2-secure.middlewares=calibre_2-auth@rest,error-middleware"
+      #- "traefik.http.routers.calibre_2.middlewares=calibre_2-auth@rest,error-middleware"
+      #- "traefik.http.routers.calibre_2-secure.middlewares=calibre_2-auth@rest,error-middleware"
+      - "traefik.http.routers.calibre_2.middlewares=error-middleware"
+      - "traefik.http.routers.calibre_2-secure.middlewares=error-middleware"
     networks:
       - default
     expose:

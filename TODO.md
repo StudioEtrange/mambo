@@ -1,12 +1,14 @@
 #  TODO 
 
+* [ ] add jdownloader2 gui (instead of jdownloader headless) https://github.com/jlesage/docker-jdownloader-2
+
 * [ ] Calibre back cover https://www.mobileread.com/forums/showthread.php?t=268119 ?
 
 * [X] add forward auth to compose file static at each launch AND dynamic at each change ? use organizr2 api and traefik rest api provider
 
 * [ ] lib transmission : generate encoded password for use in Authentification header
 
-* [ ] mydjapi (mydjownloader api for organizrv2)
+* [ ] mydjapi (mydjownloader api for organizrv2) :
     ```
     export MAMBO_HOME="$HOME/mambo"
     mkdir -p ${MAMBO_HOME}/data/myjdapi
