@@ -969,7 +969,7 @@ Calibre-web will print ebooks registerd in a calibre database. When configured, 
 Into Calibre web `https://books.mydomain.com`
 
 * First access :
-    * Location of Calibre database : /books
+    * Location of Calibre database : /calibreweb_books_db
     * Connexion : admin/admin123 (do forget me)
 
 * Admin / Configuration / Edit UI Configuration

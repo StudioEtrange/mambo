@@ -6,6 +6,14 @@ volumes:
       o: bind
       device: ${SABNZBD_DATA_PATH}
     name: ${TANGO_APP_NAME}_sabnzbd_data
+  sabnzbd_watch:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULT_NZB_PATH}
+    name: ${TANGO_APP_NAME}_sabnzbd_watch
+
 
 services:
   # Newzgroup downloader
@@ -23,7 +31,7 @@ services:
       - sabnzbd_data:/config
       # different paths used by sabnzbd
       - download:/download
-      - vault:/vault
+      - sabnzbd_watch:/vault
       - nzbtomedia_data:/scripts
       #- artefact:${TANGO_ARTEFACT_MOUNT_POINT:-/artefact}
     environment:

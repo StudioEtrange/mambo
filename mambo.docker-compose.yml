@@ -77,13 +77,13 @@ volumes:
         o: bind
         device: ${CALIBRE_2_DATA_PATH}
       name: ${TANGO_APP_NAME}_calibre_2_data
-  calibreweb_books_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CALIBREWEB_BOOKS_DATA_PATH}
-    name: ${TANGO_APP_NAME}_calibreweb_books_data
+  # calibreweb_books_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${CALIBREWEB_BOOKS_DATA_PATH}
+  #   name: ${TANGO_APP_NAME}_calibreweb_books_data
   calibredb_books_media:
     driver: local
     driver_opts:
@@ -91,13 +91,13 @@ volumes:
       o: bind
       device: ${CALIBREDB_BOOKS_MEDIA_PATH}
     name: ${TANGO_APP_NAME}_calibredb_books_media
-  calibreweb_press_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CALIBREWEB_PRESS_DATA_PATH}
-    name: ${TANGO_APP_NAME}_calibreweb_press_data
+  # calibreweb_press_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${CALIBREWEB_PRESS_DATA_PATH}
+  #   name: ${TANGO_APP_NAME}_calibreweb_press_data
   calibredb_press_media:
     driver: local
     driver_opts:
@@ -105,13 +105,13 @@ volumes:
       o: bind
       device: ${CALIBREDB_PRESS_MEDIA_PATH}
     name: ${TANGO_APP_NAME}_calibredb_press_media
-  calibreweb_pgames_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CALIBREWEB_PGAMES_DATA_PATH}
-    name: ${TANGO_APP_NAME}_calibreweb_pgames_data
+  # calibreweb_pgames_data:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ${CALIBREWEB_PGAMES_DATA_PATH}
+  #   name: ${TANGO_APP_NAME}_calibreweb_pgames_data
   calibredb_pgames_media:
     driver: local
     driver_opts:
@@ -503,7 +503,7 @@ services:
     environment:
       - PUID=${TANGO_USER_ID:-0}
       - PGID=${TANGO_GROUP_ID:-0}
-      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION_FIXED_VAR:-latest}
       - CALIBRE_CONFIG_DIRECTORY=/config/calibre
       - CALIBRE_TEMP_DIR=/config/calibre/tmp
       - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
@@ -615,131 +615,131 @@ services:
     expose:
       - 8080/tcp
 
-  calibreweb_books:
-    !!merge <<: *default-calibreweb
-    container_name: ${TANGO_APP_NAME}_calibreweb_books
-    volumes:
-      # will contain calibre-web configuration
-      - calibreweb_books_data:/config
-      # different paths used by calibreweb
-      - download:/download
-      - calibredb_books_media:/books
-    environment:
-      - PUID=${TANGO_USER_ID:-0}
-      - PGID=${TANGO_GROUP_ID:-0}
-      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
-      - AUTO_CREATE_DB=/books
-      - CALIBRE_CONFIG_DIRECTORY=/config/calibre
-      - CALIBRE_TEMP_DIR=/config/calibre/tmp
-      - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
-    labels:
-      - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=true"
-      # service : calibreweb_books
-      - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
-      - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
-      - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
-      # middlewares : calibreweb_books
-      # service router : calibreweb_books
-      - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS:-entry_main_http}"
-      - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.calibreweb_books.priority=${CALIBREWEB_BOOKS_PRIORITY}"
-      - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
-      - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
-      - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.calibreweb_books-secure.priority=${CALIBREWEB_BOOKS_PRIORITY}"
-      - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
-      - "traefik.http.routers.calibreweb_books-secure.tls=true"
-      - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=${CALIBREWEB_BOOKS_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
-      # service router middlewares : calibreweb_books
-      #- "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
-      #- "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
-      - "traefik.http.routers.calibreweb_books.middlewares=xframe-allow-all,error-middleware"
-      - "traefik.http.routers.calibreweb_books-secure.middlewares=xframe-allow-all,error-middleware"
+  # calibreweb_books:
+  #   !!merge <<: *default-calibreweb
+  #   container_name: ${TANGO_APP_NAME}_calibreweb_books
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_books_data:/config
+  #     # different paths used by calibreweb
+  #     - download:/download
+  #     - calibredb_books_media:/books
+  #   environment:
+  #     - PUID=${TANGO_USER_ID:-0}
+  #     - PGID=${TANGO_GROUP_ID:-0}
+  #     - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+  #     - AUTO_CREATE_DB=/books
+  #     - CALIBRE_CONFIG_DIRECTORY=/config/calibre
+  #     - CALIBRE_TEMP_DIR=/config/calibre/tmp
+  #     - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
+  #   labels:
+  #     - "${TANGO_INSTANCE_NAME}.managed=true"
+  #     - "traefik.enable=true"
+  #     # service : calibreweb_books
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_books.loadbalancer.passhostheader=true"
+  #     # middlewares : calibreweb_books
+  #     # service router : calibreweb_books
+  #     - "traefik.http.routers.calibreweb_books.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS:-entry_main_http}"
+  #     - "traefik.http.routers.calibreweb_books.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_books.priority=${CALIBREWEB_BOOKS_PRIORITY}"
+  #     - "traefik.http.routers.calibreweb_books.service=calibreweb_books"
+  #     - "traefik.http.routers.calibreweb_books-secure.entrypoints=${CALIBREWEB_BOOKS_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+  #     - "traefik.http.routers.calibreweb_books-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_BOOKS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_books-secure.priority=${CALIBREWEB_BOOKS_PRIORITY}"
+  #     - "traefik.http.routers.calibreweb_books-secure.service=calibreweb_books"
+  #     - "traefik.http.routers.calibreweb_books-secure.tls=true"
+  #     - "traefik.http.routers.calibreweb_books-secure.tls.domains[0].main=${CALIBREWEB_BOOKS_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+  #     # service router middlewares : calibreweb_books
+  #     #- "traefik.http.routers.calibreweb_books.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
+  #     #- "traefik.http.routers.calibreweb_books-secure.middlewares=calibreweb_books-auth@rest,xframe-allow-all,error-middleware"
+  #     - "traefik.http.routers.calibreweb_books.middlewares=xframe-allow-all,error-middleware"
+  #     - "traefik.http.routers.calibreweb_books-secure.middlewares=xframe-allow-all,error-middleware"
   
 
   
-  calibreweb_press:
-    !!merge <<: *default-calibreweb
-    container_name: ${TANGO_APP_NAME}_calibreweb_press
-    volumes:
-      # will contain calibre-web configuration
-      - calibreweb_press_data:/config
-      # different paths used by calibreweb
-      - download:/download
-      - calibredb_press_media:/press
-    environment:
-      - PUID=${TANGO_USER_ID:-0}
-      - PGID=${TANGO_GROUP_ID:-0}
-      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
-      - AUTO_CREATE_DB=/press
-      - CALIBRE_CONFIG_DIRECTORY=/config/calibre
-      - CALIBRE_TEMP_DIR=/config/calibre/tmp
-      - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
-    labels:
-      - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=true"
-      # service : calibreweb_press
-      - "traefik.http.services.calibreweb_press.loadbalancer.server.port=8083"
-      - "traefik.http.services.calibreweb_press.loadbalancer.server.scheme=http"
-      - "traefik.http.services.calibreweb_press.loadbalancer.passhostheader=true"
-      # middlewares : calibreweb_press
-      # service router : calibreweb_press
-      - "traefik.http.routers.calibreweb_press.entrypoints=${CALIBREWEB_PRESS_ENTRYPOINTS:-entry_main_http}"
-      - "traefik.http.routers.calibreweb_press.rule=HostRegexp(`{subdomain:${CALIBREWEB_PRESS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.calibreweb_press.priority=${CALIBREWEB_PRESS_PRIORITY}"
-      - "traefik.http.routers.calibreweb_press.service=calibreweb_press"
-      - "traefik.http.routers.calibreweb_press-secure.entrypoints=${CALIBREWEB_PRESS_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
-      - "traefik.http.routers.calibreweb_press-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_PRESS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.calibreweb_press-secure.priority=${CALIBREWEB_PRESS_PRIORITY}"
-      - "traefik.http.routers.calibreweb_press-secure.service=calibreweb_press"
-      - "traefik.http.routers.calibreweb_press-secure.tls=true"
-      - "traefik.http.routers.calibreweb_press-secure.tls.domains[0].main=${CALIBREWEB_PRESS_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
-      # service router middlewares : calibreweb_press
-      #- "traefik.http.routers.calibreweb_press.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
-      #- "traefik.http.routers.calibreweb_press-secure.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
-      - "traefik.http.routers.calibreweb_press.middlewares=xframe-allow-all,error-middleware"
-      - "traefik.http.routers.calibreweb_press-secure.middlewares=xframe-allow-all,error-middleware"
+  # calibreweb_press:
+  #   !!merge <<: *default-calibreweb
+  #   container_name: ${TANGO_APP_NAME}_calibreweb_press
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_press_data:/config
+  #     # different paths used by calibreweb
+  #     - download:/download
+  #     - calibredb_press_media:/press
+  #   environment:
+  #     - PUID=${TANGO_USER_ID:-0}
+  #     - PGID=${TANGO_GROUP_ID:-0}
+  #     - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+  #     - AUTO_CREATE_DB=/press
+  #     - CALIBRE_CONFIG_DIRECTORY=/config/calibre
+  #     - CALIBRE_TEMP_DIR=/config/calibre/tmp
+  #     - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
+  #   labels:
+  #     - "${TANGO_INSTANCE_NAME}.managed=true"
+  #     - "traefik.enable=true"
+  #     # service : calibreweb_press
+  #     - "traefik.http.services.calibreweb_press.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_press.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_press.loadbalancer.passhostheader=true"
+  #     # middlewares : calibreweb_press
+  #     # service router : calibreweb_press
+  #     - "traefik.http.routers.calibreweb_press.entrypoints=${CALIBREWEB_PRESS_ENTRYPOINTS:-entry_main_http}"
+  #     - "traefik.http.routers.calibreweb_press.rule=HostRegexp(`{subdomain:${CALIBREWEB_PRESS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_press.priority=${CALIBREWEB_PRESS_PRIORITY}"
+  #     - "traefik.http.routers.calibreweb_press.service=calibreweb_press"
+  #     - "traefik.http.routers.calibreweb_press-secure.entrypoints=${CALIBREWEB_PRESS_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+  #     - "traefik.http.routers.calibreweb_press-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_PRESS_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_press-secure.priority=${CALIBREWEB_PRESS_PRIORITY}"
+  #     - "traefik.http.routers.calibreweb_press-secure.service=calibreweb_press"
+  #     - "traefik.http.routers.calibreweb_press-secure.tls=true"
+  #     - "traefik.http.routers.calibreweb_press-secure.tls.domains[0].main=${CALIBREWEB_PRESS_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+  #     # service router middlewares : calibreweb_press
+  #     #- "traefik.http.routers.calibreweb_press.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
+  #     #- "traefik.http.routers.calibreweb_press-secure.middlewares=calibreweb_press-auth@rest,xframe-allow-all,error-middleware"
+  #     - "traefik.http.routers.calibreweb_press.middlewares=xframe-allow-all,error-middleware"
+  #     - "traefik.http.routers.calibreweb_press-secure.middlewares=xframe-allow-all,error-middleware"
 
       
-  calibreweb_pgames:
-    !!merge <<: *default-calibreweb
-    container_name: ${TANGO_APP_NAME}_calibreweb_pgames
-    volumes:
-      # will contain calibre-web configuration
-      - calibreweb_pgames_data:/config
-      # different paths used by calibreweb
-      - download:/download
-      - calibredb_pgames_media:/pgames
-    environment:
-      - PUID=${TANGO_USER_ID:-0}
-      - PGID=${TANGO_GROUP_ID:-0}
-      - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
-      - AUTO_CREATE_DB=/pgames
-      - CALIBRE_CONFIG_DIRECTORY=/config/calibre
-      - CALIBRE_TEMP_DIR=/config/calibre/tmp
-      - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
-    labels:
-      - "${TANGO_INSTANCE_NAME}.managed=true"
-      - "traefik.enable=true"
-      # service : calibreweb_pgames
-      - "traefik.http.services.calibreweb_pgames.loadbalancer.server.port=8083"
-      - "traefik.http.services.calibreweb_pgames.loadbalancer.server.scheme=http"
-      - "traefik.http.services.calibreweb_pgames.loadbalancer.passhostheader=true"
-      # middlewares : calibreweb_pgames
-      # service router : calibreweb_pgames
-      - "traefik.http.routers.calibreweb_pgames.entrypoints=${CALIBREWEB_PGAMES_ENTRYPOINTS:-entry_main_http}"
-      - "traefik.http.routers.calibreweb_pgames.rule=HostRegexp(`{subdomain:${CALIBREWEB_PGAMES_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.calibreweb_pgames.priority=${CALIBREWEB_PGAMES_PRIORITY}"
-      - "traefik.http.routers.calibreweb_pgames.service=calibreweb_pgames"
-      - "traefik.http.routers.calibreweb_pgames-secure.entrypoints=${CALIBREWEB_PGAMES_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
-      - "traefik.http.routers.calibreweb_pgames-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_PGAMES_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
-      - "traefik.http.routers.calibreweb_pgames-secure.priority=${CALIBREWEB_PGAMES_PRIORITY}"
-      - "traefik.http.routers.calibreweb_pgames-secure.service=calibreweb_pgames"
-      - "traefik.http.routers.calibreweb_pgames-secure.tls=true"
-      - "traefik.http.routers.calibreweb_pgames-secure.tls.domains[0].main=${CALIBREWEB_PGAMES_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
-      # service router middlewares : calibreweb_pgames
-      #- "traefik.http.routers.calibreweb_pgames.middlewares=calibreweb_pgames-auth@rest,xframe-allow-all,error-middleware"
-      #- "traefik.http.routers.calibreweb_pgames-secure.middlewares=calibreweb_pgames-auth@rest,xframe-allow-all,error-middleware"
-      - "traefik.http.routers.calibreweb_pgames.middlewares=xframe-allow-all,error-middleware"
-      - "traefik.http.routers.calibreweb_pgames-secure.middlewares=xframe-allow-all,error-middleware"
+  # calibreweb_pgames:
+  #   !!merge <<: *default-calibreweb
+  #   container_name: ${TANGO_APP_NAME}_calibreweb_pgames
+  #   volumes:
+  #     # will contain calibre-web configuration
+  #     - calibreweb_pgames_data:/config
+  #     # different paths used by calibreweb
+  #     - download:/download
+  #     - calibredb_pgames_media:/pgames
+  #   environment:
+  #     - PUID=${TANGO_USER_ID:-0}
+  #     - PGID=${TANGO_GROUP_ID:-0}
+  #     - DOCKER_MODS=studioetrange/calibre-mod:${CALIBRE_MOD_VERSION:-latest}
+  #     - AUTO_CREATE_DB=/pgames
+  #     - CALIBRE_CONFIG_DIRECTORY=/config/calibre
+  #     - CALIBRE_TEMP_DIR=/config/calibre/tmp
+  #     - CALIBRE_CACHE_DIRECTORY=/config/cache/calibre
+  #   labels:
+  #     - "${TANGO_INSTANCE_NAME}.managed=true"
+  #     - "traefik.enable=true"
+  #     # service : calibreweb_pgames
+  #     - "traefik.http.services.calibreweb_pgames.loadbalancer.server.port=8083"
+  #     - "traefik.http.services.calibreweb_pgames.loadbalancer.server.scheme=http"
+  #     - "traefik.http.services.calibreweb_pgames.loadbalancer.passhostheader=true"
+  #     # middlewares : calibreweb_pgames
+  #     # service router : calibreweb_pgames
+  #     - "traefik.http.routers.calibreweb_pgames.entrypoints=${CALIBREWEB_PGAMES_ENTRYPOINTS:-entry_main_http}"
+  #     - "traefik.http.routers.calibreweb_pgames.rule=HostRegexp(`{subdomain:${CALIBREWEB_PGAMES_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_pgames.priority=${CALIBREWEB_PGAMES_PRIORITY}"
+  #     - "traefik.http.routers.calibreweb_pgames.service=calibreweb_pgames"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.entrypoints=${CALIBREWEB_PGAMES_ENTRYPOINTS_SECURE:-entry_main_http_secure}"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.rule=HostRegexp(`{subdomain:${CALIBREWEB_PGAMES_SUBDOMAIN:-}}{domain:${TANGO_DOMAIN:-.*}}`)"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.priority=${CALIBREWEB_PGAMES_PRIORITY}"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.service=calibreweb_pgames"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.tls=true"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.tls.domains[0].main=${CALIBREWEB_PGAMES_SUBDOMAIN:-}${TANGO_DOMAIN:-.*}"
+  #     # service router middlewares : calibreweb_pgames
+  #     #- "traefik.http.routers.calibreweb_pgames.middlewares=calibreweb_pgames-auth@rest,xframe-allow-all,error-middleware"
+  #     #- "traefik.http.routers.calibreweb_pgames-secure.middlewares=calibreweb_pgames-auth@rest,xframe-allow-all,error-middleware"
+  #     - "traefik.http.routers.calibreweb_pgames.middlewares=xframe-allow-all,error-middleware"
+  #     - "traefik.http.routers.calibreweb_pgames-secure.middlewares=xframe-allow-all,error-middleware"

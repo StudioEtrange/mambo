@@ -430,7 +430,7 @@ nzbtomedia can sync some action between sabnzbd, nzbget, medusa, sickbeard, ...
 
 * Organizr / calibreweb auth
     * configure organizr Auth Proxy : https://github.com/causefx/Organizr/issues/1215
-    * organizr Auth proxy is case sensitiv https://github.com/causefx/Organizr/issues/1437
+    * organizr Auth proxy is case sensitive https://github.com/causefx/Organizr/issues/1437
 
 ### Access through traefik without organizr auth for service api
 
